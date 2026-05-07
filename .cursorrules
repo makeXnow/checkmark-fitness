@@ -1,0 +1,94 @@
+# makeXnow Project Integration
+
+You are working on an app that is part of the makeXnow ecosystem.
+
+## Required Files (DO NOT DELETE)
+
+This template includes essential configuration files:
+
+- **`src/vite-env.d.ts`** - Required for TypeScript to understand Vite features like `import.meta.glob`, `import.meta.env`, etc. Without this file, builds will fail with errors like "Property 'glob' does not exist on type 'ImportMeta'".
+
+- **`tsconfig.json`** - Uses strict mode (`noUnusedLocals`, `noUnusedParameters`). If you have unused variables, prefix them with `_` (e.g., `_unusedVar`) to indicate they're intentionally unused.
+
+## First-Time Setup (Onboarding)
+
+If this app has NOT been registered yet, you need to "onboard" it:
+
+1. **Locate the parent system:** `../makeXnow/` (relative to this folder's parent)
+2. **Rename the App:** Open `index.html` and change `<title>New App</title>` to your app's name.
+3. **Open:** `../makeXnow/apps.json`
+3. **Find the next available:**
+   - `id`: Use the format `app-<timestamp>` (e.g., `app-1771224939487`)
+   - `localhostPort`: Start from 9001 and find the next unused port
+   - `order`: Look at the highest existing order number and add 1
+4. **Add a new entry** using this folder's name:
+   ```json
+   {
+     "id": "app-<timestamp>",
+     "name": "<App Display Name>",
+     "description": "",
+     "icon": { "type": "image", "path": "" },
+     "link": "/<slug>",
+     "order": <next_order>,
+     "isExternal": false,
+     "isListed": false,
+     "slugs": ["/<slug>"],
+     "section": "dev",
+     "pagesProject": "mxn-<slug>",
+     "folder": "<FULL_PATH_TO_THIS_FOLDER>",
+     "githubUrl": "",
+     "url": "",
+     "localhostPort": 9023,
+     "logs": [],
+     "todos": [],
+     "domain": "makexnow.com"
+   }
+   ```
+   **Notes:**
+   - `section` can be `"public"`, `"dev"`, `"local"`, or `"unlisted"`
+   - `pagesProject` must start with `mxn-` (the bridge enforces this naming convention)
+   - `domain` defaults to `"makexnow.com"` — a custom domain can be assigned later via the dashboard
+   - `icon` will be set via the dashboard's icon upload feature (leave `path` empty initially)
+5. **Confirm** the app appears in the makeXnow dashboard at `http://localhost:9000`
+
+## Development Standards
+
+- **Port:** This app is assigned to port 9023. Do NOT change this. The dashboard launches this app using `npm run dev -- --port 9023`.
+- **Base Path:** Keep `base: './'` in `vite.config.ts` so assets work when hosted at `/apps/your-app/`
+- **Relative Paths:** Use `./` for all asset imports (e.g., `./logo.png`, not `/logo.png`)
+
+## Deployment
+
+Deployment is handled via the makeXnow dashboard:
+1. Open the dashboard at `http://localhost:9000`
+2. Select this app
+3. Click "Deploy"
+
+The system will automatically:
+- Push to GitHub (if configured)
+- Build the app (if a `build` script exists)
+- Deploy to Cloudflare Pages
+- Update the router so it's live at `makexnow.com/apps/<slug>` (or at a custom domain if one is assigned)
+
+### Static Sites (No Build Step)
+
+If your app is a static HTML/CSS/JS site without a build step:
+- The deploy will skip the build and deploy the current directory directly
+- No `build` script in `package.json` is required
+- Your files will be deployed as-is to Cloudflare Pages
+
+## Troubleshooting
+
+- **Port Mismatch:** If the app starts on a different port than expected, check that `package.json` doesn't have a hardcoded `--port` flag
+- **Assets Not Loading:** Ensure `vite.config.ts` has `base: './'`
+- **404 on Refresh:** The Cloudflare Worker handles routing; this is normal for SPAs
+- **Build fails with "Property 'glob' does not exist on type 'ImportMeta'":** You're missing `src/vite-env.d.ts`. Create it with: `/// <reference types="vite/client" />`
+- **Build fails with "is declared but never used":** TypeScript strict mode is enabled. Prefix unused variables with `_` (e.g., `const [_unused, setUsed] = useState()`)
+- **Deploy succeeded but old version is live:** The build likely failed silently. Run `npm run build` manually to see errors.
+
+## Failure Recovery & AI Debugging
+
+If the user provides a "MAKEXNOW DIAGNOSTIC REPORT" or a log copy:
+1. **Check Ports:** If the error is "Address already in use" or "Connection refused," ensure you are using `process.env.PORT` and not a hardcoded value.
+2. **Check Paths:** If assets are 404ing, ensure `base: './'` is in `vite.config.ts`.
+3. **Portability:** Fix the issue in a way that works on any machine (standard Node/Vite patterns), but prioritize the environment variables provided by the host.

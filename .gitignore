@@ -1,0 +1,15 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Cloudflare
+.wrangler
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo

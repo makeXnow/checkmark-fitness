@@ -1,0 +1,5 @@
+name = "mxn-checkmark-fitness"
+compatibility_date = "2025-12-01"
+
+[vars]
+# Add non-secret variables here
