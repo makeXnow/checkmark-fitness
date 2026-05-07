@@ -8,6 +8,7 @@ import {
   Menu,
   Notebook,
   Settings as SettingsIcon,
+  Settings2,
   Target,
 } from 'lucide-react'
 import { fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
@@ -40,6 +41,9 @@ function parseISODateOnly(iso: string): Date {
   const [y, m, d] = iso.split('-').map((x) => parseInt(x, 10))
   return new Date(y, m - 1, d)
 }
+
+/** Set to `true` to show the slide-out menu (hamburger) trigger in the header again. */
+const SHOW_HAMBURGER_MENU = false
 
 export default function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
@@ -88,6 +92,8 @@ export default function App() {
     statuses: [],
     history: [],
     availablePlates: [],
+    weightUnit: 'lbs',
+    plateUnit: 'lbs',
   }) as LiftPayload
 
   const sortedLiftDays = useMemo(
@@ -247,6 +253,11 @@ export default function App() {
           : 'Log'
       : currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
+  useEffect(() => {
+    if (selectedTab !== 'lift' || liftSubRoute !== 'log') return
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [selectedTab, liftSubRoute])
+
   if (error) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 gap-4">
@@ -268,90 +279,116 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black font-sans antialiased text-white selection:bg-emerald-400/30 overflow-x-hidden flex flex-col relative">
-      <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-6 pb-4">
-        <div className="w-full max-w-[var(--app-max-width)] mx-auto px-4 flex items-center justify-between">
-        <div className="w-12 flex justify-start">
-          {settingsOpen ? (
-            <button
-              type="button"
-              onClick={() => void closeSettings()}
-              className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1 flex items-center justify-center gap-4 text-center">
-          {settingsOpen ? (
-            <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
-          ) : selectedTab === 'habits' || selectedTab === 'macro' ? (
-            <>
+      <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] pb-4">
+        <div className="mx-auto grid min-h-[3.5rem] w-full max-w-[var(--app-max-width)] grid-cols-[1fr_auto_1fr] items-center gap-2 px-4">
+          <div className="flex min-w-0 items-center justify-self-start justify-start">
+            {settingsOpen ? (
               <button
                 type="button"
-                onClick={() => void changeDate(-1)}
-                className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+                onClick={() => void closeSettings()}
+                className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
               >
-                ‹
+                <ChevronLeft className="w-6 h-6" />
               </button>
-              <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
-              <button
-                type="button"
-                onClick={() => void changeDate(1)}
-                className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
-              >
-                ›
-              </button>
-            </>
-          ) : headerTitle ? (
-            <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
-          ) : (
-            <span className="sr-only">Lift</span>
-          )}
-        </div>
-        <div className="min-w-12 flex justify-end items-center shrink-0">
-          {selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout' && sortedLiftDays.length > 0 ? (
-            <details className="group relative max-w-[min(200px,calc(100%-7rem))] rounded-full border border-emerald-500/40 bg-neutral-900/60">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 pl-3 pr-2 text-left [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 truncate font-black text-xs uppercase tracking-widest text-white">
-                  {sortedLiftDays[safeLiftDayIndex]?.name ?? ''}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-emerald-400 transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[10rem] max-w-[min(calc(100vw-2rem),220px)] overflow-hidden rounded-xl border border-emerald-500/40 bg-neutral-900 py-1 shadow-xl">
-                {sortedLiftDays.map((d, idx) => (
+            ) : selectedTab === 'lift' && liftSubRoute === 'workout' && sortedLiftDays.length > 0 ? (
+              <details className="group relative w-max max-w-[min(200px,calc(100vw-8rem))] shrink-0 rounded-full border border-emerald-500/40 bg-neutral-900/60">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 pl-3 pr-2 text-left [&::-webkit-details-marker]:hidden">
+                  <span className="min-w-0 truncate font-black text-xs uppercase tracking-widest text-white">
+                    {sortedLiftDays[safeLiftDayIndex]?.name ?? ''}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-emerald-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-[10rem] max-w-[min(calc(100vw-2rem),220px)] overflow-hidden rounded-xl border border-emerald-500/40 bg-neutral-900 py-1 shadow-xl">
+                  {sortedLiftDays.map((d, idx) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      className={`block w-full truncate px-4 py-2.5 text-left font-black text-xs uppercase tracking-widest transition-colors ${
+                        idx === safeLiftDayIndex
+                          ? 'bg-emerald-500/15 text-emerald-300'
+                          : 'text-white hover:bg-neutral-800'
+                      }`}
+                      onClick={(ev) => {
+                        void setLiftDayIndex(idx)
+                        ev.currentTarget.closest('details')?.removeAttribute('open')
+                      }}
+                    >
+                      {d.name}
+                    </button>
+                  ))}
+                  <div className="my-1 border-t border-neutral-700" role="separator" />
                   <button
-                    key={d.id}
                     type="button"
-                    className={`block w-full truncate px-4 py-2.5 text-left font-black text-xs uppercase tracking-widest transition-colors ${
-                      idx === safeLiftDayIndex
-                        ? 'bg-emerald-500/15 text-emerald-300'
-                        : 'text-white hover:bg-neutral-800'
-                    }`}
+                    className="block w-full px-4 py-3 text-left text-sm font-semibold tracking-tight text-neutral-400 transition-colors hover:bg-neutral-800/80 hover:text-emerald-400"
                     onClick={(ev) => {
-                      void setLiftDayIndex(idx)
+                      void persistAppState({ lift_sub_route: 'plan' })
                       ev.currentTarget.closest('details')?.removeAttribute('open')
                     }}
                   >
-                    {d.name}
+                    Edit Workouts
                   </button>
-                ))}
+                </div>
+              </details>
+            ) : SHOW_HAMBURGER_MENU ? (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            ) : (
+              <div className="h-10 w-12 shrink-0" aria-hidden />
+            )}
+          </div>
+
+          <div className="flex min-w-0 max-w-[min(100%,calc(100vw-10rem))] flex-col items-center justify-center gap-1 text-center">
+            {settingsOpen ? (
+              <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+            ) : selectedTab === 'habits' || selectedTab === 'macro' ? (
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => void changeDate(-1)}
+                  className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+                >
+                  ‹
+                </button>
+                <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+                <button
+                  type="button"
+                  onClick={() => void changeDate(1)}
+                  className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+                >
+                  ›
+                </button>
               </div>
-            </details>
-          ) : null}
-        </div>
+            ) : headerTitle ? (
+              <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+            ) : (
+              <span className="sr-only">Lift</span>
+            )}
+          </div>
+
+          <div className="flex min-w-0 items-center justify-self-end justify-end">
+            <button
+              type="button"
+              aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
+              aria-pressed={settingsOpen}
+              onClick={() => void (settingsOpen ? closeSettings() : openSettings())}
+              className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
+                settingsOpen
+                  ? 'text-emerald-400 bg-black/50'
+                  : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
+              }`}
+            >
+              <Settings2 className="h-6 w-6" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-5 flex flex-col pt-[88px] pb-[100px]">
+      <main className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-5 flex flex-col pt-[var(--app-main-pad-top)] pb-[100px]">
         {settingsOpen ? (
           <div className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300">
             {settingsSection === 'habits' && (
@@ -388,6 +425,7 @@ export default function App() {
                   currentDayIndex={safeLiftDayIndex}
                   onDayIndexChange={(i) => void setLiftDayIndex(i)}
                   view="settings"
+                  onPersist={(next) => void saveLiftBundle(next)}
                 />
               </Suspense>
             )}
@@ -431,6 +469,7 @@ export default function App() {
                   onDayIndexChange={(i) => void setLiftDayIndex(i)}
                   view="tracker"
                   onPersist={(next) => void saveLiftBundle(next)}
+                  onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
                 />
               </Suspense>
             )}

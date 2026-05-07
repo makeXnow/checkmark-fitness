@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { HabitsGoals, DayLog } from '../../types/domain'
-import { DualSlider, GoalCard, computeWeeklyProgress, habitOrder } from './habitsUi'
+import { DualSlider, GoalCard, HabitColorPicker, computeWeeklyProgress, habitOrder } from './habitsUi'
 
 function localDateKey(d: Date): string {
   const y = d.getFullYear()
@@ -74,9 +74,8 @@ export function HabitsScreen({
     onSaveLogs(nextLogs)
   }
 
-  const updateGoal = (key: keyof HabitsGoals, field: keyof HabitsGoals[keyof HabitsGoals], val: number) => {
-    const nextGoals = { ...goals, [key]: { ...goals[key], [field]: val } } as HabitsGoals
-    onSaveGoals(nextGoals)
+  const patchGoal = (key: keyof HabitsGoals, patch: Partial<HabitsGoals[keyof HabitsGoals]>) => {
+    onSaveGoals({ ...goals, [key]: { ...goals[key], ...patch } } as HabitsGoals)
   }
 
   return (
@@ -116,10 +115,11 @@ export function HabitsScreen({
                 maxLim={7}
                 val1={config.min}
                 val2={config.max}
-                setVal1={(v) => updateGoal(key, 'min', v)}
-                setVal2={(v) => updateGoal(key, 'max', v)}
+                setVal1={(v) => patchGoal(key, { min: v })}
+                setVal2={(v) => patchGoal(key, { max: v })}
                 colorClass={config.color}
               />
+              <HabitColorPicker value={config.color} onChange={(color) => patchGoal(key, { color })} />
             </div>
           )
         })}
@@ -134,7 +134,7 @@ export function HabitsScreen({
             min={1}
             max={12}
             value={goals.water.dailyTarget}
-            onChange={(e) => updateGoal('water', 'dailyTarget', parseInt(e.target.value, 10))}
+            onChange={(e) => patchGoal('water', { dailyTarget: parseInt(e.target.value, 10) })}
             className="w-full h-1.5 bg-blue-900/50 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
         </div>

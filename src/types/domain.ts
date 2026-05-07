@@ -85,12 +85,17 @@ export interface MacroDayItem {
   rawText?: string
 }
 
+export type LiftWeightUnit = 'lbs' | 'kg'
+
 export interface LiftPayload {
   days: { id: string; name: string; order: number }[]
   workouts: LiftWorkout[]
   statuses: { id: string; name: string; multiplier: number | string }[]
   history: LiftHistoryEntry[]
   availablePlates: number[]
+  /** Display and labels; plate math still uses the same numeric rack until kg-specific logic is added. */
+  weightUnit?: LiftWeightUnit
+  plateUnit?: LiftWeightUnit
 }
 
 export interface LiftWarmupSet {

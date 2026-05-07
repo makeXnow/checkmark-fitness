@@ -99,6 +99,17 @@ export function buildGroupedSets(
   return { groupedSets, nextSetNum: nextStartNum }
 }
 
+/** Multiplier applied as: nextWeight = max(0, current + increment * multiplier). */
+export function parseStatusMultiplier(multiplier: number | string | undefined): number {
+  if (multiplier === undefined || multiplier === '') return 1
+  const n = typeof multiplier === 'number' ? multiplier : parseFloat(String(multiplier))
+  return Number.isFinite(n) ? n : 1
+}
+
+export function isNonPositiveProgressionMultiplier(multiplier: number): boolean {
+  return multiplier <= 0
+}
+
 export function formatLogDate(dateObj: Date) {
   const weekday = dateObj.toLocaleDateString(undefined, { weekday: 'short' })
   const month = dateObj.toLocaleDateString(undefined, { month: 'short' })
@@ -107,7 +118,12 @@ export function formatLogDate(dateObj: Date) {
   return `${weekday} · ${month} ${dayNum} · ${year}`
 }
 
-export function groupHistory(history: LiftHistoryEntry[], days: LiftPayload['days'], workouts: LiftWorkout[]) {
+export function groupHistory(
+  history: LiftHistoryEntry[],
+  days: LiftPayload['days'],
+  workouts: LiftWorkout[],
+  options?: { dateOnly?: boolean },
+) {
   const sortedHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   const groups: Record<string, { dayName: string; dateStr: string; entries: LiftHistoryEntry[] }> = {}
   for (const entry of sortedHistory) {
@@ -120,9 +136,27 @@ export function groupHistory(history: LiftHistoryEntry[], days: LiftPayload['day
       const d = days.find((day) => day.id === w.dayId)
       if (d) dayName = d.name
     }
-    const key = `${dayName}|${dateStr}`
+    const key = options?.dateOnly ? dateStr : `${dayName}|${dateStr}`
     if (!groups[key]) groups[key] = { dayName, dateStr, entries: [] }
     groups[key].entries.push(entry)
   }
   return Object.values(groups)
+}
+
+/** After logging, move to the plan day after the day that contained the latest history entry (LiftCalc behavior). */
+export function nextDayIndexFromHistory(
+  days: LiftPayload['days'],
+  workouts: LiftWorkout[],
+  history: LiftHistoryEntry[],
+): number {
+  const sortedDays = [...days].sort((a, b) => (a.order || 0) - (b.order || 0))
+  if (sortedDays.length === 0) return 0
+  if (!history.length) return 0
+  const sortedHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const latest = sortedHistory[0]
+  const w = workouts.find((x) => x.id === latest.workoutId)
+  if (!w) return 0
+  const dayIdx = sortedDays.findIndex((d) => d.id === w.dayId)
+  if (dayIdx === -1) return 0
+  return (dayIdx + 1) % sortedDays.length
 }

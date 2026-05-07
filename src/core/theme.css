@@ -4,6 +4,12 @@
 :root {
   /** Max width for header + main (phone-sized layout); footer bar stays full viewport width. */
   --app-max-width: 430px;
+  /**
+   * Fixed header: safe-area + top padding + row (settings / date row) + bottom padding.
+   * Main uses --app-main-pad-top so scroll content clears the header (no clipped card tops).
+   */
+  --app-header-height: calc(env(safe-area-inset-top, 0px) + 1.5rem + 3.5rem + 1rem);
+  --app-main-pad-top: calc(var(--app-header-height) + 0.5rem);
   --color-bg: #000000;
   --color-surface: #171717;
   --color-surface-elevated: #262626;
