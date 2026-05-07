@@ -766,7 +766,8 @@ function InteractionDock({
 }) {
   const isQuickReady =
     quickScan.isOpen && quickScan.frontPreview && quickScan.nutritionPreview && quickScan.frontStatus === 'done' && quickScan.nutritionStatus === 'done'
-  const canSend = Boolean(inputText.trim() || isQuickReady || recording)
+  /** Mic when idle; send (arrow) when there is text, quick-scan is ready, or actively recording — tap send to stop mic and transcribe. */
+  const showSend = Boolean(inputText.trim() || isQuickReady || recording)
 
   return (
     <div className="fixed bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
@@ -853,10 +854,10 @@ function InteractionDock({
               else onMic()
             }}
             className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 ${
-              canSend && !recording ? 'bg-emerald-600 text-white' : 'bg-[var(--color-surface)] text-white hover:bg-white/10'
+              showSend ? 'bg-emerald-600 text-white' : 'bg-[var(--color-surface)] text-white hover:bg-white/10'
             }`}
           >
-            {canSend && !recording ? <ArrowUp size={22} strokeWidth={3} /> : <Mic size={22} className="opacity-40" strokeWidth={2.5} />}
+            {showSend ? <ArrowUp size={22} strokeWidth={3} /> : <Mic size={22} className="opacity-40" strokeWidth={2.5} />}
           </button>
         </div>
       </div>

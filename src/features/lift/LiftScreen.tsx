@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, FileText, Plus, Trash2, X } from 'lucide-react'
 import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
+import { LiftPlanTab } from './LiftPlanTab'
 import {
   buildGroupedSets,
   formatLogDate,
@@ -8,8 +9,43 @@ import {
   getOptimalPlates,
   groupHistory,
   isNonPositiveProgressionMultiplier,
+  nextDayIndexFromHistory,
   parseStatusMultiplier,
 } from './plates'
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+  disabled,
+}: {
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+  placeholder: string
+  className?: string
+  disabled?: boolean
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = textareaRef.current
+    if (el) {
+      el.style.height = 'auto'
+      el.style.height = `${el.scrollHeight}px`
+    }
+  }, [value])
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      rows={1}
+      className={`resize-none overflow-hidden ${className ?? ''}`}
+    />
+  )
+}
 
 function LiftStatusSelector({
   isNegative,
@@ -211,6 +247,9 @@ export function LiftScreen({
 
   const [workoutStatusById, setWorkoutStatusById] = useState<Record<string, string>>({})
   const [newPlateInput, setNewPlateInput] = useState('')
+  const [openNotesByWorkoutId, setOpenNotesByWorkoutId] = useState<Record<string, boolean>>({})
+  const [editingWeightWorkoutId, setEditingWeightWorkoutId] = useState<string | null>(null)
+  const [tempMainWeight, setTempMainWeight] = useState('')
 
   useEffect(() => {
     setWorkoutStatusById({})
@@ -258,7 +297,6 @@ export function LiftScreen({
 
   const submitWorkoutDay = useCallback(() => {
     if (!onPersist || !currentDay) return
-    const today = new Date().toISOString().slice(0, 10)
     const nextHistory = [...(payload.history || [])]
     const twIds = new Set(todaysWorkouts.map((x) => x.id))
     const nextWorkouts = payload.workouts.map((w) => {
@@ -272,7 +310,7 @@ export function LiftScreen({
         id: crypto.randomUUID(),
         workoutId: w.id,
         workoutName: w.name,
-        date: today,
+        date: new Date().toISOString(),
         weight: w.mainWeight,
         oldWeight: w.mainWeight,
         newWeight,
@@ -280,24 +318,15 @@ export function LiftScreen({
       })
       return { ...w, mainWeight: newWeight }
     })
+    const combinedHistory = nextHistory
     void onPersist({
       ...payload,
-      history: nextHistory,
+      history: combinedHistory,
       workouts: nextWorkouts,
     })
     setWorkoutStatusById({})
-    onDayIndexChange((currentDayIndex + 1) % Math.max(1, sortedDays.length))
-  }, [
-    currentDay,
-    currentDayIndex,
-    effectiveStatusId,
-    onDayIndexChange,
-    onPersist,
-    payload,
-    sortedDays.length,
-    statuses,
-    todaysWorkouts,
-  ])
+    onDayIndexChange(nextDayIndexFromHistory(payload.days, nextWorkouts, combinedHistory))
+  }, [currentDay, effectiveStatusId, onDayIndexChange, onPersist, payload, statuses, todaysWorkouts])
 
   if (view === 'settings') {
     return (
@@ -482,34 +511,7 @@ export function LiftScreen({
   }
 
   if (subRoute === 'plan') {
-    return (
-      <div className="space-y-8">
-        {sortedDays.length === 0 ? (
-          <p className="py-12 text-center text-neutral-500">No plan yet.</p>
-        ) : (
-          sortedDays.map((day) => (
-            <div key={day.id}>
-              <h2 className="mb-4 text-2xl font-black uppercase tracking-tight text-white">{day.name}</h2>
-              <div className="space-y-4">
-                {payload.workouts
-                  .filter((w) => w.dayId === day.id)
-                  .map((w) => (
-                    <div key={w.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-                      <div className="mb-1 flex items-start justify-between">
-                        <h4 className="text-lg font-bold text-white">{w.name}</h4>
-                        <span className="text-sm font-bold text-emerald-400">+{w.increment}</span>
-                      </div>
-                      <p className="mb-2 text-sm font-medium text-neutral-400">
-                        {w.reps} reps • {w.barWeight} {weightUnit} bar • {w.mainWeight} {weightUnit} target
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    )
+    return <LiftPlanTab payload={payload} onPersist={onPersist} weightUnit={weightUnit} />
   }
 
   if (subRoute === 'log') {
@@ -571,63 +573,182 @@ export function LiftScreen({
         const mVal = parseStatusMultiplier(currentStatus?.multiplier)
         const isNeg = isNonPositiveProgressionMultiplier(mVal)
 
+        const hasNotes = Boolean(workout.notes?.trim())
+        const isNotesOpen = Boolean(openNotesByWorkoutId[workout.id])
+
         return (
           <div key={workout.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-md">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <h3 className="min-w-0 flex-1 text-xl font-bold leading-tight text-white [overflow-wrap:break-word] [word-break:normal]">
                 {workout.name}
               </h3>
-              {statuses.length > 0 ? (
-                <LiftStatusSelector
-                  className="w-full min-w-0 sm:w-auto sm:max-w-[min(100%,12rem)]"
-                  isNegative={isNeg}
-                  value={sid}
-                  onChange={(e) =>
-                    setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
-                  }
-                >
-                  {statuses.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
-                      {s.name}
-                    </option>
-                  ))}
-                </LiftStatusSelector>
-              ) : (
-                <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                  Add statuses in settings
-                </span>
-              )}
+              <div className="flex shrink-0 items-center gap-2">
+                {onPersist ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenNotesByWorkoutId((prev) => ({ ...prev, [workout.id]: !prev[workout.id] }))
+                    }}
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-lg border outline-none transition-all focus:ring-2 ${
+                      isNotesOpen
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 focus:ring-emerald-500/30'
+                        : 'border-neutral-700 bg-transparent text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 focus:ring-neutral-700'
+                    }`}
+                    title={isNotesOpen ? 'Hide notes' : hasNotes ? 'View notes' : 'Add notes'}
+                  >
+                    <FileText className="h-5 w-5" />
+                    {!isNotesOpen && hasNotes ? (
+                      <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-neutral-900" />
+                    ) : null}
+                  </button>
+                ) : null}
+                {statuses.length > 0 ? (
+                  <LiftStatusSelector
+                    className="h-10 w-full min-w-0 sm:w-auto sm:max-w-[min(100%,12rem)]"
+                    isNegative={isNeg}
+                    value={sid}
+                    onChange={(e) =>
+                      setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
+                    }
+                  >
+                    {statuses.map((s) => (
+                      <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
+                        {s.name}
+                      </option>
+                    ))}
+                  </LiftStatusSelector>
+                ) : (
+                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                    Add statuses in settings
+                  </span>
+                )}
+              </div>
             </div>
+
+            {isNotesOpen && onPersist ? (
+              <div className="mb-4 flex items-start gap-3 rounded-xl border border-neutral-800 bg-black/40 p-3">
+                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
+                <AutoResizeTextarea
+                  value={workout.notes || ''}
+                  onChange={(e) =>
+                    persist({
+                      ...payload,
+                      workouts: payload.workouts.map((w) =>
+                        w.id === workout.id ? { ...w, notes: e.target.value } : w,
+                      ),
+                    })
+                  }
+                  placeholder="Add notes…"
+                  className="w-full bg-transparent text-sm leading-relaxed text-neutral-300 outline-none placeholder:text-neutral-600"
+                />
+              </div>
+            ) : null}
+
             <div>
               {groupedSets.map((set, idx) => {
                 const setRangeLabel =
                   set.startNum === set.endNum ? `${set.startNum}` : `${set.startNum}-${set.endNum}`
+                const isEditingWeight = editingWeightWorkoutId === workout.id && !set.isWarmup
                 return (
-                  <div key={idx} className="mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm">
+                  <div
+                    key={`${workout.id}-${idx}`}
+                    role={!set.isWarmup && onPersist ? 'button' : undefined}
+                    tabIndex={!set.isWarmup && onPersist ? 0 : undefined}
+                    onClick={() => {
+                      if (!set.isWarmup && onPersist && !isEditingWeight) {
+                        setEditingWeightWorkoutId(workout.id)
+                        setTempMainWeight(String(workout.mainWeight))
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (!set.isWarmup && onPersist && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
+                        setEditingWeightWorkoutId(workout.id)
+                        setTempMainWeight(String(workout.mainWeight))
+                      }
+                    }}
+                    className={`mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200 ${
+                      !set.isWarmup && onPersist ? 'cursor-pointer' : ''
+                    } ${isEditingWeight ? 'ring-4 ring-emerald-300/50' : ''}`}
+                  >
                     <div
                       className={`${
                         set.isWarmup ? 'bg-emerald-100' : 'bg-emerald-300'
-                      } relative flex min-h-[72px] items-center justify-center`}
+                      } relative flex min-h-[72px] items-center justify-center sm:min-h-[85px]`}
                     >
-                      <div className="flex flex-wrap items-center justify-center px-4 py-3">
-                        {set.plates.length > 0 ? (
-                          set.plates.map((p, i) => (
-                            <span
-                              key={i}
-                              className="mr-4 font-black text-[36px] tracking-tighter text-black last:mr-0 sm:text-[42px]"
-                            >
-                              {formatWeightStr(p.weight)}
-                              {p.count > 1 && (
-                                <sub className="ml-0.5 text-[18px] font-bold tracking-normal text-emerald-800">
-                                  {p.count}
-                                </sub>
-                              )}
+                      {isEditingWeight ? (
+                        <div
+                          className="absolute inset-0 flex items-center px-4"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            autoFocus
+                            type="number"
+                            step="any"
+                            inputMode="decimal"
+                            value={tempMainWeight}
+                            placeholder={String(workout.mainWeight)}
+                            onChange={(e) => setTempMainWeight(e.target.value)}
+                            onBlur={() => {
+                              if (tempMainWeight.trim() === '' || Number.isNaN(parseFloat(tempMainWeight))) {
+                                setEditingWeightWorkoutId(null)
+                              } else {
+                                persist({
+                                  ...payload,
+                                  workouts: payload.workouts.map((w) =>
+                                    w.id === workout.id
+                                      ? { ...w, mainWeight: parseFloat(tempMainWeight) }
+                                      : w,
+                                  ),
+                                })
+                                setEditingWeightWorkoutId(null)
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                ;(e.target as HTMLInputElement).blur()
+                              } else if (e.key === 'Escape') {
+                                setEditingWeightWorkoutId(null)
+                              }
+                            }}
+                            className="w-full bg-transparent text-center text-[40px] font-black text-black outline-none [appearance:textfield] placeholder:text-black/20 sm:text-[48px] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              setEditingWeightWorkoutId(null)
+                            }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-2 text-black opacity-50 transition-all hover:bg-black/10 hover:opacity-100"
+                            title="Cancel"
+                          >
+                            <X className="h-8 w-8" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center justify-center px-4 py-3">
+                          {set.plates.length > 0 ? (
+                            set.plates.map((p, i) => (
+                              <span
+                                key={i}
+                                className="mr-4 font-black text-[36px] tracking-tighter text-black last:mr-0 sm:text-[42px]"
+                              >
+                                {formatWeightStr(p.weight)}
+                                {p.count > 1 && (
+                                  <sub className="ml-0.5 text-[18px] font-bold tracking-normal text-emerald-800">
+                                    {p.count}
+                                  </sub>
+                                )}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[28px] font-black uppercase text-black sm:text-[32px]">
+                              Bar only
                             </span>
-                          ))
-                        ) : (
-                          <span className="text-[28px] font-black uppercase text-black">Bar only</span>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div
                       className={`${

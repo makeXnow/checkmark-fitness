@@ -329,6 +329,15 @@ export default function App() {
                   </button>
                 </div>
               </details>
+            ) : selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'log' ? (
+              <button
+                type="button"
+                aria-label="Back to workout"
+                onClick={() => void persistAppState({ lift_sub_route: 'workout' })}
+                className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
             ) : SHOW_HAMBURGER_MENU ? (
               <button
                 type="button"

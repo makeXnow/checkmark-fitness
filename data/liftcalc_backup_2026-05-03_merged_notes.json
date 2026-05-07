@@ -1,0 +1,724 @@
+{
+  "days": [
+    {
+      "id": "d1",
+      "name": "Chest",
+      "order": 0
+    },
+    {
+      "id": "d2",
+      "name": "Shoulders",
+      "order": 1
+    },
+    {
+      "id": "d3",
+      "name": "Back",
+      "order": 2
+    },
+    {
+      "id": "d4",
+      "name": "Arms",
+      "order": 3
+    },
+    {
+      "id": "d5",
+      "name": "Legs",
+      "order": 4
+    }
+  ],
+  "workouts": [
+    {
+      "id": "w1",
+      "dayId": "d1",
+      "name": "Bench Press",
+      "mainWeight": 140,
+      "sets": 3,
+      "reps": 6,
+      "increment": 5,
+      "barWeight": 45,
+      "hasWarmup": true,
+      "warmupSets": [
+        {
+          "id": "wu_chest_1",
+          "reps": 12,
+          "percentage": 50
+        },
+        {
+          "id": "wu_chest_2",
+          "reps": 10,
+          "percentage": 50
+        },
+        {
+          "id": "wu_chest_3",
+          "reps": 4,
+          "percentage": 70
+        },
+        {
+          "id": "wu_chest_4",
+          "reps": 1,
+          "percentage": 90
+        }
+      ]
+    },
+    {
+      "id": "w2",
+      "dayId": "d1",
+      "name": "Incline Bench",
+      "mainWeight": 95,
+      "sets": 3,
+      "reps": 6,
+      "increment": 5,
+      "barWeight": 45,
+      "hasWarmup": false,
+      "warmupSets": []
+    },
+    {
+      "id": "w3",
+      "dayId": "d2",
+      "name": "Military Press",
+      "mainWeight": 100,
+      "sets": 2,
+      "reps": 16,
+      "increment": 5,
+      "barWeight": 45,
+      "hasWarmup": true,
+      "warmupSets": [
+        {
+          "id": "wu_shoulders_1",
+          "reps": 12,
+          "percentage": 50
+        },
+        {
+          "id": "wu_shoulders_2",
+          "reps": 10,
+          "percentage": 50
+        },
+        {
+          "id": "wu_shoulders_3",
+          "reps": 4,
+          "percentage": 70
+        },
+        {
+          "id": "wu_shoulders_4",
+          "reps": 1,
+          "percentage": 90
+        }
+      ],
+      "notes": "16"
+    },
+    {
+      "id": "w4",
+      "dayId": "d3",
+      "name": "Deadlift",
+      "mainWeight": 235,
+      "sets": 3,
+      "reps": 6,
+      "increment": 10,
+      "barWeight": 45,
+      "hasWarmup": true,
+      "warmupSets": [
+        {
+          "id": "wu_back_1",
+          "reps": 12,
+          "percentage": 50
+        },
+        {
+          "id": "wu_back_2",
+          "reps": 10,
+          "percentage": 50
+        },
+        {
+          "id": "wu_back_3",
+          "reps": 4,
+          "percentage": 70
+        },
+        {
+          "id": "wu_back_4",
+          "reps": 1,
+          "percentage": 90
+        }
+      ]
+    },
+    {
+      "id": "w5",
+      "dayId": "d3",
+      "name": "Rows",
+      "mainWeight": 140,
+      "sets": 3,
+      "reps": 6,
+      "increment": 5,
+      "barWeight": 45,
+      "hasWarmup": false,
+      "warmupSets": []
+    },
+    {
+      "id": "w6",
+      "dayId": "d4",
+      "name": "Bicep Curls",
+      "mainWeight": 53,
+      "sets": 2,
+      "reps": 16,
+      "increment": 2.5,
+      "barWeight": 25,
+      "hasWarmup": true,
+      "warmupSets": [
+        {
+          "id": "wu_arms_1",
+          "reps": 12,
+          "percentage": 50
+        },
+        {
+          "id": "wu_arms_2",
+          "reps": 10,
+          "percentage": 50
+        },
+        {
+          "id": "wu_arms_3",
+          "reps": 4,
+          "percentage": 70
+        },
+        {
+          "id": "wu_arms_4",
+          "reps": 1,
+          "percentage": 90
+        }
+      ]
+    },
+    {
+      "id": "w7",
+      "dayId": "d4",
+      "name": "Skull Crushers",
+      "mainWeight": 53,
+      "sets": 2,
+      "reps": 16,
+      "increment": 2.5,
+      "barWeight": 25,
+      "hasWarmup": false,
+      "warmupSets": []
+    },
+    {
+      "id": "w8",
+      "dayId": "d5",
+      "name": "Squat",
+      "mainWeight": 225,
+      "sets": 4,
+      "reps": 6,
+      "increment": 10,
+      "barWeight": 45,
+      "hasWarmup": true,
+      "warmupSets": [
+        {
+          "id": "wu_legs_1",
+          "reps": 12,
+          "percentage": 50
+        },
+        {
+          "id": "wu_legs_2",
+          "reps": 10,
+          "percentage": 50
+        },
+        {
+          "id": "wu_legs_3",
+          "reps": 4,
+          "percentage": 70
+        },
+        {
+          "id": "wu_legs_4",
+          "reps": 1,
+          "percentage": 90
+        }
+      ]
+    },
+    {
+      "id": "w9",
+      "dayId": "d5",
+      "name": "Romanian Deadlift",
+      "mainWeight": 185,
+      "sets": 3,
+      "reps": 6,
+      "increment": 10,
+      "barWeight": 45,
+      "hasWarmup": false,
+      "warmupSets": []
+    }
+  ],
+  "history": [
+    {
+      "id": "h1",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-11-25",
+      "weight": 199
+    },
+    {
+      "id": "h2",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-11-17",
+      "weight": 188
+    },
+    {
+      "id": "h3",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-11-10",
+      "weight": 188
+    },
+    {
+      "id": "h4",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-11-04",
+      "weight": 177
+    },
+    {
+      "id": "h5",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-10-21",
+      "weight": 177
+    },
+    {
+      "id": "h6",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-10-10",
+      "weight": 155
+    },
+    {
+      "id": "h7",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-08-28",
+      "weight": 166
+    },
+    {
+      "id": "h8",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-08-17",
+      "weight": 155
+    },
+    {
+      "id": "h9",
+      "workoutId": "w1",
+      "workoutName": "Bench Press",
+      "date": "2025-08-03",
+      "weight": 155
+    },
+    {
+      "id": "h10",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-11-25",
+      "weight": 133
+    },
+    {
+      "id": "h11",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-11-17",
+      "weight": 133
+    },
+    {
+      "id": "h12",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-11-10",
+      "weight": 133
+    },
+    {
+      "id": "h13",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-11-04",
+      "weight": 122
+    },
+    {
+      "id": "h14",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-11-21",
+      "weight": 122
+    },
+    {
+      "id": "h15",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-10-10",
+      "weight": 122
+    },
+    {
+      "id": "h16",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-08-28",
+      "weight": 122
+    },
+    {
+      "id": "h17",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-08-17",
+      "weight": 122
+    },
+    {
+      "id": "h18",
+      "workoutId": "w2",
+      "workoutName": "Incline Bench",
+      "date": "2025-08-03",
+      "weight": 122
+    },
+    {
+      "id": "h19",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-12-09",
+      "weight": 122
+    },
+    {
+      "id": "h20",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-11-18",
+      "weight": 122
+    },
+    {
+      "id": "h21",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-11-12",
+      "weight": 122
+    },
+    {
+      "id": "h22",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-11-05",
+      "weight": 111
+    },
+    {
+      "id": "h23",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-09-01",
+      "weight": 122
+    },
+    {
+      "id": "h24",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-08-19",
+      "weight": 111
+    },
+    {
+      "id": "h25",
+      "workoutId": "w3",
+      "workoutName": "Military Press",
+      "date": "2025-08-04",
+      "weight": 111
+    },
+    {
+      "id": "h26",
+      "workoutId": "w4",
+      "workoutName": "Deadlift",
+      "date": "2025-11-19",
+      "weight": 232
+    },
+    {
+      "id": "h27",
+      "workoutId": "w4",
+      "workoutName": "Deadlift",
+      "date": "2025-11-13",
+      "weight": 232
+    },
+    {
+      "id": "h28",
+      "workoutId": "w4",
+      "workoutName": "Deadlift",
+      "date": "2025-11-06",
+      "weight": 221
+    },
+    {
+      "id": "h29",
+      "workoutId": "w4",
+      "workoutName": "Deadlift",
+      "date": "2025-09-03",
+      "weight": 210
+    },
+    {
+      "id": "h30",
+      "workoutId": "w4",
+      "workoutName": "Deadlift",
+      "date": "2025-08-21",
+      "weight": 210
+    },
+    {
+      "id": "h31",
+      "workoutId": "w4",
+      "workoutName": "Deadlift",
+      "date": "2025-08-06",
+      "weight": 210
+    },
+    {
+      "id": "h32",
+      "workoutId": "w5",
+      "workoutName": "Rows",
+      "date": "2025-11-19",
+      "weight": 177
+    },
+    {
+      "id": "h33",
+      "workoutId": "w5",
+      "workoutName": "Rows",
+      "date": "2025-11-13",
+      "weight": 166
+    },
+    {
+      "id": "h34",
+      "workoutId": "w5",
+      "workoutName": "Rows",
+      "date": "2025-11-06",
+      "weight": 166
+    },
+    {
+      "id": "h35",
+      "workoutId": "w5",
+      "workoutName": "Rows",
+      "date": "2025-09-03",
+      "weight": 155
+    },
+    {
+      "id": "h36",
+      "workoutId": "w5",
+      "workoutName": "Rows",
+      "date": "2025-08-21",
+      "weight": 155
+    },
+    {
+      "id": "h37",
+      "workoutId": "w5",
+      "workoutName": "Rows",
+      "date": "2025-08-06",
+      "weight": 155
+    },
+    {
+      "id": "h38",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-11-20",
+      "weight": 53
+    },
+    {
+      "id": "h39",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-11-14",
+      "weight": 53
+    },
+    {
+      "id": "h40",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-11-07",
+      "weight": 53
+    },
+    {
+      "id": "h41",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-10-14",
+      "weight": 53
+    },
+    {
+      "id": "h42",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-09-04",
+      "weight": 53
+    },
+    {
+      "id": "h43",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-08-22",
+      "weight": 53
+    },
+    {
+      "id": "h44",
+      "workoutId": "w7",
+      "workoutName": "Skull Crushers",
+      "date": "2025-08-10",
+      "weight": 42
+    },
+    {
+      "id": "h45",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-11-20",
+      "weight": 53
+    },
+    {
+      "id": "h46",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-11-14",
+      "weight": 53
+    },
+    {
+      "id": "h47",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-11-07",
+      "weight": 53
+    },
+    {
+      "id": "h48",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-10-14",
+      "weight": 53
+    },
+    {
+      "id": "h49",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-09-04",
+      "weight": 53
+    },
+    {
+      "id": "h50",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-08-22",
+      "weight": 53
+    },
+    {
+      "id": "h51",
+      "workoutId": "w6",
+      "workoutName": "Bicep Curls",
+      "date": "2025-08-10",
+      "weight": 42
+    },
+    {
+      "id": "h52",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2026-05-01",
+      "weight": 195
+    },
+    {
+      "id": "h53",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-11-24",
+      "weight": 243
+    },
+    {
+      "id": "h54",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-11-15",
+      "weight": 243
+    },
+    {
+      "id": "h55",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-11-09",
+      "weight": 243
+    },
+    {
+      "id": "h56",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-10-20",
+      "weight": 243
+    },
+    {
+      "id": "h57",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-08-23",
+      "weight": 243
+    },
+    {
+      "id": "h58",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-08-16",
+      "weight": 243
+    },
+    {
+      "id": "h59",
+      "workoutId": "w8",
+      "workoutName": "Squat",
+      "date": "2025-08-02",
+      "weight": 235
+    },
+    {
+      "id": "h60",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2026-05-01",
+      "weight": 215
+    },
+    {
+      "id": "h61",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-11-24",
+      "weight": 243
+    },
+    {
+      "id": "h62",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-11-15",
+      "weight": 243
+    },
+    {
+      "id": "h63",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-11-09",
+      "weight": 243
+    },
+    {
+      "id": "h64",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-10-20",
+      "weight": 243
+    },
+    {
+      "id": "h65",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-08-23",
+      "weight": 243
+    },
+    {
+      "id": "h66",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-08-16",
+      "weight": 243
+    },
+    {
+      "id": "h67",
+      "workoutId": "w9",
+      "workoutName": "Romanian Deadlift",
+      "date": "2025-08-02",
+      "weight": 235
+    }
+  ],
+  "availablePlates": [
+    45,
+    35,
+    25,
+    10,
+    5,
+    2.5
+  ]
+}

@@ -463,11 +463,20 @@ api.post('/api/ai/vision', async (c) => {
   }
 })
 
+/** Support hosting the SPA under a path prefix (…/api/… still routes to Hono). */
+function pathnameForWorkerRouter(pathname: string): string {
+  const m = pathname.match(/\/api(?:\/|$)/)
+  return m && m.index !== undefined ? pathname.slice(m.index) : pathname
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
-    if (url.pathname.startsWith('/api')) {
-      return api.fetch(request, env, ctx)
+    const path = pathnameForWorkerRouter(url.pathname)
+    if (path.startsWith('/api')) {
+      const next = new URL(url.toString())
+      next.pathname = path
+      return api.fetch(new Request(next.toString(), request), env, ctx)
     }
     return env.ASSETS.fetch(request)
   },
