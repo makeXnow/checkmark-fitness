@@ -319,27 +319,33 @@ export default function App() {
         </div>
         <div className="min-w-12 flex justify-end items-center shrink-0">
           {selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout' && sortedLiftDays.length > 0 ? (
-            <div className="relative max-w-[min(200px,calc(100%-7rem))] rounded-full border border-emerald-500/40 bg-neutral-900/60 py-1.5 pl-3 pr-9">
-              <span
-                aria-hidden
-                className="block truncate text-left font-black text-xs uppercase tracking-widest text-white"
-              >
-                {sortedLiftDays[safeLiftDayIndex]?.name ?? ''}
-              </span>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-emerald-400" />
-              <select
-                aria-label={`Workout day: ${sortedLiftDays[safeLiftDayIndex]?.name ?? ''}`}
-                className="absolute inset-0 z-20 h-full w-full cursor-pointer opacity-0"
-                value={safeLiftDayIndex}
-                onChange={(e) => void setLiftDayIndex(Number(e.target.value))}
-              >
+            <details className="group relative max-w-[min(200px,calc(100%-7rem))] rounded-full border border-emerald-500/40 bg-neutral-900/60">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 pl-3 pr-2 text-left [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 truncate font-black text-xs uppercase tracking-widest text-white">
+                  {sortedLiftDays[safeLiftDayIndex]?.name ?? ''}
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-emerald-400 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[10rem] max-w-[min(calc(100vw-2rem),220px)] overflow-hidden rounded-xl border border-emerald-500/40 bg-neutral-900 py-1 shadow-xl">
                 {sortedLiftDays.map((d, idx) => (
-                  <option key={d.id} value={idx} className="bg-neutral-900">
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`block w-full truncate px-4 py-2.5 text-left font-black text-xs uppercase tracking-widest transition-colors ${
+                      idx === safeLiftDayIndex
+                        ? 'bg-emerald-500/15 text-emerald-300'
+                        : 'text-white hover:bg-neutral-800'
+                    }`}
+                    onClick={(ev) => {
+                      void setLiftDayIndex(idx)
+                      ev.currentTarget.closest('details')?.removeAttribute('open')
+                    }}
+                  >
                     {d.name}
-                  </option>
+                  </button>
                 ))}
-              </select>
-            </div>
+              </div>
+            </details>
           ) : null}
         </div>
         </div>
