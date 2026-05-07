@@ -1,24 +1,558 @@
-function App() {
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Apple,
+  ChevronDown,
+  ChevronLeft,
+  ClipboardList,
+  Dumbbell,
+  Menu,
+  Notebook,
+  Settings as SettingsIcon,
+  Target,
+} from 'lucide-react'
+import { fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
+import type {
+  AppStateRow,
+  BootstrapResponse,
+  BottomTab,
+  HabitsGoals,
+  LiftPayload,
+  LiftSubRoute,
+  MacroCustomFood,
+  MacroDayItem,
+  SettingsSection,
+} from './types/domain'
+import type { DayLog } from './types/domain'
+
+const HabitsScreen = lazy(() => import('./features/habits/HabitsScreen').then((m) => ({ default: m.HabitsScreen })))
+const MacroScreen = lazy(() => import('./features/macro/MacroScreen').then((m) => ({ default: m.MacroScreen })))
+const LiftScreen = lazy(() => import('./features/lift/LiftScreen').then((m) => ({ default: m.LiftScreen })))
+
+function TabFallback() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-8 transition-colors duration-300">
-      <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-10 shadow-xl text-center space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-black tracking-tight">New Project</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest text-xs">
-            Ready to Build
-          </p>
-        </div>
-        <p className="text-sm text-slate-400 dark:text-slate-500">
-          Edit <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">src/App.tsx</code> to get started.
-          <br />
-          Deploy from the dashboard when you're ready.
-        </p>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-700 pt-4">
-          Local Environment Ready
-        </p>
-      </div>
+    <div className="flex-1 flex items-center justify-center py-24">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
     </div>
   )
 }
 
-export default App
+function parseISODateOnly(iso: string): Date {
+  const [y, m, d] = iso.split('-').map((x) => parseInt(x, 10))
+  return new Date(y, m - 1, d)
+}
+
+export default function App() {
+  const [boot, setBoot] = useState<BootstrapResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      setError(null)
+      const data = await fetchBootstrap()
+      setBoot(data)
+    } catch (e) {
+      const base = e instanceof Error ? e.message : 'Failed to load'
+      const hint =
+        base === 'Failed to fetch' || base.includes('NetworkError')
+          ? ' Start the API: `npm run dev:worker` (port 8787) while `npm run dev` runs.'
+          : ''
+      setError(base + hint)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const appState = boot?.appState
+  const selectedTab = (appState?.selected_tab as BottomTab) || 'habits'
+  const settingsOpen = Boolean(appState?.settings_open)
+  const settingsSection = (appState?.settings_section as SettingsSection) || 'habits'
+  const liftSubRoute = (appState?.lift_sub_route as LiftSubRoute) || 'workout'
+  const rawLiftDayIndex = Number(appState?.lift_current_day_index ?? 0)
+
+  const selectedDateStr = appState?.selected_date || new Date().toISOString().slice(0, 10)
+  const currentDate = useMemo(() => parseISODateOnly(selectedDateStr), [selectedDateStr])
+
+  const habitsGoals = boot?.habits.goals as HabitsGoals
+  const habitsLogs = boot?.habits.logs || {}
+  const habitsSettings = boot?.habits.appSettings || { firstDayOfWeek: 0 }
+
+  const macroGoals = boot?.macro.goals || { calorieGoal: 2000, proteinPctGoal: 30 }
+  const macroLogs = boot?.macro.logs || {}
+  const macroFoods = boot?.macro.customFoods || []
+
+  const liftPayload: LiftPayload = (boot?.lift.payload || {
+    days: [],
+    workouts: [],
+    statuses: [],
+    history: [],
+    availablePlates: [],
+  }) as LiftPayload
+
+  const sortedLiftDays = useMemo(
+    () => [...liftPayload.days].sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [liftPayload.days],
+  )
+
+  const safeLiftDayIndex = useMemo(() => {
+    const len = sortedLiftDays.length
+    if (len === 0) return 0
+    const n = Number.isFinite(rawLiftDayIndex) ? Math.floor(rawLiftDayIndex) : 0
+    return Math.max(0, Math.min(len - 1, n))
+  }, [sortedLiftDays.length, rawLiftDayIndex])
+
+  const mergeAppState = useCallback((row: AppStateRow) => {
+    setBoot((prev) => (prev ? { ...prev, appState: row as AppStateRow } : prev))
+  }, [])
+
+  const persistAppState = useCallback(
+    async (patch: Parameters<typeof patchAppState>[0]) => {
+      const res = await patchAppState(patch)
+      mergeAppState(res.appState)
+    },
+    [mergeAppState],
+  )
+
+  const changeDate = useCallback(
+    async (delta: number) => {
+      const next = new Date(currentDate)
+      next.setDate(next.getDate() + delta)
+      const iso = next.toISOString().slice(0, 10)
+      await persistAppState({ selected_date: iso })
+    },
+    [currentDate, persistAppState],
+  )
+
+  const setTab = useCallback(
+    async (tab: BottomTab) => {
+      await persistAppState({ selected_tab: tab })
+    },
+    [persistAppState],
+  )
+
+  /** Bottom nav: in settings mode, switches which feature’s settings are shown; otherwise switches tracker tab. */
+  const selectBottomTab = useCallback(
+    async (tab: BottomTab) => {
+      if (settingsOpen) {
+        await persistAppState({
+          selected_tab: tab,
+          settings_section: tab as SettingsSection,
+          settings_open: true,
+        })
+      } else if (tab === 'lift') {
+        await persistAppState({ selected_tab: tab, lift_sub_route: 'workout' })
+      } else {
+        await setTab(tab)
+      }
+    },
+    [persistAppState, setTab, settingsOpen],
+  )
+
+  const navActiveTab: BottomTab = settingsOpen ? (settingsSection as BottomTab) : selectedTab
+
+  const openSettings = useCallback(async () => {
+    await persistAppState({ settings_open: true, settings_section: selectedTab as unknown as SettingsSection })
+  }, [persistAppState, selectedTab])
+
+  const closeSettings = useCallback(async () => {
+    await persistAppState({ settings_open: false })
+  }, [persistAppState])
+
+  const setLiftDayIndex = useCallback(
+    async (idx: number) => {
+      await persistAppState({ lift_current_day_index: idx })
+    },
+    [persistAppState],
+  )
+
+  useEffect(() => {
+    if (sortedLiftDays.length === 0) return
+    if (safeLiftDayIndex !== rawLiftDayIndex) {
+      void setLiftDayIndex(safeLiftDayIndex)
+    }
+  }, [rawLiftDayIndex, safeLiftDayIndex, setLiftDayIndex, sortedLiftDays.length])
+
+  const saveHabitsBundle = useCallback(
+    async (next: { goals?: HabitsGoals; logs?: Record<string, DayLog>; appSettings?: { firstDayOfWeek: number } }) => {
+      if (!boot) return
+      const goals = next.goals ?? habitsGoals
+      const logs = next.logs ?? habitsLogs
+      const appSettings = next.appSettings ?? habitsSettings
+      await putHabits({ goals, logs, appSettings })
+      setBoot((prev) =>
+        prev
+          ? {
+              ...prev,
+              habits: { goals, logs, appSettings, updatedAt: Date.now() },
+            }
+          : prev,
+      )
+    },
+    [boot, habitsGoals, habitsLogs, habitsSettings],
+  )
+
+  const saveMacroBundle = useCallback(
+    async (next: {
+      goals?: typeof macroGoals
+      logs?: Record<string, MacroDayItem[]>
+      customFoods?: MacroCustomFood[]
+    }) => {
+      if (!boot) return
+      const goals = next.goals ?? macroGoals
+      const logs = next.logs ?? macroLogs
+      const customFoods = next.customFoods ?? macroFoods
+      await putMacro({ goals, customFoods, logs })
+      setBoot((prev) =>
+        prev
+          ? {
+              ...prev,
+              macro: { goals, customFoods, logs, updatedAt: Date.now() },
+            }
+          : prev,
+      )
+    },
+    [boot, macroFoods, macroGoals, macroLogs],
+  )
+
+  const saveLiftBundle = useCallback(
+    async (next: LiftPayload) => {
+      if (!boot) return
+      await putLift(next)
+      setBoot((prev) =>
+        prev
+          ? {
+              ...prev,
+              lift: { payload: next, updatedAt: Date.now() },
+            }
+          : prev,
+      )
+    },
+    [boot],
+  )
+
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const headerTitle = settingsOpen
+    ? settingsSection === 'habits'
+      ? 'Goals · Settings'
+      : settingsSection === 'macro'
+        ? 'Diet · Settings'
+        : 'Lift · Settings'
+    : selectedTab === 'lift'
+      ? liftSubRoute === 'workout'
+        ? ''
+        : liftSubRoute === 'plan'
+          ? 'Plan'
+          : 'Log'
+      : currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 gap-4">
+        <p className="text-sm text-neutral-400">{error}</p>
+        <button type="button" onClick={() => void load()} className="px-4 py-2 rounded-xl bg-emerald-400 text-black font-black">
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!boot || !appState) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-black font-sans antialiased text-white selection:bg-emerald-400/30 overflow-x-hidden flex flex-col relative">
+      <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-6 pb-4">
+        <div className="w-full max-w-[var(--app-max-width)] mx-auto px-4 flex items-center justify-between">
+        <div className="w-12 flex justify-start">
+          {settingsOpen ? (
+            <button
+              type="button"
+              onClick={() => void closeSettings()}
+              className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 flex items-center justify-center gap-4 text-center">
+          {settingsOpen ? (
+            <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+          ) : selectedTab === 'habits' || selectedTab === 'macro' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void changeDate(-1)}
+                className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+              >
+                ‹
+              </button>
+              <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+              <button
+                type="button"
+                onClick={() => void changeDate(1)}
+                className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+              >
+                ›
+              </button>
+            </>
+          ) : headerTitle ? (
+            <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+          ) : (
+            <span className="sr-only">Lift</span>
+          )}
+        </div>
+        <div className="min-w-12 flex justify-end items-center shrink-0">
+          {selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout' && sortedLiftDays.length > 0 ? (
+            <div className="relative max-w-[min(200px,calc(100%-7rem))] rounded-full border border-emerald-500/40 bg-neutral-900/60 py-1.5 pl-3 pr-9">
+              <span
+                aria-hidden
+                className="block truncate text-left font-black text-xs uppercase tracking-widest text-white"
+              >
+                {sortedLiftDays[safeLiftDayIndex]?.name ?? ''}
+              </span>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-emerald-400" />
+              <select
+                aria-label={`Workout day: ${sortedLiftDays[safeLiftDayIndex]?.name ?? ''}`}
+                className="absolute inset-0 z-20 h-full w-full cursor-pointer opacity-0"
+                value={safeLiftDayIndex}
+                onChange={(e) => void setLiftDayIndex(Number(e.target.value))}
+              >
+                {sortedLiftDays.map((d, idx) => (
+                  <option key={d.id} value={idx} className="bg-neutral-900">
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
+        </div>
+      </header>
+
+      <main className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-5 flex flex-col pt-[88px] pb-[100px]">
+        {settingsOpen ? (
+          <div className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300">
+            {settingsSection === 'habits' && (
+              <Suspense fallback={<TabFallback />}>
+                <HabitsScreen
+                  currentDate={currentDate}
+                  goals={habitsGoals}
+                  logs={habitsLogs}
+                  appSettings={habitsSettings}
+                  view="settings"
+                  onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
+                  onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
+                  onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
+                />
+              </Suspense>
+            )}
+            {settingsSection === 'macro' && (
+              <Suspense fallback={<TabFallback />}>
+                <MacroScreen
+                  currentDate={currentDate}
+                  goals={macroGoals}
+                  logs={macroLogs}
+                  customFoods={macroFoods}
+                  view="settings"
+                  onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
+                />
+              </Suspense>
+            )}
+            {settingsSection === 'lift' && (
+              <Suspense fallback={<TabFallback />}>
+                <LiftScreen
+                  payload={liftPayload}
+                  subRoute={liftSubRoute}
+                  currentDayIndex={safeLiftDayIndex}
+                  onDayIndexChange={(i) => void setLiftDayIndex(i)}
+                  view="settings"
+                />
+              </Suspense>
+            )}
+          </div>
+        ) : (
+          <>
+            {selectedTab === 'habits' && (
+              <Suspense fallback={<TabFallback />}>
+                <HabitsScreen
+                  currentDate={currentDate}
+                  goals={habitsGoals}
+                  logs={habitsLogs}
+                  appSettings={habitsSettings}
+                  view="tracker"
+                  onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
+                  onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
+                  onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
+                />
+              </Suspense>
+            )}
+            {selectedTab === 'macro' && (
+              <Suspense fallback={<TabFallback />}>
+                <MacroScreen
+                  currentDate={currentDate}
+                  goals={macroGoals}
+                  logs={macroLogs}
+                  customFoods={macroFoods}
+                  view="tracker"
+                  onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
+                  onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
+                  onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}
+                />
+              </Suspense>
+            )}
+            {selectedTab === 'lift' && (
+              <Suspense fallback={<TabFallback />}>
+                <LiftScreen
+                  payload={liftPayload}
+                  subRoute={liftSubRoute}
+                  currentDayIndex={safeLiftDayIndex}
+                  onDayIndexChange={(i) => void setLiftDayIndex(i)}
+                  view="tracker"
+                  onPersist={(next) => void saveLiftBundle(next)}
+                />
+              </Suspense>
+            )}
+          </>
+        )}
+      </main>
+
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 w-full bg-neutral-900 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] rounded-t-[32px]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="w-full max-w-[var(--app-max-width)] mx-auto flex justify-around items-center px-4 py-4">
+          <button
+            type="button"
+            onClick={() => void selectBottomTab('habits')}
+            className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
+              navActiveTab === 'habits' ? 'text-emerald-400 bg-black/50' : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
+            }`}
+          >
+            <Target size={24} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void selectBottomTab('macro')}
+            className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
+              navActiveTab === 'macro' ? 'text-emerald-400 bg-black/50' : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
+            }`}
+          >
+            <Apple size={24} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void selectBottomTab('lift')}
+            className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
+              navActiveTab === 'lift' ? 'text-emerald-400 bg-black/50' : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
+            }`}
+          >
+            <Dumbbell size={24} />
+          </button>
+        </div>
+      </nav>
+
+      <div
+        className={`fixed inset-0 z-50 flex transition-all duration-300 ${
+          sidebarOpen ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Close menu"
+          className={`absolute inset-0 bg-black/60 transition-all duration-300 border-0 cursor-default ${
+            sidebarOpen ? 'opacity-100 backdrop-blur-sm' : 'opacity-0'
+          }`}
+          onClick={() => setSidebarOpen(false)}
+        />
+        <div
+          className={`relative w-[220px] bg-neutral-900 h-full border-r border-neutral-800 flex flex-col shadow-2xl transition-transform duration-300 ease-out ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex flex-col p-3 pt-8 space-y-4 flex-1 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                void setTab('habits')
+                setSidebarOpen(false)
+              }}
+              className="flex items-center gap-3 px-3 py-3 w-full text-left font-black uppercase tracking-widest text-xs text-white hover:bg-neutral-800 rounded-xl"
+            >
+              <Target className="w-4 h-4 text-emerald-400" /> Goals
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void setTab('macro')
+                setSidebarOpen(false)
+              }}
+              className="flex items-center gap-3 px-3 py-3 w-full text-left font-black uppercase tracking-widest text-xs text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-xl"
+            >
+              <Apple className="w-4 h-4 text-emerald-400" /> Diet
+            </button>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  void persistAppState({ selected_tab: 'lift', lift_sub_route: 'workout' })
+                  setSidebarOpen(false)
+                }}
+                className="flex items-center gap-3 px-3 py-3 w-full text-left font-black uppercase tracking-widest text-xs text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-xl"
+              >
+                <Dumbbell className="w-4 h-4 text-emerald-400" /> Lift
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void persistAppState({ selected_tab: 'lift', lift_sub_route: 'plan' })
+                  setSidebarOpen(false)
+                }}
+                className="flex items-center gap-3 pl-8 pr-3 py-2 w-full text-left font-black uppercase tracking-widest text-xs text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 rounded-xl"
+              >
+                <ClipboardList className="w-3.5 h-3.5" /> Plan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void persistAppState({ selected_tab: 'lift', lift_sub_route: 'log' })
+                  setSidebarOpen(false)
+                }}
+                className="flex items-center gap-3 pl-8 pr-3 py-2 w-full text-left font-black uppercase tracking-widest text-xs text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 rounded-xl"
+              >
+                <Notebook className="w-3.5 h-3.5" /> Log
+              </button>
+            </div>
+          </div>
+          <div className="mt-auto p-3 border-t border-neutral-800">
+            <button
+              type="button"
+              onClick={() => {
+                void openSettings()
+                setSidebarOpen(false)
+              }}
+              className="flex items-center gap-3 px-3 py-4 w-full text-left font-black uppercase tracking-widest text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white rounded-xl"
+            >
+              <SettingsIcon className="w-4 h-4" /> Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

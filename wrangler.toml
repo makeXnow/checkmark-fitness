@@ -1,5 +1,22 @@
 name = "mxn-checkmark-fitness"
+main = "worker/index.ts"
 compatibility_date = "2025-12-01"
 
-[vars]
-# Add non-secret variables here
+# Create DB: wrangler d1 create checkmark-fitness
+# Then paste database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "checkmark-fitness"
+# Replace with output of: wrangler d1 create checkmark-fitness
+database_id = "00000000-0000-0000-0000-000000000001"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[dev]
+port = 8787
+
+[observability]
+enabled = false

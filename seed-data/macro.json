@@ -1,0 +1,119 @@
+{
+  "goals": {
+    "calorieGoal": 2000,
+    "proteinPctGoal": 30
+  },
+  "customFoods": [
+    {
+      "fat": 1.5,
+      "protein": 9,
+      "calories": 80,
+      "createdAt": 1778128417690,
+      "baseAmount": "1 oz (28g)",
+      "carbs": 7,
+      "emoji": "🥩",
+      "id": "61d3b1e5-f7bf-4fe9-92d3-9641060c028e",
+      "name": "Peppered Beef Jerky"
+    }
+  ],
+  "logs": {
+    "2026-05-06": [
+      {
+        "timestamp": 1778094293892,
+        "emoji": "🥪",
+        "id": "13cb3fdf-47ce-4a2f-8eae-e319e20e90f1",
+        "name": "Arby's Double RB",
+        "carbs": 38,
+        "amount": "1 sandwich",
+        "status": "ready",
+        "calories": 510,
+        "protein": 38,
+        "fat": 24
+      },
+      {
+        "amount": "1",
+        "carbs": 22,
+        "status": "ready",
+        "timestamp": 1778128354000,
+        "name": "Chobani Flip",
+        "emoji": "🥣",
+        "id": "05ee50ad-a6bb-498f-a7e6-94923e165b2d",
+        "fat": 5,
+        "protein": 9,
+        "calories": 170
+      },
+      {
+        "calories": 105,
+        "protein": 2.1,
+        "fat": 0.3,
+        "name": "Rice Cracker",
+        "id": "456bd373-b4eb-4428-bb49-f2a8a6a92367",
+        "emoji": "🍘",
+        "timestamp": 1778128354000,
+        "status": "ready",
+        "amount": "3",
+        "carbs": 22.5
+      },
+      {
+        "calories": 200,
+        "protein": 20,
+        "fat": 8,
+        "emoji": "🍫",
+        "id": "a35c0561-5893-4d96-9760-3bf9bf948051",
+        "name": "Barebells Bar",
+        "timestamp": 1778128354000,
+        "status": "ready",
+        "carbs": 16,
+        "amount": "1"
+      },
+      {
+        "status": "ready",
+        "carbs": 14,
+        "amount": "2oz",
+        "emoji": "🥩",
+        "id": "10f8c49d-602c-44af-ad6c-fdbb5998cd84",
+        "name": "Peppered Beef Jerky",
+        "timestamp": 1778128420047,
+        "fat": 3,
+        "calories": 160,
+        "protein": 18
+      },
+      {
+        "protein": 33,
+        "calories": 165,
+        "fat": 3.5,
+        "timestamp": 1778130280276,
+        "id": "74782c1f-fea8-4f9a-a9db-64a989591f23",
+        "emoji": "🍗",
+        "name": "Canned Chicken",
+        "carbs": 0,
+        "amount": "1 can",
+        "status": "ready"
+      },
+      {
+        "calories": 102.5,
+        "protein": 2.15,
+        "fat": 0.2,
+        "timestamp": 1778130290624,
+        "name": "Rice",
+        "id": "0893fa4a-2240-48b3-b72c-734b1c59b68a",
+        "emoji": "🍚",
+        "amount": "0.5 cup",
+        "carbs": 22.5,
+        "status": "ready"
+      },
+      {
+        "protein": 10.2,
+        "calories": 132,
+        "fat": 0.4,
+        "timestamp": 1778130298408,
+        "emoji": "🍲",
+        "id": "05d81df7-23e9-455a-99db-e79a998593ca",
+        "name": "Lentils",
+        "carbs": 22.8,
+        "amount": "4oz",
+        "status": "ready"
+      }
+    ]
+  }
+}

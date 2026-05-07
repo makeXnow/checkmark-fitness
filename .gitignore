@@ -4,6 +4,9 @@ node_modules
 # Build output
 dist
 
+# Generated local seed SQL (regenerate via npm run seed:sql)
+seed-generated.sql
+
 # Cloudflare
 .wrangler
 

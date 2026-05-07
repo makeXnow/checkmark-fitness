@@ -1,0 +1,59 @@
+{
+  "goals": {
+    "water": {
+      "color": "bg-blue-500",
+      "max": 7,
+      "icon": "Droplet",
+      "dailyTarget": 4,
+      "label": "Water",
+      "min": 6
+    },
+    "lifting": {
+      "icon": "Dumbbell",
+      "label": "Lifting",
+      "min": 3,
+      "color": "bg-indigo-500",
+      "max": 5
+    },
+    "cardio": {
+      "color": "bg-rose-500",
+      "max": 5,
+      "icon": "Heart",
+      "label": "Cardio",
+      "min": 4
+    },
+    "diet": {
+      "icon": "Apple",
+      "label": "Diet",
+      "min": 6,
+      "color": "bg-emerald-500",
+      "max": 7
+    }
+  },
+  "logs": {
+    "2026-05-05": {
+      "lifting": true,
+      "cardio": true,
+      "water": 4,
+      "diet": true
+    },
+    "2026-05-04": {
+      "diet": true,
+      "lifting": true,
+      "cardio": true
+    },
+    "2026-05-07": {
+      "water": 4,
+      "diet": true
+    },
+    "2026-05-06": {
+      "water": 3,
+      "lifting": true,
+      "cardio": true,
+      "diet": true
+    }
+  },
+  "appSettings": {
+    "firstDayOfWeek": 0
+  }
+}
