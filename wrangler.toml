@@ -17,6 +17,7 @@ not_found_handling = "single-page-application"
 
 [dev]
 port = 8787
+# Copy .dev.vars.example → .dev.vars and set OPENAI_API_KEY (Wrangler loads it for local dev only).
 
 [observability]
 enabled = false

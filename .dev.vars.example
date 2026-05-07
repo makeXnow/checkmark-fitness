@@ -1,0 +1,2 @@
+# Rename to .dev.vars and paste your key (same value as Cloudflare → Settings → Variables).
+OPENAI_API_KEY=

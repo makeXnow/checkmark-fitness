@@ -9,6 +9,8 @@ seed-generated.sql
 
 # Cloudflare
 .wrangler
+# Local Worker secrets for `wrangler dev` (same keys as dashboard; never commit)
+.dev.vars
 
 # macOS
 .DS_Store
