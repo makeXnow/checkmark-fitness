@@ -19,7 +19,7 @@
     "db:migrate:local": "wrangler d1 migrations apply checkmark-fitness --local",
     "db:migrate:remote": "wrangler d1 migrations apply checkmark-fitness --remote",
     "deploy": "npm run pages:deploy",
-    "pages:deploy": "npm run build:prod && wrangler deploy"
+    "pages:deploy": "npm run build:prod && wrangler deploy && wrangler pages deploy dist --project-name mxn-checkmark-fitness --branch main --commit-dirty=true"
   },
   "dependencies": {
     "hono": "^4.12.18",
