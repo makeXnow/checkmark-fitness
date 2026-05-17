@@ -1,11 +1,15 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { fatSecretSearchFoods } from './fatsecret'
+import { runMacroEstimate } from './macroEstimate'
 import { OPENAI_MODELS } from './openaiModels'
 
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
   OPENAI_API_KEY?: string
+  FATSECRET_CLIENT_ID?: string
+  FATSECRET_CLIENT_SECRET?: string
 }
 
 const DEVICE_DEFAULT = 'default'
@@ -470,6 +474,46 @@ api.post('/api/ai/vision', async (c) => {
     return c.json({ result: parsed })
   } catch {
     return c.json({ error: 'Model returned non-JSON', raw }, 502)
+  }
+})
+
+/** FatSecret search + macro AI in one Worker call (credentials stay server-side). */
+api.post('/api/macro/estimate', async (c) => {
+  try {
+    const body = await c.req.json()
+    const result = await runMacroEstimate(c.env, body as Parameters<typeof runMacroEstimate>[1])
+    return c.json(result)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Macro estimate failed'
+    const partial = e && typeof e === 'object' && 'fatSecretResults' in e ? (e as { fatSecretResults?: unknown; fatSecretSource?: string }) : null
+    if (partial?.fatSecretResults) {
+      return c.json(
+        {
+          error: msg,
+          fatSecretResults: partial.fatSecretResults,
+          fatSecretSource: partial.fatSecretSource ?? 'none',
+        },
+        502,
+      )
+    }
+    return c.json({ error: msg }, 502)
+  }
+})
+
+/** FatSecret food search (OAuth + foods.search). */
+api.post('/api/fatsecret/search', async (c) => {
+  const body = (await c.req.json()) as { query?: string }
+  const query = body.query?.trim()
+  if (!query) return c.json({ error: 'query required' }, 400)
+  if (!c.env.FATSECRET_CLIENT_ID || !c.env.FATSECRET_CLIENT_SECRET) {
+    return c.json({ error: 'FatSecret credentials missing' }, 500)
+  }
+  try {
+    const foods = await fatSecretSearchFoods(c.env, query)
+    return c.json({ foods })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'FatSecret search failed'
+    return c.json({ error: msg }, 502)
   }
 })
 

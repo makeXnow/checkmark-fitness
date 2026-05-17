@@ -1,4 +1,4 @@
-import type { AppStateRow, BootstrapResponse } from '../types/domain'
+import type { AppStateRow, BootstrapResponse, FatSecretFoodRef } from '../types/domain'
 import { apiFetch } from './apiPaths'
 
 function htmlResponseHint(text: string): string | undefined {
@@ -146,6 +146,66 @@ export async function aiJson(body: {
   const data = await parseJson<{ result?: unknown; error?: string }>(res)
   if (data.result === undefined) throw new Error(data.error || 'AI failed')
   return data.result
+}
+
+export async function fatSecretSearch(query: string): Promise<FatSecretFoodRef[]> {
+  const res = await apiFetch('/api/fatsecret/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  })
+  const data = await parseJson<{ foods?: FatSecretFoodRef[]; error?: string }>(res)
+  if (data.error) throw new Error(data.error)
+  return data.foods ?? []
+}
+
+export type MacroEstimateApiResult = {
+  calories: number
+  protein: number
+  libraryFoodId?: string
+  servingMultiplier?: number
+  name?: string
+  emoji?: string
+  fatSecretResults: FatSecretFoodRef[]
+  fatSecretSource: 'cache' | 'search' | 'none'
+}
+
+export class MacroEstimateError extends Error {
+  fatSecretResults?: FatSecretFoodRef[]
+  fatSecretSource?: MacroEstimateApiResult['fatSecretSource']
+}
+
+export async function macroEstimateItem(body: {
+  name: string
+  amount: string
+  notes?: string
+  fatSecretSearch?: string
+  fatSecretResults?: FatSecretFoodRef[]
+  skipFatSecretFetch?: boolean
+  customFoods?: { id: string; name: string; emoji?: string; baseAmount?: string; calories: number; protein: number }[]
+  extraCtx?: string
+}): Promise<MacroEstimateApiResult> {
+  const res = await apiFetch('/api/macro/estimate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const text = await res.text()
+  let data: MacroEstimateApiResult & { error?: string }
+  try {
+    data = JSON.parse(text) as MacroEstimateApiResult & { error?: string }
+  } catch {
+    throw new Error(res.ok ? 'Invalid JSON in API response' : text.trim().slice(0, 600) || res.statusText)
+  }
+  if (!res.ok || data.error) {
+    const err = new MacroEstimateError(data.error || res.statusText)
+    if (data.fatSecretResults?.length) {
+      err.fatSecretResults = data.fatSecretResults
+      err.fatSecretSource = data.fatSecretSource
+    }
+    throw err
+  }
+  return data
 }
 
 /** Nutrition / label photos → structured JSON (uses vision-capable model). */

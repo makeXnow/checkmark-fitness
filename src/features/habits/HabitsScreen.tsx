@@ -1,7 +1,16 @@
 import { useMemo } from 'react'
 import { localDateISO } from '../../lib/localDate'
 import type { HabitsGoals, DayLog } from '../../types/domain'
-import { DualSlider, GoalCard, HabitColorPicker, computeWeeklyProgress, habitOrder } from './habitsUi'
+import {
+  DualSlider,
+  GoalCard,
+  HabitColorPicker,
+  HabitsWeekHistoryCard,
+  computePastWeeks,
+  computeWeeklyProgress,
+  getWeekDatesFor,
+  habitOrder,
+} from './habitsUi'
 
 export function HabitsScreen({
   currentDate,
@@ -24,18 +33,15 @@ export function HabitsScreen({
 }) {
   const dateKey = localDateISO(currentDate)
 
-  const weekDates = useMemo(() => {
-    const start = new Date(currentDate)
-    const dayOfWeek = start.getDay()
-    const firstDay = appSettings.firstDayOfWeek
-    const diff = dayOfWeek >= firstDay ? dayOfWeek - firstDay : 7 - (firstDay - dayOfWeek)
-    start.setDate(start.getDate() - diff)
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start)
-      d.setDate(d.getDate() + i)
-      return localDateISO(d)
-    })
-  }, [currentDate, appSettings.firstDayOfWeek])
+  const weekDates = useMemo(
+    () => getWeekDatesFor(currentDate, appSettings.firstDayOfWeek),
+    [currentDate, appSettings.firstDayOfWeek],
+  )
+
+  const pastWeeks = useMemo(
+    () => computePastWeeks(logs, currentDate, appSettings.firstDayOfWeek, goals),
+    [logs, currentDate, appSettings.firstDayOfWeek, goals],
+  )
 
   const currentDayLog = logs[dateKey] || {}
   const weeklyProgress = useMemo(() => computeWeeklyProgress(weekDates, logs, goals), [weekDates, logs, goals])
@@ -75,18 +81,31 @@ export function HabitsScreen({
   return (
     <div className="flex-1 flex flex-col">
       {view === 'tracker' && (
-        <div className="grid grid-cols-2 gap-3 content-start">
-          {habitOrder.map((key) => (
-            <GoalCard
-              key={key}
-              goalKey={key}
-              config={goals[key]}
-              weeklyCount={key === 'water' ? weeklyProgress.waterWeekly : weeklyProgress[key as 'cardio' | 'lift' | 'diet']}
-              todayDone={completedToday[key]}
-              waterToday={key === 'water' ? waterToday : 0}
-              onTap={() => handleCardTap(key)}
-            />
-          ))}
+        <div className="flex flex-col gap-10">
+          <div className="grid grid-cols-2 gap-3 content-start">
+            {habitOrder.map((key) => (
+              <GoalCard
+                key={key}
+                goalKey={key}
+                config={goals[key]}
+                weeklyCount={key === 'water' ? weeklyProgress.waterWeekly : weeklyProgress[key as 'cardio' | 'lift' | 'diet']}
+                todayDone={completedToday[key]}
+                waterToday={key === 'water' ? waterToday : 0}
+                onTap={() => handleCardTap(key)}
+              />
+            ))}
+          </div>
+
+          {pastWeeks.length > 0 && (
+            <section className="space-y-3">
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest px-1">History</p>
+              <div className="space-y-3">
+                {pastWeeks.map((week) => (
+                  <HabitsWeekHistoryCard key={week.id} week={week} goals={goals} />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
 

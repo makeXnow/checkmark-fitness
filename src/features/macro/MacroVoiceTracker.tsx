@@ -14,15 +14,11 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { aiJson, aiVisionJson, transcribeAudio } from '../../core/api'
+import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
 import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
 import {
-  buildMacroEstimatePrompt,
-  formatNumberedFoodLibrary,
   mergeMacroLogs,
   parsedItemToDayItem,
-  resolveMacroEstimate,
-  type MacroEstimateResponse,
   type ParsedFoodItem,
 } from './macroLib'
 import {
@@ -42,6 +38,8 @@ type QuickScanState = {
   frontData: Record<string, unknown> | null
   nutritionData: Record<string, unknown> | null
 }
+
+const MAX_RECORDING_MS = 3 * 60 * 1000
 
 /** Safari often records mp4/aac; Chrome uses webm. OpenAI needs the real container type. */
 function preferredRecorderMimeType(): string {
@@ -135,6 +133,7 @@ export function MacroVoiceTracker({
   const audioChunksRef = useRef<Blob[]>([])
   const audioCtxRef = useRef<AudioContext | null>(null)
   const rafRef = useRef<number>(0)
+  const recordingLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const processingRefs = useRef<Record<string, AbortController>>({})
 
@@ -151,6 +150,26 @@ export function MacroVoiceTracker({
   const nutritionPromiseRef = useRef<Promise<unknown> | null>(null)
 
   const [dbModalOpen, setDbModalOpen] = useState(false)
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setEditingItemId(null)
+  }, [dateKey])
+
+  const clearRecordingLimitTimer = useCallback(() => {
+    if (recordingLimitTimerRef.current) {
+      clearTimeout(recordingLimitTimerRef.current)
+      recordingLimitTimerRef.current = null
+    }
+  }, [])
+
+  const stopRecording = useCallback(() => {
+    clearRecordingLimitTimer()
+    setRecording(false)
+    mediaRecorderRef.current?.stop()
+  }, [clearRecordingLimitTimer])
+
+  useEffect(() => () => clearRecordingLimitTimer(), [clearRecordingLimitTimer])
 
   const totals = useMemo(() => {
     return items.reduce(
@@ -185,6 +204,7 @@ export function MacroVoiceTracker({
 
   const removeItem = useCallback(
     (id: string) => {
+      setEditingItemId((cur) => (cur === id ? null : cur))
       replaceDay((prev) => prev.filter((i) => i.id !== id))
     },
     [replaceDay],
@@ -193,17 +213,22 @@ export function MacroVoiceTracker({
   const calculateMacros = useCallback(
     async (
       id: string,
-      fields: { name: string; amount: string; notes?: string; emoji?: string },
+      item: MacroDayItem,
       extraCtx = '',
+      options?: { skipFatSecretFetch?: boolean },
     ) => {
-      const foods = customFoodsRef.current
       estimatingIdsRef.current.add(id)
       try {
-        const json = (await aiJson({
-          system: MACRO_PROMPTS.MACROS,
-          user: `${buildMacroEstimatePrompt(fields.name, fields.amount, fields.notes)}${formatNumberedFoodLibrary(foods)}${extraCtx}`,
-        })) as MacroEstimateResponse
-        const result = resolveMacroEstimate(json, foods)
+        const result = await macroEstimateItem({
+          name: item.name,
+          amount: item.amount,
+          notes: item.notes,
+          fatSecretSearch: item.fatSecretSearch,
+          fatSecretResults: item.fatSecretResults,
+          skipFatSecretFetch: options?.skipFatSecretFetch,
+          customFoods: customFoodsRef.current,
+          extraCtx,
+        })
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
@@ -215,17 +240,24 @@ export function MacroVoiceTracker({
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
               servingMultiplier: result.servingMultiplier,
+              fatSecretResults: result.fatSecretResults,
               status: 'ready',
             }
           }),
         )
-      } catch {
+      } catch (e) {
+        const fs = e instanceof MacroEstimateError ? e.fatSecretResults : undefined
         replaceDay((prev) =>
-          prev.map((i) =>
-            i.id === id
-              ? { ...i, status: 'editing_raw', rawText: [fields.name, fields.amount].filter(Boolean).join(' ') }
-              : i,
-          ),
+          prev.map((i) => {
+            if (i.id !== id) return i
+            const next = {
+              ...i,
+              status: 'editing_raw' as const,
+              rawText: [item.name, item.amount].filter(Boolean).join(' '),
+            }
+            if (fs?.length) return { ...next, fatSecretResults: fs }
+            return next
+          }),
         )
       } finally {
         estimatingIdsRef.current.delete(id)
@@ -235,15 +267,36 @@ export function MacroVoiceTracker({
   )
 
   const estimateMacrosForItem = useCallback(
-    (item: MacroDayItem, extraCtx = '') => {
+    (item: MacroDayItem, extraCtx = '', options?: { skipFatSecretFetch?: boolean }) => {
       if (estimatingIdsRef.current.has(item.id)) return
-      void calculateMacros(
-        item.id,
-        { name: item.name, amount: item.amount, notes: item.notes, emoji: item.emoji },
-        extraCtx,
-      )
+      const day = logsRef.current[dateKey] || []
+      const latest = day.find((i) => i.id === item.id) ?? item
+      void calculateMacros(latest.id, latest, extraCtx, options)
     },
-    [calculateMacros],
+    [calculateMacros, dateKey],
+  )
+
+  const refreshItemMacros = useCallback(
+    (item: MacroDayItem) => {
+      replaceDay((prev) =>
+        prev.map((i) =>
+          i.id === item.id
+            ? {
+                ...i,
+                status: 'pending',
+                calories: 0,
+                protein: 0,
+                libraryFoodId: undefined,
+                servingMultiplier: undefined,
+              }
+            : i,
+        ),
+      )
+      const day = logsRef.current[dateKey] || []
+      const latest = day.find((i) => i.id === item.id) ?? item
+      void calculateMacros(latest.id, latest, '', { skipFatSecretFetch: true })
+    },
+    [calculateMacros, dateKey, replaceDay],
   )
 
   const pendingEstimateKey = useMemo(
@@ -261,7 +314,7 @@ export function MacroVoiceTracker({
     for (const id of pendingEstimateKey.split(',')) {
       const item = items.find((i) => i.id === id)
       if (!item) continue
-      estimateMacrosForItem(item)
+      void estimateMacrosForItem(item)
     }
   }, [pendingEstimateKey, items, estimateMacrosForItem])
 
@@ -296,7 +349,7 @@ export function MacroVoiceTracker({
             const newItems = data.items.map((it) => parsedItemToDayItem(it))
             replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
             newItems.forEach((it) =>
-              estimateMacrosForItem(it, `\n\nScanned base: ${JSON.stringify(baseFood)}`),
+              void estimateMacrosForItem(it, `\n\nScanned base: ${JSON.stringify(baseFood)}`),
             )
           }
           return
@@ -310,7 +363,7 @@ export function MacroVoiceTracker({
         if (data.items?.length) {
           const newItems = data.items.map((it) => parsedItemToDayItem(it))
           replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
-          newItems.forEach((it) => estimateMacrosForItem(it))
+          newItems.forEach((it) => void estimateMacrosForItem(it))
         }
       } catch {
         replaceDay((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'editing_raw', rawText } : i)))
@@ -323,8 +376,7 @@ export function MacroVoiceTracker({
 
   const handleMicToggle = useCallback(async () => {
     if (recording) {
-      setRecording(false)
-      mediaRecorderRef.current?.stop()
+      stopRecording()
       return
     }
     try {
@@ -383,10 +435,12 @@ export function MacroVoiceTracker({
       }
       rec.start()
       setRecording(true)
+      clearRecordingLimitTimer()
+      recordingLimitTimerRef.current = setTimeout(() => stopRecording(), MAX_RECORDING_MS)
     } catch {
       /* mic denied */
     }
-  }, [recording, removeItem, replaceDay, startParsingFlow])
+  }, [clearRecordingLimitTimer, recording, replaceDay, startParsingFlow, stopRecording])
 
   const handleSend = useCallback(async () => {
     const isQuickReady =
@@ -523,8 +577,12 @@ export function MacroVoiceTracker({
               <FoodRow
                 key={item.id}
                 item={item}
+                isEditing={editingItemId === item.id}
+                onStartEdit={() => setEditingItemId(item.id)}
+                onEndEdit={() => setEditingItemId(null)}
                 onRemove={() => removeItem(item.id)}
                 onUpdate={(fields) => updateItem(item.id, fields)}
+                onReestimate={() => refreshItemMacros(item)}
                 onCancelProcessing={() => cancelProcessing(item.id)}
                 onReprocess={(raw) => {
                   replaceDay((prev) =>
@@ -608,27 +666,34 @@ export function MacroVoiceTracker({
 
 function FoodRow({
   item,
+  isEditing,
+  onStartEdit,
+  onEndEdit,
   onRemove,
   onUpdate,
+  onReestimate,
   onCancelProcessing,
   onReprocess,
   onCancelTranscription,
 }: {
   item: MacroDayItem
+  isEditing: boolean
+  onStartEdit: () => void
+  onEndEdit: () => void
   onRemove: () => void
   onUpdate: (fields: MacroFoodEditFields) => void
+  onReestimate: () => void
   onCancelProcessing: () => void
   onReprocess: (raw: string) => void
   onCancelTranscription: () => void
 }) {
-  const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item))
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
 
   useEffect(() => {
-    if (!editing) setEditData(itemToEditFields(item))
+    if (!isEditing) setEditData(itemToEditFields(item))
     setTempRaw(item.rawText || '')
-  }, [item, editing])
+  }, [item, isEditing])
 
   if (item.status === 'transcribing') {
     return (
@@ -688,18 +753,24 @@ function FoodRow({
       </div>
     )
   }
-  if (editing) {
+  if (isEditing) {
     return (
       <MacroFoodEditCard
         fieldId={item.id}
         data={editData}
         onChange={setEditData}
         autoFocusName
-        onReset={() => setEditData(itemToEditFields(item))}
-        onDelete={onRemove}
+        onReset={() => {
+          onEndEdit()
+          onReestimate()
+        }}
+        onDelete={() => {
+          onRemove()
+          onEndEdit()
+        }}
         onSave={() => {
           onUpdate(editData)
-          setEditing(false)
+          onEndEdit()
         }}
         saveDisabled={!editData.name.trim()}
       />
@@ -714,7 +785,7 @@ function FoodRow({
       calories={item.calories || 0}
       protein={item.protein || 0}
       pending={item.status === 'pending'}
-      onClick={() => item.status !== 'pending' && setEditing(true)}
+      onClick={() => item.status !== 'pending' && onStartEdit()}
     />
   )
 }

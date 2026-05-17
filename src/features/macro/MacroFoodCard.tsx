@@ -171,8 +171,8 @@ export function MacroFoodEditCard({
               onReset()
             }}
             className="p-2 text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
-            title="Reset"
-            aria-label="Reset"
+            title="Re-estimate macros"
+            aria-label="Re-estimate macros"
           >
             <RefreshCw size={16} strokeWidth={2.5} />
           </button>

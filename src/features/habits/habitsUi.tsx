@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { Apple, Dumbbell, Droplet, Heart } from 'lucide-react'
+import { localDateISO } from '../../lib/localDate'
 import type { HabitsGoals, DayLog } from '../../types/domain'
 import {
   HABIT_COLOR_SWATCH_OPTIONS,
@@ -297,4 +299,188 @@ export function computeWeeklyProgress(
     if ((l.water || 0) >= dt) waterWeekly++
   }
   return { cardio, lift, diet, waterWeekly }
+}
+
+export function getWeekDatesFor(anchor: Date, firstDayOfWeek: number): string[] {
+  const start = new Date(anchor)
+  const dayOfWeek = start.getDay()
+  const diff = dayOfWeek >= firstDayOfWeek ? dayOfWeek - firstDayOfWeek : 7 - (firstDayOfWeek - dayOfWeek)
+  start.setDate(start.getDate() - diff)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    return localDateISO(d)
+  })
+}
+
+export interface PastWeekSummary {
+  id: string
+  startDate: Date
+  cardioCount: number
+  liftCount: number
+  dietCount: number
+  waterCount: number
+  percentage: number
+}
+
+export function computePastWeeks(
+  logs: Record<string, DayLog>,
+  currentDate: Date,
+  firstDayOfWeek: number,
+  goals: HabitsGoals,
+): PastWeekSummary[] {
+  const logDates = Object.keys(logs).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort()
+  if (logDates.length === 0) return []
+
+  const [y, m, d] = logDates[0].split('-').map((x) => parseInt(x, 10))
+  const earliestDate = new Date(y, m - 1, d, 12, 0, 0)
+
+  const startOfCurrentWeek = new Date(currentDate)
+  startOfCurrentWeek.setHours(12, 0, 0, 0)
+  const currentDayOfWeek = startOfCurrentWeek.getDay()
+  const currentDiff =
+    currentDayOfWeek >= firstDayOfWeek
+      ? currentDayOfWeek - firstDayOfWeek
+      : 7 - (firstDayOfWeek - currentDayOfWeek)
+  startOfCurrentWeek.setDate(startOfCurrentWeek.getDate() - currentDiff)
+
+  const startOfEarliestWeek = new Date(earliestDate)
+  const earliestDayOfWeek = startOfEarliestWeek.getDay()
+  const earliestDiff =
+    earliestDayOfWeek >= firstDayOfWeek
+      ? earliestDayOfWeek - firstDayOfWeek
+      : 7 - (firstDayOfWeek - earliestDayOfWeek)
+  startOfEarliestWeek.setDate(startOfEarliestWeek.getDate() - earliestDiff)
+
+  const waterTarget = goals.water.dailyTarget ?? 4
+  const weeks: PastWeekSummary[] = []
+  const iter = new Date(startOfCurrentWeek)
+  iter.setDate(iter.getDate() - 7)
+
+  while (iter >= startOfEarliestWeek) {
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+      const dObj = new Date(iter)
+      dObj.setDate(dObj.getDate() + i)
+      return localDateISO(dObj)
+    })
+
+    let cardioCount = 0
+    let liftCount = 0
+    let dietCount = 0
+    let waterCount = 0
+
+    for (const day of weekDates) {
+      const dayLog = logs[day] || {}
+      if (dayLog.cardio) cardioCount++
+      if (dayLog.lift) liftCount++
+      if (dayLog.diet) dietCount++
+      if ((dayLog.water || 0) >= waterTarget) waterCount++
+    }
+
+    const cardioScore = Math.min(cardioCount / goals.cardio.min, 1)
+    const liftScore = Math.min(liftCount / goals.lift.min, 1)
+    const dietScore = Math.min(dietCount / goals.diet.min, 1)
+    const waterScore = Math.min(waterCount / goals.water.min, 1)
+    const percentage = Math.round(((cardioScore + liftScore + dietScore + waterScore) / 4) * 100) || 0
+
+    weeks.push({
+      id: weekDates[0],
+      startDate: new Date(iter),
+      cardioCount,
+      liftCount,
+      dietCount,
+      waterCount,
+      percentage,
+    })
+
+    iter.setDate(iter.getDate() - 7)
+  }
+
+  return weeks
+}
+
+function habitIconTextClass(colorClass: string): string {
+  if (colorClass.startsWith('bg-')) return colorClass.replace(/^bg-/, 'text-')
+  return 'text-neutral-400'
+}
+
+function MiniGoalSummary({
+  config,
+  count,
+  icon: IconComponent,
+}: {
+  config: HabitsGoals[keyof HabitsGoals]
+  count: number
+  icon: LucideIcon
+}) {
+  const total = config.max
+  let row1Count = total
+  let row2Count = 0
+  if (total > 2) {
+    row1Count = Math.floor(total / 2)
+    row2Count = Math.ceil(total / 2)
+  }
+
+  const fillClass = config.color
+  const borderClass = habitOutlineBorderClass(config.color)
+  const iconClass = habitIconTextClass(config.color)
+
+  const renderCircle = (index: number) => {
+    const isOptional = index >= config.min
+    const isFilled = index < count
+    return (
+      <div
+        key={index}
+        className={`w-1.5 h-1.5 rounded-full border ${
+          isFilled ? `${fillClass} border-transparent` : `${borderClass} ${isOptional ? 'opacity-30' : ''}`
+        }`}
+      />
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <IconComponent size={14} className={iconClass} />
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex justify-center gap-1">
+          {Array.from({ length: row1Count }).map((_, i) => renderCircle(i))}
+        </div>
+        {row2Count > 0 && (
+          <div className="flex justify-center gap-1">
+            {Array.from({ length: row2Count }).map((_, i) => renderCircle(row1Count + i))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function HabitsWeekHistoryCard({
+  week,
+  goals,
+}: {
+  week: PastWeekSummary
+  goals: HabitsGoals
+}) {
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-[var(--radius-card)] p-4">
+      <div className="flex justify-between items-center mb-4">
+        <span className="font-bold text-white uppercase tracking-widest text-[10px]">
+          Week of{' '}
+          {week.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </span>
+        <span
+          className={`font-black text-sm ${week.percentage >= 100 ? 'text-emerald-400' : 'text-white'}`}
+        >
+          {week.percentage}%
+        </span>
+      </div>
+      <div className="flex justify-between items-start px-1">
+        <MiniGoalSummary config={goals.water} count={week.waterCount} icon={Droplet} />
+        <MiniGoalSummary config={goals.diet} count={week.dietCount} icon={Apple} />
+        <MiniGoalSummary config={goals.cardio} count={week.cardioCount} icon={Heart} />
+        <MiniGoalSummary config={goals.lift} count={week.liftCount} icon={Dumbbell} />
+      </div>
+    </div>
+  )
 }

@@ -59,6 +59,22 @@ export interface BootstrapResponse {
   }
 }
 
+export type FatSecretServingRef = {
+  servingId: string
+  description: string
+  calories: number
+  protein: number
+  isDefault?: boolean
+}
+
+export type FatSecretFoodRef = {
+  foodId: string
+  name: string
+  brandName?: string
+  foodType?: string
+  servings: FatSecretServingRef[]
+}
+
 export interface MacroCustomFood {
   id: string
   emoji?: string
@@ -88,6 +104,10 @@ export interface MacroDayItem {
   /** Set when macros were scaled from the food library. */
   libraryFoodId?: string
   servingMultiplier?: number
+  /** FatSecret search query from parser; not shown in UI. */
+  fatSecretSearch?: string
+  /** Cached FatSecret search snapshot; reused on macro refresh (no re-search). */
+  fatSecretResults?: FatSecretFoodRef[]
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

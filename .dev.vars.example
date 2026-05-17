@@ -1,7 +1,12 @@
 # Rename to .dev.vars for local `wrangler dev`.
 OPENAI_API_KEY=
 
-# Production: the Worker needs the key as a Wrangler *secret* (dashboard plaintext often does not apply).
+# FatSecret Platform API (https://platform.fatsecret.com)
+FATSECRET_CLIENT_ID=
+FATSECRET_CLIENT_SECRET=
+
+# Production: the Worker needs keys as Wrangler *secrets* (dashboard plaintext often does not apply).
 # One-time, from this folder (never commit .dev.vars):
 #   npx wrangler secret put OPENAI_API_KEY
-# Or pipe from .dev.vars: grep '^OPENAI_API_KEY=' .dev.vars | cut -d= -f2- | npx wrangler secret put OPENAI_API_KEY
+#   npx wrangler secret put FATSECRET_CLIENT_ID
+#   npx wrangler secret put FATSECRET_CLIENT_SECRET
