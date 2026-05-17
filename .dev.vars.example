@@ -1,2 +1,7 @@
-# Rename to .dev.vars and paste your key (same value as Cloudflare → Settings → Variables).
+# Rename to .dev.vars for local `wrangler dev`.
 OPENAI_API_KEY=
+
+# Production: the Worker needs the key as a Wrangler *secret* (dashboard plaintext often does not apply).
+# One-time, from this folder (never commit .dev.vars):
+#   npx wrangler secret put OPENAI_API_KEY
+# Or pipe from .dev.vars: grep '^OPENAI_API_KEY=' .dev.vars | cut -d= -f2- | npx wrangler secret put OPENAI_API_KEY
