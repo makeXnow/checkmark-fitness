@@ -69,7 +69,7 @@ The system will automatically:
 - Build and deploy the app
 - Update the router so it's live at `makexnow.com/apps/<slug>` (or at a custom domain if one is assigned)
 
-**This app requires the Cloudflare Worker (API + D1), not static-only Pages.** Use `npm run deploy` (runs `wrangler deploy` with `./dist` assets). A static-only deploy breaks `/api/*` and shows "Unexpected token '<'" because the server returns `index.html` instead of JSON.
+**This app uses Worker + assets + D1.** The makeXnow dashboard detects `wrangler.toml` with `main` + `[assets]` and runs `wrangler deploy` automatically. After deploy, `hosting: "worker"` and `backendOrigin` are set in `apps.json` so makexnow.com routes to the Worker (not static Pages).
 
 ### Static Sites (No Build Step)
 
