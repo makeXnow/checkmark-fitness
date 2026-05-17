@@ -54,11 +54,14 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
 
   const searchQ = body.fatSecretSearch?.trim()
   if (!body.skipFatSecretFetch && searchQ && fatSecretResults.length === 0) {
-    if (!env.FATSECRET_CLIENT_ID || !env.FATSECRET_CLIENT_SECRET) {
-      throw new Error('FatSecret credentials missing on Worker')
+    if (env.FATSECRET_CLIENT_ID && env.FATSECRET_CLIENT_SECRET) {
+      try {
+        fatSecretResults = await fatSecretSearchFoods(env, searchQ)
+        fatSecretSource = fatSecretResults.length > 0 ? 'search' : 'none'
+      } catch {
+        /* FatSecret optional — continue with library + AI estimate */
+      }
     }
-    fatSecretResults = await fatSecretSearchFoods(env, searchQ)
-    fatSecretSource = fatSecretResults.length > 0 ? 'search' : 'none'
   }
 
   const key = env.OPENAI_API_KEY

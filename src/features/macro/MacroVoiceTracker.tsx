@@ -250,13 +250,19 @@ export function MacroVoiceTracker({
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
-            const next = {
+            if (i.name?.trim()) {
+              return {
+                ...i,
+                status: 'pending' as const,
+                ...(fs?.length ? { fatSecretResults: fs } : {}),
+              }
+            }
+            return {
               ...i,
               status: 'editing_raw' as const,
               rawText: [item.name, item.amount].filter(Boolean).join(' '),
+              ...(fs?.length ? { fatSecretResults: fs } : {}),
             }
-            if (fs?.length) return { ...next, fatSecretResults: fs }
-            return next
           }),
         )
       } finally {
@@ -298,6 +304,25 @@ export function MacroVoiceTracker({
     },
     [calculateMacros, dateKey, replaceDay],
   )
+
+  const stuckParsedKey = useMemo(
+    () =>
+      items
+        .filter((i) => i.status === 'editing_raw' && i.name?.trim())
+        .map((i) => i.id)
+        .sort()
+        .join(','),
+    [items],
+  )
+
+  useEffect(() => {
+    if (!stuckParsedKey) return
+    replaceDay((prev) =>
+      prev.map((i) =>
+        i.status === 'editing_raw' && i.name?.trim() ? { ...i, status: 'pending' as const } : i,
+      ),
+    )
+  }, [stuckParsedKey, replaceDay])
 
   const pendingEstimateKey = useMemo(
     () =>
@@ -728,7 +753,7 @@ function FoodRow({
     )
   }
 
-  if (item.status === 'editing_raw') {
+  if (item.status === 'editing_raw' && !item.name?.trim()) {
     return (
       <div className="bg-white/5 p-4 rounded-[var(--radius-card)] border border-white/20 flex flex-col gap-3">
         <textarea
