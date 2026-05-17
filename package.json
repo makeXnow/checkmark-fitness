@@ -10,6 +10,7 @@
     "dev:all": "npm run dev",
     "dev:ensure-assets": "test -f dist/index.html || npm run build",
     "build": "tsc && vite build",
+    "build:prod": "tsc && vite build --mode production",
     "preview": "vite preview",
     "dev:worker": "npm run dev:ensure-assets && wrangler dev",
     "seed:sql": "node scripts/seed-d1.mjs",
@@ -18,7 +19,7 @@
     "db:migrate:local": "wrangler d1 migrations apply checkmark-fitness --local",
     "db:migrate:remote": "wrangler d1 migrations apply checkmark-fitness --remote",
     "deploy": "npm run pages:deploy",
-    "pages:deploy": "npm run build && wrangler deploy"
+    "pages:deploy": "npm run build:prod && wrangler deploy"
   },
   "dependencies": {
     "hono": "^4.12.18",

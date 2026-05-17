@@ -1,20 +1,37 @@
 import { getBasename } from '../lib/getBasename'
 
+/** Cloudflare Worker that serves /api/* (must match wrangler.toml `name` + account workers.dev subdomain). */
+const WORKER_ORIGIN =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://mxn-checkmark-fitness.alexander-c3a.workers.dev'
+
+/**
+ * On makexnow.com the router often proxies to static Pages; /api/* then returns index.html.
+ * Always call the Worker origin directly in that case (CORS is enabled on the Worker).
+ */
+function useWorkerOriginInBrowser(): boolean {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  if (host === 'localhost' || host === '127.0.0.1') return false
+  if (host.endsWith('.workers.dev')) return false
+  return true
+}
+
 /**
  * Optional absolute API origin (e.g. Worker URL) when the SPA and API are not same-origin.
- * Vite: set `VITE_API_URL=https://your-worker.example.com` in `.env.local`
- *
- * When unset, API paths are rooted at the app’s runtime base path (e.g. `/apps/your-app`)
- * so requests hit the Worker’s `/api/*` routes instead of resolving incorrectly as `./api/...`.
+ * Vite: set `VITE_API_URL` in `.env.production` or `.env.local`
  */
 export function apiUrl(path: string): string {
-  const explicit = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
-  if (explicit) {
-    const p = path.startsWith('/') ? path : `/${path}`
-    return `${explicit}${p}`
+  const apiPath = path.startsWith('/') ? path : `/${path}`
+
+  if (useWorkerOriginInBrowser()) {
+    return `${WORKER_ORIGIN}${apiPath}`
   }
 
-  const apiPath = path.startsWith('/') ? path : `/${path}`
+  const explicit = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
+  if (explicit) {
+    return `${explicit}${apiPath}`
+  }
 
   if (typeof window !== 'undefined') {
     const base = getBasename()
