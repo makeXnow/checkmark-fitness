@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev:ensure-assets && concurrently -k -n web,api \"vite\" \"wrangler dev\"",
+    "dev": "npm run dev:ensure-assets && npm run dev:clean-ports && concurrently -n web,api \"vite\" \"wrangler dev\"",
+    "dev:clean-ports": "lsof -nP -iTCP:8787 -sTCP:LISTEN -t 2>/dev/null | xargs kill -9 2>/dev/null || true",
     "dev:vite": "vite",
     "dev:all": "npm run dev",
     "dev:ensure-assets": "test -f dist/index.html || npm run build",
