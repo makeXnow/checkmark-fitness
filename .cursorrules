@@ -38,7 +38,7 @@ If this app has NOT been registered yet, you need to "onboard" it:
      "folder": "<FULL_PATH_TO_THIS_FOLDER>",
      "githubUrl": "",
      "url": "",
-     "localhostPort": 9023,
+     "localhostPort": 9024,
      "logs": [],
      "todos": [],
      "domain": "makexnow.com"
@@ -53,7 +53,7 @@ If this app has NOT been registered yet, you need to "onboard" it:
 
 ## Development Standards
 
-- **Port:** This app is assigned to port 9023. Do NOT change this. The dashboard launches this app using `npm run dev -- --port 9023`.
+- **Port:** This app is assigned to port 9024. Do NOT change this. The dashboard launches this app using `npm run dev` (Vite on 9024; API worker on 8787 via proxy).
 - **Base Path:** Keep `base: './'` in `vite.config.ts` so assets work when hosted at `/apps/your-app/`
 - **Relative Paths:** Use `./` for all asset imports (e.g., `./logo.png`, not `/logo.png`)
 

@@ -10,6 +10,7 @@ export default defineConfig({
   // Use relative paths so the app works when hosted at /apps/your-app/
   base: './',
   server: {
+    port: 9024,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8787',

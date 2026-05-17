@@ -56,10 +56,14 @@ export default function App() {
       setBoot(data)
     } catch (e) {
       const base = e instanceof Error ? e.message : 'Failed to load'
-      const hint =
-        base === 'Failed to fetch' || base.includes('NetworkError')
-          ? ' Start the API: `npm run dev:worker` (port 8787) while `npm run dev` runs.'
-          : ''
+      const apiDown =
+        base === 'Internal Server Error' ||
+        base === 'Failed to fetch' ||
+        base.includes('NetworkError') ||
+        base.includes('ECONNREFUSED')
+      const hint = apiDown
+        ? ' Run `npm run dev` in the project folder — it starts both the web app (9024) and the API worker (8787).'
+        : ''
       setError(base + hint)
     }
   }, [])
