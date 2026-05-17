@@ -23,7 +23,7 @@ export function MacroScreen({
   const dateKey = currentDate.toISOString().split('T')[0]
 
   return (
-    <div className="flex-1 flex flex-col gap-6">
+    <div className="flex-1 flex flex-col gap-4">
       {view === 'tracker' && onSaveLogs && onSaveFoods && (
         <MacroVoiceTracker
           dateKey={dateKey}
@@ -36,7 +36,7 @@ export function MacroScreen({
       )}
 
       {view === 'settings' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div>
             <label className="text-[10px] font-black opacity-30 uppercase tracking-widest block mb-2 text-white">
               Daily Calories

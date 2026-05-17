@@ -1,13 +1,7 @@
 import { useMemo } from 'react'
+import { localDateISO } from '../../lib/localDate'
 import type { HabitsGoals, DayLog } from '../../types/domain'
 import { DualSlider, GoalCard, HabitColorPicker, computeWeeklyProgress, habitOrder } from './habitsUi'
-
-function localDateKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = `${d.getMonth() + 1}`.padStart(2, '0')
-  const day = `${d.getDate()}`.padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 export function HabitsScreen({
   currentDate,
@@ -28,7 +22,7 @@ export function HabitsScreen({
   onSaveAppSettings: (s: { firstDayOfWeek: number }) => void
   view: 'tracker' | 'settings'
 }) {
-  const dateKey = localDateKey(currentDate)
+  const dateKey = localDateISO(currentDate)
 
   const weekDates = useMemo(() => {
     const start = new Date(currentDate)
@@ -39,7 +33,7 @@ export function HabitsScreen({
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start)
       d.setDate(d.getDate() + i)
-      return localDateKey(d)
+      return localDateISO(d)
     })
   }, [currentDate, appSettings.firstDayOfWeek])
 
@@ -81,7 +75,7 @@ export function HabitsScreen({
   return (
     <div className="flex-1 flex flex-col">
       {view === 'tracker' && (
-        <div className="grid grid-cols-2 gap-4 content-start">
+        <div className="grid grid-cols-2 gap-3 content-start">
           {habitOrder.map((key) => (
             <GoalCard
               key={key}
@@ -97,12 +91,12 @@ export function HabitsScreen({
       )}
 
       {view === 'settings' && (
-      <section className="space-y-4">
+      <section className="space-y-3">
         <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest px-1">Goal Targets</p>
         {habitOrder.map((key) => {
           const config = goals[key]
           return (
-            <div key={key} className="bg-neutral-900 border border-neutral-800 p-5 rounded-[var(--radius-card)]">
+            <div key={key} className="bg-neutral-900 border border-neutral-800 p-4 rounded-[var(--radius-card)]">
               <div className="flex justify-between items-center mb-1">
                 <span className="font-bold text-white uppercase tracking-widest text-xs">{config.label}</span>
                 <div className="flex gap-3 text-[10px] font-black text-neutral-500">
@@ -124,7 +118,7 @@ export function HabitsScreen({
           )
         })}
 
-        <div className="bg-blue-500/10 border border-blue-500/20 p-5 rounded-[var(--radius-card)] space-y-4">
+        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-[var(--radius-card)] space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Bottles per day</span>
             <span className="text-sm font-black text-blue-400">{goals.water.dailyTarget}</span>
@@ -139,7 +133,7 @@ export function HabitsScreen({
           />
         </div>
 
-        <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-[var(--radius-card)] space-y-4">
+        <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-[var(--radius-card)] space-y-3">
           <span className="font-bold text-white uppercase tracking-widest text-xs">First Day of Week</span>
           <div className="flex bg-black rounded-lg p-1 border border-neutral-800">
             <button

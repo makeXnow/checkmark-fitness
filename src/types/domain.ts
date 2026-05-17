@@ -76,6 +76,8 @@ export interface MacroDayItem {
   emoji?: string
   name: string
   amount: string
+  /** Parser context for macro estimation; not shown in the UI. */
+  notes?: string
   calories?: number
   protein?: number
   fat?: number
@@ -83,6 +85,9 @@ export interface MacroDayItem {
   status?: string
   timestamp?: number
   rawText?: string
+  /** Set when macros were scaled from the food library. */
+  libraryFoodId?: string
+  servingMultiplier?: number
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

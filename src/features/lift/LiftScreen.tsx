@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, FileText, Plus, Trash2, X } from 'lucide-react'
+import { AppAccentTextButton } from '../../core/AppAccentTextButton'
 import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
 import {
@@ -132,7 +133,7 @@ function LiftHistoryEntryCard({
     w && targetNext !== undefined ? getOptimalPlates(targetNext, w.barWeight, plates).actualWeight : targetNext
 
   return (
-    <div className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-sm">
+    <div className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-sm">
       <h4 className="mb-3 text-lg font-bold text-white">{entry.workoutName || 'Workout'}</h4>
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
         <div className="flex min-w-0 flex-wrap gap-x-3 text-sm font-medium text-neutral-400">
@@ -218,6 +219,78 @@ function makeId(prefix: string) {
   return `${prefix}${crypto.randomUUID()}`
 }
 
+const LIFT_WORKOUT_ANIM_MS = 1500
+
+function WorkoutDayTransition({
+  dayIndex,
+  children,
+}: {
+  dayIndex: number
+  children: (activeIndex: number) => React.ReactNode
+}) {
+  const [shownIndex, setShownIndex] = useState(dayIndex)
+  const [fromIndex, setFromIndex] = useState(dayIndex)
+  const [isSwapping, setIsSwapping] = useState(false)
+  const skipAnimRef = useRef(true)
+
+  useEffect(() => {
+    if (dayIndex === shownIndex && !isSwapping) return
+
+    if (skipAnimRef.current) {
+      skipAnimRef.current = false
+      setShownIndex(dayIndex)
+      setFromIndex(dayIndex)
+      return
+    }
+
+    if (!isSwapping) {
+      setFromIndex(shownIndex)
+      setIsSwapping(true)
+    }
+  }, [dayIndex, shownIndex, isSwapping])
+
+  useEffect(() => {
+    if (!isSwapping) return
+    const id = window.setTimeout(() => {
+      setShownIndex(dayIndex)
+      setFromIndex(dayIndex)
+      setIsSwapping(false)
+    }, LIFT_WORKOUT_ANIM_MS)
+    return () => window.clearTimeout(id)
+  }, [isSwapping, dayIndex])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (isSwapping) {
+      root.classList.add('lift-workout-swapping')
+      return () => root.classList.remove('lift-workout-swapping')
+    }
+    root.classList.remove('lift-workout-swapping')
+  }, [isSwapping])
+
+  if (isSwapping) {
+    return (
+      <div className="lift-workout-transition-root">
+        <div
+          className="lift-workout-layer lift-workout-layer-exit-right space-y-5 pb-4"
+          aria-hidden
+        >
+          {children(fromIndex)}
+        </div>
+        <div className="lift-workout-layer lift-workout-layer-enter-from-left space-y-5 pb-4">
+          {children(dayIndex)}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="lift-workout-transition-root">
+      <div className="space-y-5 pb-4">{children(shownIndex)}</div>
+    </div>
+  )
+}
+
 export function LiftScreen({
   payload,
   subRoute,
@@ -272,19 +345,6 @@ export function LiftScreen({
     [payload.history, sortedDays, payload.workouts],
   )
 
-  const currentDayHistory = useMemo(() => {
-    if (!currentDay) return []
-    return (payload.history || []).filter((h) => {
-      const w = payload.workouts.find((wk) => wk.id === h.workoutId)
-      return Boolean(w && w.dayId === currentDay.id)
-    })
-  }, [payload.history, payload.workouts, currentDay?.id])
-
-  const dayLogGroups = useMemo(
-    () => groupHistory(currentDayHistory, sortedDays, payload.workouts, { dateOnly: true }),
-    [currentDayHistory, sortedDays, payload.workouts],
-  )
-
   const effectiveStatusId = useCallback(
     (workoutId: string) => {
       const fallback = statuses[0]?.id ?? ''
@@ -330,10 +390,10 @@ export function LiftScreen({
 
   if (view === 'settings') {
     return (
-      <div className="space-y-6">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-          <h3 className="mb-5 text-lg font-black uppercase tracking-tight text-white">Units</h3>
-          <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-5">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Units</h3>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel>Weight</FieldLabel>
               <div className="relative rounded-lg border border-neutral-700 bg-black">
@@ -371,9 +431,9 @@ export function LiftScreen({
           </div>
         </div>
 
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Plate rack</h3>
-          <div className="mb-5 flex gap-2">
+          <div className="mb-4 flex gap-2">
             <input
               type="number"
               step="any"
@@ -431,12 +491,12 @@ export function LiftScreen({
           </div>
         </div>
 
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-          <h3 className="mb-5 text-lg font-black uppercase tracking-tight text-white">Progression multipliers</h3>
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Progression multipliers</h3>
           <p className="mb-4 text-xs text-neutral-500">
             Next weight = current + (increment × multiplier). ≤0 shows red on workout and log cards.
           </p>
-          <div className="mb-5 space-y-3">
+          <div className="mb-4 space-y-3">
             {statuses.map((status) => (
               <div key={status.id} className="flex gap-2 items-center">
                 <div className="flex flex-1 items-center rounded-lg border border-neutral-800 bg-black px-3 py-1 transition-colors focus-within:border-emerald-400">
@@ -523,7 +583,7 @@ export function LiftScreen({
       )
     }
     return (
-      <div className="space-y-8">
+      <div className="space-y-5">
         {logGroups.map((group, idx) => (
           <div key={idx}>
             <div className="mb-4 flex items-baseline justify-between">
@@ -542,7 +602,7 @@ export function LiftScreen({
   }
 
   // workout
-  if (sortedDays.length === 0 || !currentDay) {
+  if (sortedDays.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 py-24 text-center text-neutral-500">
         <p className="text-lg font-bold">No plan created yet.</p>
@@ -550,18 +610,36 @@ export function LiftScreen({
     )
   }
 
-  if (todaysWorkouts.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 py-24 text-center text-neutral-500">
-        <p className="text-lg font-bold">No workouts for {currentDay.name}.</p>
-      </div>
-    )
-  }
-
-  let runningSetNum = 1
   return (
-    <div className="space-y-6 pb-4">
-      {todaysWorkouts.map((workout) => {
+    <WorkoutDayTransition dayIndex={currentDayIndex}>
+      {(activeIndex) => {
+        const activeDay = sortedDays[activeIndex]
+        if (!activeDay) return null
+
+        const activeWorkouts = payload.workouts.filter((w) => w.dayId === activeDay.id)
+        if (activeWorkouts.length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center p-12 py-24 text-center text-neutral-500">
+              <p className="text-lg font-bold">No workouts for {activeDay.name}.</p>
+            </div>
+          )
+        }
+
+        const activeDayHistory = (payload.history || []).filter((h) => {
+          const w = payload.workouts.find((wk) => wk.id === h.workoutId)
+          return Boolean(w && w.dayId === activeDay.id)
+        })
+        const activeDayLogGroups = groupHistory(
+          activeDayHistory,
+          sortedDays,
+          payload.workouts,
+          { dateOnly: true },
+        )
+
+        let runningSetNum = 1
+        return (
+          <>
+            {activeWorkouts.map((workout) => {
         const { groupedSets, nextSetNum } = buildGroupedSets(
           workout,
           payload.availablePlates || [],
@@ -577,7 +655,7 @@ export function LiftScreen({
         const isNotesOpen = Boolean(openNotesByWorkoutId[workout.id])
 
         return (
-          <div key={workout.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-md">
+          <div key={workout.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md">
             <div className="mb-4 flex items-start justify-between gap-2">
               <h3 className="min-w-0 flex-1 pr-2 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
                 {workout.name}
@@ -771,7 +849,7 @@ export function LiftScreen({
           </div>
         )
       })}
-      {onPersist && todaysWorkouts.length > 0 && (
+            {onPersist && activeWorkouts.length > 0 && (
         <button
           type="button"
           className="mt-2 w-full rounded-xl bg-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.2em] text-black shadow-lg transition-colors hover:bg-emerald-300 active:scale-[0.99]"
@@ -783,19 +861,13 @@ export function LiftScreen({
 
       {onSeeAllLog && (
         <div className="mt-12 border-t border-neutral-800 pt-8">
-          <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-lg font-black uppercase tracking-tight text-white">Log</h2>
-            <button
-              type="button"
-              onClick={onSeeAllLog}
-              className="shrink-0 font-black text-[10px] uppercase tracking-[0.2em] text-emerald-400 transition-colors hover:text-emerald-300"
-            >
-              SEE ALL
-            </button>
+            <AppAccentTextButton onClick={onSeeAllLog}>See all</AppAccentTextButton>
           </div>
-          {dayLogGroups.length > 0 ? (
-            <div className="space-y-8">
-              {dayLogGroups.map((group, idx) => (
+          {activeDayLogGroups.length > 0 ? (
+            <div className="space-y-5">
+              {activeDayLogGroups.map((group, idx) => (
                 <div key={idx}>
                   <h3 className="mb-4 text-xl font-bold text-neutral-300">{group.dateStr}</h3>
                   <div className="space-y-4">
@@ -811,6 +883,9 @@ export function LiftScreen({
           )}
         </div>
       )}
-    </div>
+          </>
+        )
+      }}
+    </WorkoutDayTransition>
   )
 }

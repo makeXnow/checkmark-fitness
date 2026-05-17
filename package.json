@@ -13,6 +13,7 @@
     "build:prod": "tsc && vite build --mode production",
     "preview": "vite preview",
     "dev:worker": "npm run dev:ensure-assets && wrangler dev",
+    "migrate:lift": "node scripts/migrate-liftcalc.mjs",
     "seed:sql": "node scripts/seed-d1.mjs",
     "seed:local": "node scripts/seed-d1.mjs && wrangler d1 execute checkmark-fitness --local --file=seed-generated.sql",
     "seed:remote": "node scripts/seed-d1.mjs && wrangler d1 execute checkmark-fitness --remote --file=seed-generated.sql",

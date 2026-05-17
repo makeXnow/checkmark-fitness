@@ -1,12 +1,10 @@
 import {
   ArrowUp,
   Camera,
-  Check,
   Loader2,
   Mic,
   NotebookText,
   Plus,
-  RefreshCw,
   ScanText,
   Trash2,
   X,
@@ -18,6 +16,20 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { aiJson, aiVisionJson, transcribeAudio } from '../../core/api'
 import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
+import {
+  buildMacroEstimatePrompt,
+  formatNumberedFoodLibrary,
+  parsedItemToDayItem,
+  resolveMacroEstimate,
+  type MacroEstimateResponse,
+  type ParsedFoodItem,
+} from './macroLib'
+import {
+  MacroFoodEditCard,
+  MacroFoodViewCard,
+  itemToEditFields,
+  type MacroFoodEditFields,
+} from './MacroFoodCard'
 import { MACRO_PROMPTS } from './prompts'
 
 type QuickScanState = {
@@ -36,28 +48,6 @@ function preferredRecorderMimeType(): string {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t
   }
   return ''
-}
-
-function MacroMiniCard({
-  value,
-  label,
-  color,
-  suffix = '',
-}: {
-  value: number
-  label: string
-  color: string
-  suffix?: string
-}) {
-  return (
-    <div className="bg-white/[0.03] border border-white/[0.05] p-1.5 rounded-lg min-w-[48px] flex flex-col items-center justify-center">
-      <span className={`text-[10px] font-black leading-none ${color} opacity-90`}>
-        {value}
-        {suffix}
-      </span>
-      <span className="text-[6px] font-black opacity-15 uppercase tracking-widest mt-0.5 text-white">{label}</span>
-    </div>
-  )
 }
 
 function StatusDashboard({
@@ -177,19 +167,11 @@ export function MacroVoiceTracker({
       const key = dateKey
       const prevAll = logsRef.current
       const nextDay = fn(prevAll[key] || [])
-      onSaveLogs({ ...prevAll, [key]: nextDay })
+      const nextAll = { ...prevAll, [key]: nextDay }
+      logsRef.current = nextAll
+      onSaveLogs(nextAll)
     },
     [dateKey, onSaveLogs],
-  )
-
-  const customFoodCtxForAi = useMemo(
-    () =>
-      customFoods.length > 0
-        ? `\n\nUSER CUSTOM FOODS DATABASE:\n${JSON.stringify(
-            customFoods.map((f) => ({ name: f.name, emoji: f.emoji, baseAmount: f.baseAmount, calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs })),
-          )}`
-        : '',
-    [customFoods],
   )
 
   useEffect(() => {
@@ -207,33 +189,55 @@ export function MacroVoiceTracker({
   )
 
   const calculateMacros = useCallback(
-    async (id: string, name: string, amount: string, extraCtx = '') => {
+    async (
+      id: string,
+      fields: { name: string; amount: string; notes?: string; emoji?: string },
+      extraCtx = '',
+    ) => {
+      const foods = customFoodsRef.current
       try {
         const json = (await aiJson({
           system: MACRO_PROMPTS.MACROS,
-          user: `Calculate macros for ${amount} of ${name}.${customFoodCtxForAi}${extraCtx}`,
-        })) as { calories?: number; protein?: number; fat?: number; carbs?: number }
+          user: `${buildMacroEstimatePrompt(fields.name, fields.amount, fields.notes)}${formatNumberedFoodLibrary(foods)}${extraCtx}`,
+        })) as MacroEstimateResponse
+        const result = resolveMacroEstimate(json, foods)
         replaceDay((prev) =>
-          prev.map((i) =>
-            i.id === id && i.status === 'pending'
-              ? {
-                  ...i,
-                  calories: json.calories ?? 0,
-                  protein: json.protein ?? 0,
-                  fat: json.fat ?? 0,
-                  carbs: json.carbs ?? 0,
-                  status: 'ready',
-                }
-              : i,
-          ),
+          prev.map((i) => {
+            if (i.id !== id) return i
+            return {
+              ...i,
+              name: result.name ?? i.name,
+              emoji: result.emoji ?? i.emoji,
+              calories: result.calories,
+              protein: result.protein,
+              libraryFoodId: result.libraryFoodId,
+              servingMultiplier: result.servingMultiplier,
+              status: 'ready',
+            }
+          }),
         )
       } catch {
         replaceDay((prev) =>
-          prev.map((i) => (i.id === id ? { ...i, status: 'editing_raw', rawText: `${name} ${amount}` } : i)),
+          prev.map((i) =>
+            i.id === id
+              ? { ...i, status: 'editing_raw', rawText: [fields.name, fields.amount].filter(Boolean).join(' ') }
+              : i,
+          ),
         )
       }
     },
-    [customFoodCtxForAi, replaceDay],
+    [replaceDay],
+  )
+
+  const estimateMacrosForItem = useCallback(
+    (item: MacroDayItem, extraCtx = '') => {
+      void calculateMacros(
+        item.id,
+        { name: item.name, amount: item.amount, notes: item.notes, emoji: item.emoji },
+        extraCtx,
+      )
+    },
+    [calculateMacros],
   )
 
   const startParsingFlow = useCallback(
@@ -242,15 +246,14 @@ export function MacroVoiceTracker({
       processingRefs.current[id] = controller
       try {
         let promptInput = `Input: ${rawText}`
-        let ctx = customFoodCtxForAi
         if (baseFood && baseFood.name) {
-          ctx += `\n\nContext: The user scanned "${String(baseFood.name)}".`
+          promptInput += `\n\nContext: The user scanned "${String(baseFood.name)}".`
           const nf = await aiJson({
             system: MACRO_PROMPTS.PARSER,
-            user: `${promptInput}${ctx}`,
+            user: promptInput,
           }).catch(() => null)
           if (!nf || typeof nf !== 'object') throw new Error('parse')
-          const data = nf as { items?: { emoji?: string; name?: string; amount?: string }[] }
+          const data = nf as { items?: ParsedFoodItem[] }
           const libItem: MacroCustomFood = {
             id: crypto.randomUUID(),
             name: String(baseFood.name || ''),
@@ -265,44 +268,24 @@ export function MacroVoiceTracker({
           onSaveFoods([...customFoodsRef.current, libItem])
           replaceDay((prev) => prev.filter((i) => i.id !== id))
           if (data.items?.length) {
-            const newItems: MacroDayItem[] = data.items.map((it) => ({
-              id: crypto.randomUUID(),
-              emoji: it.emoji,
-              name: it.name || '',
-              amount: it.amount || '',
-              status: 'pending',
-              timestamp: Date.now(),
-              calories: 0,
-              protein: 0,
-              fat: 0,
-              carbs: 0,
-            }))
+            const newItems = data.items.map((it) => parsedItemToDayItem(it))
             replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
-            newItems.forEach((it) => void calculateMacros(it.id, it.name, it.amount, `\nScanned base: ${JSON.stringify(baseFood)}`))
+            newItems.forEach((it) =>
+              estimateMacrosForItem(it, `\n\nScanned base: ${JSON.stringify(baseFood)}`),
+            )
           }
           return
         }
         const parsed = await aiJson({
           system: MACRO_PROMPTS.PARSER,
-          user: `${promptInput}${ctx}`,
+          user: promptInput,
         })
-        const data = parsed as { items?: { emoji?: string; name?: string; amount?: string }[] }
+        const data = parsed as { items?: ParsedFoodItem[] }
         replaceDay((prev) => prev.filter((i) => i.id !== id))
         if (data.items?.length) {
-          const newItems: MacroDayItem[] = data.items.map((it) => ({
-            id: crypto.randomUUID(),
-            emoji: it.emoji,
-            name: it.name || '',
-            amount: it.amount || '',
-            status: 'pending',
-            timestamp: Date.now(),
-            calories: 0,
-            protein: 0,
-            fat: 0,
-            carbs: 0,
-          }))
+          const newItems = data.items.map((it) => parsedItemToDayItem(it))
           replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
-          newItems.forEach((it) => void calculateMacros(it.id, it.name, it.amount))
+          newItems.forEach((it) => estimateMacrosForItem(it))
         }
       } catch {
         replaceDay((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'editing_raw', rawText } : i)))
@@ -310,7 +293,7 @@ export function MacroVoiceTracker({
         delete processingRefs.current[id]
       }
     },
-    [calculateMacros, customFoodCtxForAi, onSaveFoods, replaceDay],
+    [estimateMacrosForItem, onSaveFoods, replaceDay],
   )
 
   const handleMicToggle = useCallback(async () => {
@@ -471,17 +454,31 @@ export function MacroVoiceTracker({
   )
 
   const updateItem = useCallback(
-    (id: string, name: string, amount: string) => {
+    (id: string, fields: MacroFoodEditFields) => {
       replaceDay((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, name, amount, status: 'pending', calories: 0, protein: 0, fat: 0, carbs: 0 } : i)),
+        prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                emoji: fields.emoji || '🍱',
+                name: fields.name,
+                amount: fields.amount,
+                calories: fields.calories,
+                protein: fields.protein,
+                notes: undefined,
+                libraryFoodId: undefined,
+                servingMultiplier: undefined,
+                status: 'ready',
+              }
+            : i,
+        ),
       )
-      void calculateMacros(id, name, amount)
     },
-    [calculateMacros, replaceDay],
+    [replaceDay],
   )
 
   return (
-    <div className="flex flex-col gap-6 pb-44">
+    <div className="flex flex-col gap-4 pb-44">
       <StatusDashboard
         consumed={totals.cal}
         goal={goals.calorieGoal}
@@ -491,7 +488,7 @@ export function MacroVoiceTracker({
 
       <section className="space-y-3">
         {items.length === 0 ? (
-          <div className="bg-white/5 rounded-[var(--radius-card)] border border-white/5 p-10 text-center">
+          <div className="bg-white/5 rounded-[var(--radius-card)] border border-white/5 p-8 text-center">
             <p className="opacity-30 font-bold text-[10px] uppercase tracking-widest text-white">No entries yet</p>
           </div>
         ) : (
@@ -502,8 +499,7 @@ export function MacroVoiceTracker({
                 key={item.id}
                 item={item}
                 onRemove={() => removeItem(item.id)}
-                onRefresh={() => item.status === 'ready' && calculateMacros(item.id, item.name, item.amount)}
-                onUpdate={(n, a) => updateItem(item.id, n, a)}
+                onUpdate={(fields) => updateItem(item.id, fields)}
                 onCancelProcessing={() => cancelProcessing(item.id)}
                 onReprocess={(raw) => {
                   replaceDay((prev) =>
@@ -521,7 +517,7 @@ export function MacroVoiceTracker({
       </section>
 
       <section className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden">
-        <div className="flex justify-between items-center p-5 border-b border-white/5 bg-black/20">
+        <div className="flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
           <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
             <NotebookText size={16} className="text-emerald-400" /> Food Library
           </h2>
@@ -588,7 +584,6 @@ export function MacroVoiceTracker({
 function FoodRow({
   item,
   onRemove,
-  onRefresh,
   onUpdate,
   onCancelProcessing,
   onReprocess,
@@ -596,22 +591,19 @@ function FoodRow({
 }: {
   item: MacroDayItem
   onRemove: () => void
-  onRefresh: () => void
-  onUpdate: (n: string, a: string) => void
+  onUpdate: (fields: MacroFoodEditFields) => void
   onCancelProcessing: () => void
   onReprocess: (raw: string) => void
   onCancelTranscription: () => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [tempName, setTempName] = useState(item.name)
-  const [tempAmount, setTempAmount] = useState(item.amount)
+  const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item))
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
 
   useEffect(() => {
-    setTempName(item.name)
-    setTempAmount(item.amount)
+    if (!editing) setEditData(itemToEditFields(item))
     setTempRaw(item.rawText || '')
-  }, [item.name, item.amount, item.rawText])
+  }, [item, editing])
 
   if (item.status === 'transcribing') {
     return (
@@ -671,74 +663,34 @@ function FoodRow({
       </div>
     )
   }
+  if (editing) {
+    return (
+      <MacroFoodEditCard
+        fieldId={item.id}
+        data={editData}
+        onChange={setEditData}
+        autoFocusName
+        onReset={() => setEditData(itemToEditFields(item))}
+        onDelete={onRemove}
+        onSave={() => {
+          onUpdate(editData)
+          setEditing(false)
+        }}
+        saveDisabled={!editData.name.trim()}
+      />
+    )
+  }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => !editing && setEditing(true)}
-      onKeyDown={(e) => e.key === 'Enter' && !editing && setEditing(true)}
-      className={`relative bg-white/5 p-4 rounded-[var(--radius-card)] border border-white/5 transition-all ${item.status === 'pending' ? 'opacity-80' : ''}`}
-    >
-      {item.status === 'pending' && (
-        <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-[var(--radius-card)]">
-          <Loader2 className="animate-spin text-emerald-500 opacity-60" size={20} />
-        </div>
-      )}
-      <div className="relative flex items-center gap-3 w-full">
-        <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-xl shrink-0 border border-white/5">{item.emoji || '🍱'}</div>
-        <div className="flex flex-1 items-center justify-between min-w-0">
-          <div className="flex flex-col min-w-0 flex-grow">
-            {editing ? (
-              <div className="flex flex-col gap-1 pr-2" onClick={(e) => e.stopPropagation()}>
-                <input
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  className="bg-white/5 text-white font-bold text-sm w-full py-1 px-2 rounded-lg"
-                />
-                <input
-                  value={tempAmount}
-                  onChange={(e) => setTempAmount(e.target.value)}
-                  className="bg-white/5 text-white/40 font-black text-[10px] uppercase w-full py-1 px-2 rounded-lg"
-                />
-              </div>
-            ) : (
-              <>
-                <h3 className="font-bold text-white/90 text-sm leading-tight truncate">{item.name}</h3>
-                <p className="text-[10px] font-black opacity-30 uppercase tracking-tight truncate">{item.amount}</p>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3 shrink-0 ml-2">
-            <div className="flex gap-1.5">
-              <MacroMiniCard value={Math.round(item.calories || 0)} label="Cal" color="text-emerald-400" />
-              <MacroMiniCard value={Math.round(item.protein || 0)} label="Pro" color="text-blue-400" suffix="g" />
-            </div>
-            {editing && (
-              <div className="flex flex-col gap-1.5 ml-1">
-                <button type="button" onClick={(e) => { e.stopPropagation(); onRefresh() }} className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400">
-                  <RefreshCw size={14} strokeWidth={3} />
-                </button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); onRemove() }} className="p-1.5 bg-red-500/10 rounded-lg text-red-400">
-                  <Trash2 size={14} strokeWidth={3} />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onUpdate(tempName, tempAmount)
-                    setEditing(false)
-                  }}
-                  className="p-1.5 bg-emerald-500 rounded-lg text-white"
-                >
-                  <Check size={14} strokeWidth={3} />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    <MacroFoodViewCard
+      emoji={item.emoji}
+      name={item.name}
+      amount={item.amount}
+      calories={item.calories || 0}
+      protein={item.protein || 0}
+      pending={item.status === 'pending'}
+      onClick={() => item.status !== 'pending' && setEditing(true)}
+    />
   )
 }
 
@@ -866,6 +818,16 @@ function InteractionDock({
   )
 }
 
+const EMPTY_FOOD_ENTRY: Omit<MacroCustomFood, 'id' | 'createdAt'> = {
+  name: '',
+  emoji: '🍱',
+  baseAmount: '',
+  calories: 0,
+  protein: 0,
+  fat: 0,
+  carbs: 0,
+}
+
 function DatabaseModal({
   onClose,
   onSave,
@@ -875,43 +837,66 @@ function DatabaseModal({
 }) {
   const [frontImage, setFrontImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
   const [nutritionImage, setNutritionImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [activeEntry, setActiveEntry] = useState<Omit<MacroCustomFood, 'id' | 'createdAt'> | null>(null)
+  const [analyzingFront, setAnalyzingFront] = useState(false)
+  const [analyzingNutrition, setAnalyzingNutrition] = useState(false)
+  const [entry, setEntry] = useState<Omit<MacroCustomFood, 'id' | 'createdAt'>>(EMPTY_FOOD_ENTRY)
 
   useEffect(() => {
-    if (frontImage && nutritionImage && !analyzing && !activeEntry) void runAnalyze()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional run when images ready
-  }, [frontImage, nutritionImage])
-
-  const runAnalyze = async () => {
-    if (!frontImage || !nutritionImage) return
-    setAnalyzing(true)
-    try {
-      const frontData = (await aiVisionJson({
-        system: MACRO_PROMPTS.ANALYZE_FRONT,
-        user: 'Analyze front label.',
-        images: [{ mimeType: frontImage.mimeType, base64: frontImage.data }],
-        model: 'gpt-4o',
-      })) as { name?: string; emoji?: string }
-      const nutData = (await aiVisionJson({
-        system: MACRO_PROMPTS.ANALYZE_NUTRITION,
-        user: 'Analyze nutrition label.',
-        images: [{ mimeType: nutritionImage.mimeType, base64: nutritionImage.data }],
-        model: 'gpt-4o',
-      })) as { baseAmount?: string; calories?: number; protein?: number; fat?: number; carbs?: number }
-      setActiveEntry({
-        name: frontData.name || '',
-        emoji: frontData.emoji || '🍱',
-        baseAmount: nutData.baseAmount || '',
-        calories: nutData.calories ?? 0,
-        protein: nutData.protein ?? 0,
-        fat: nutData.fat ?? 0,
-        carbs: nutData.carbs ?? 0,
-      })
-    } finally {
-      setAnalyzing(false)
+    if (!nutritionImage) return
+    let cancelled = false
+    setAnalyzingNutrition(true)
+    void (async () => {
+      try {
+        const nutData = (await aiVisionJson({
+          system: MACRO_PROMPTS.ANALYZE_NUTRITION,
+          user: 'Analyze nutrition label.',
+          images: [{ mimeType: nutritionImage.mimeType, base64: nutritionImage.data }],
+          model: 'gpt-4o',
+        })) as { baseAmount?: string; calories?: number; protein?: number; fat?: number; carbs?: number }
+        if (cancelled) return
+        setEntry((prev) => ({
+          ...prev,
+          baseAmount: nutData.baseAmount || prev.baseAmount,
+          calories: nutData.calories ?? prev.calories,
+          protein: nutData.protein ?? prev.protein,
+          fat: nutData.fat ?? prev.fat,
+          carbs: nutData.carbs ?? prev.carbs,
+        }))
+      } finally {
+        if (!cancelled) setAnalyzingNutrition(false)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
-  }
+  }, [nutritionImage])
+
+  useEffect(() => {
+    if (!frontImage) return
+    let cancelled = false
+    setAnalyzingFront(true)
+    void (async () => {
+      try {
+        const frontData = (await aiVisionJson({
+          system: MACRO_PROMPTS.ANALYZE_FRONT,
+          user: 'Analyze front label.',
+          images: [{ mimeType: frontImage.mimeType, base64: frontImage.data }],
+          model: 'gpt-4o',
+        })) as { name?: string; emoji?: string }
+        if (cancelled) return
+        setEntry((prev) => ({
+          ...prev,
+          name: frontData.name || prev.name,
+          emoji: frontData.emoji || prev.emoji,
+        }))
+      } finally {
+        if (!cancelled) setAnalyzingFront(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [frontImage])
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: { data: string; mimeType: string; preview: string } | null) => void) => {
     const f = e.target.files?.[0]
@@ -925,103 +910,68 @@ function DatabaseModal({
     r.readAsDataURL(f)
   }
 
-  if (!activeEntry) {
-    return (
-      <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center p-4 backdrop-blur-md overflow-y-auto">
-        <div className="w-full max-w-md mt-6 flex justify-between items-center mb-6 shrink-0">
-          <h2 className="text-xl font-black text-emerald-400 flex items-center gap-2">
-            <Plus size={24} /> Add Food
-          </h2>
-          <button type="button" onClick={onClose} className="p-2 bg-white/5 rounded-full opacity-40 hover:opacity-100">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="w-full max-w-md space-y-4 pb-10">
-          <>
-            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center mb-2">Scan labels</p>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
-                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setNutritionImage)} />
-                {nutritionImage ? <img src={nutritionImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
-                <span className="relative z-10 text-[10px] font-black uppercase text-center text-white">{nutritionImage ? 'Nutrition OK' : '1. Nutrition'}</span>
-              </label>
-              <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
-                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setFrontImage)} />
-                {frontImage ? <img src={frontImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
-                <span className="relative z-10 text-[10px] font-black uppercase text-center text-white">{frontImage ? 'Front OK' : '2. Front'}</span>
-              </label>
-            </div>
-            {analyzing && (
-              <div className="bg-white/5 rounded-2xl p-4 flex items-center justify-center gap-3 text-emerald-400 font-bold mb-4">
-                <Loader2 size={20} className="animate-spin" /> Analyzing…
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setActiveEntry({ name: '', emoji: '🍱', baseAmount: '', calories: 0, protein: 0, fat: 0, carbs: 0 })}
-              className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-[1.5rem] font-bold flex items-center justify-center gap-2"
-            >
-              <Plus size={20} /> Add Manually
-            </button>
-          </>
-        </div>
-      </div>
-    )
-  }
-
-  const e = activeEntry
   return (
     <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center p-4 backdrop-blur-md overflow-y-auto">
       <div className="w-full max-w-md mt-6 flex justify-between items-center mb-6 shrink-0">
-        <h2 className="text-xl font-black text-emerald-400">Edit & Save</h2>
+        <h2 className="text-xl font-black text-emerald-400 flex items-center gap-2">
+          <Plus size={24} /> Add Food
+        </h2>
         <button type="button" onClick={onClose} className="p-2 bg-white/5 rounded-full opacity-40 hover:opacity-100">
           <X size={20} />
         </button>
       </div>
-      <div className="w-full max-w-md bg-[var(--color-surface)] p-6 rounded-[2rem] border border-[var(--color-border)] space-y-4">
-        <input
-          className="w-full p-3 bg-white/5 rounded-xl text-white font-bold"
-          placeholder="Name"
-          value={e.name}
-          onChange={(ev) => setActiveEntry({ ...e, name: ev.target.value })}
-        />
-        <input
-          className="w-full p-3 bg-white/5 rounded-xl text-white font-bold"
-          placeholder="Emoji"
-          value={e.emoji}
-          onChange={(ev) => setActiveEntry({ ...e, emoji: ev.target.value })}
-        />
-        <input
-          className="w-full p-3 bg-white/5 rounded-xl text-white font-bold"
-          placeholder="Base serving"
-          value={e.baseAmount}
-          onChange={(ev) => setActiveEntry({ ...e, baseAmount: ev.target.value })}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          {(['calories', 'protein', 'fat', 'carbs'] as const).map((k) => (
-            <input
-              key={k}
-              type="number"
-              className="w-full p-3 bg-white/5 rounded-xl text-white font-bold"
-              placeholder={k}
-              value={e[k] === 0 ? '' : e[k]}
-              onChange={(ev) => setActiveEntry({ ...e, [k]: parseFloat(ev.target.value) || 0 })}
-            />
-          ))}
+      <div className="w-full max-w-md space-y-4 pb-10">
+        <div className="grid grid-cols-2 gap-4">
+          <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setNutritionImage)} />
+            {nutritionImage ? <img src={nutritionImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
+            <span className="relative z-10 text-[10px] font-black uppercase text-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] flex items-center gap-1.5">
+              Nutrition
+              {analyzingNutrition && <Loader2 size={12} className="animate-spin text-emerald-400" />}
+            </span>
+          </label>
+          <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setFrontImage)} />
+            {frontImage ? <img src={frontImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
+            <span className="relative z-10 text-[10px] font-black uppercase text-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] flex items-center gap-1.5">
+              Front
+              {analyzingFront && <Loader2 size={12} className="animate-spin text-emerald-400" />}
+            </span>
+          </label>
         </div>
-        <div className="flex gap-3 mt-6">
-          <button type="button" onClick={onClose} className="flex-1 py-3 bg-white/5 text-white rounded-xl font-bold">
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!e.name.trim()}
-            onClick={() => onSave(e)}
-            className="flex-[2] py-3 bg-emerald-600 disabled:opacity-50 text-white rounded-xl font-black"
-          >
-            Save Food
-          </button>
-        </div>
+        <MacroFoodEditCard
+          fieldId="library-add"
+          data={{
+            emoji: entry.emoji || '🍱',
+            name: entry.name,
+            amount: entry.baseAmount || '',
+            calories: entry.calories,
+            protein: entry.protein,
+          }}
+          onChange={(data) =>
+            setEntry({
+              ...entry,
+              emoji: data.emoji,
+              name: data.name,
+              baseAmount: data.amount,
+              calories: data.calories,
+              protein: data.protein,
+              fat: 0,
+              carbs: 0,
+            })
+          }
+          onReset={() => setEntry(EMPTY_FOOD_ENTRY)}
+          onDelete={onClose}
+          onSave={() =>
+            onSave({
+              ...entry,
+              emoji: entry.emoji || '🍱',
+              fat: 0,
+              carbs: 0,
+            })
+          }
+          saveDisabled={!entry.name.trim()}
+        />
       </div>
     </div>
   )

@@ -11,7 +11,9 @@ import {
   Settings2,
   Target,
 } from 'lucide-react'
+import { AppAccentTextButton } from './core/AppAccentTextButton'
 import { fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
+import { localDateISO } from './lib/localDate'
 import type {
   AppStateRow,
   BootstrapResponse,
@@ -136,11 +138,17 @@ export default function App() {
     async (delta: number) => {
       const next = new Date(currentDate)
       next.setDate(next.getDate() + delta)
-      const iso = next.toISOString().slice(0, 10)
-      await persistAppState({ selected_date: iso })
+      await persistAppState({ selected_date: localDateISO(next) })
     },
     [currentDate, persistAppState],
   )
+
+  const todayDateStr = localDateISO(new Date())
+  const isTodaySelected = selectedDateStr === todayDateStr
+
+  const goToToday = useCallback(async () => {
+    await persistAppState({ selected_date: todayDateStr })
+  }, [persistAppState, todayDateStr])
 
   const setTab = useCallback(
     async (tab: BottomTab) => {
@@ -290,18 +298,67 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black font-sans antialiased text-white selection:bg-emerald-400/30 overflow-x-hidden flex flex-col relative">
-      <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] pb-4">
-        <div className="mx-auto grid min-h-[3.5rem] w-full max-w-[var(--app-max-width)] grid-cols-[1fr_auto_1fr] items-center gap-2 px-4">
-          <div className="flex min-w-0 items-center justify-self-start justify-start">
-            {settingsOpen ? (
+    <div
+      id="app-root"
+      className="min-h-screen bg-black font-sans antialiased text-white selection:bg-emerald-400/30 overflow-x-hidden flex flex-col relative"
+    >
+      <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-[calc(env(safe-area-inset-top,0px)+var(--app-header-pad-top))] pb-[var(--app-header-pad-bottom)]">
+        <div className="mx-auto grid min-h-[var(--app-header-row-height)] w-full max-w-[var(--app-max-width)] grid-cols-[1fr_auto_1fr] items-center gap-2 px-[var(--app-pad-x)]">
+          <div className="flex min-w-0 items-center gap-1 justify-self-start justify-start">
+            <button
+              type="button"
+              aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
+              aria-pressed={settingsOpen}
+              onClick={() => void (settingsOpen ? closeSettings() : openSettings())}
+              className={`p-3 rounded-2xl transition-all duration-300 active:scale-95 ${
+                settingsOpen
+                  ? 'text-emerald-400 bg-black/50'
+                  : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
+              }`}
+            >
+              <Settings2 className="h-6 w-6" />
+            </button>
+            {selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'log' ? (
               <button
                 type="button"
-                onClick={() => void closeSettings()}
-                className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
+                aria-label="Back to workout"
+                onClick={() => void persistAppState({ lift_sub_route: 'workout' })}
+                className="p-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
+            ) : SHOW_HAMBURGER_MENU ? (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 max-w-[min(100%,calc(100vw-10rem))] flex-col items-center justify-center gap-1 text-center">
+            {settingsOpen ? (
+              <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+            ) : selectedTab === 'habits' || selectedTab === 'macro' ? (
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void changeDate(-1)}
+                  className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+                >
+                  ‹
+                </button>
+                <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
+                <button
+                  type="button"
+                  onClick={() => void changeDate(1)}
+                  className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
+                >
+                  ›
+                </button>
+              </div>
             ) : selectedTab === 'lift' && liftSubRoute === 'workout' && sortedLiftDays.length > 0 ? (
               <details className="group relative w-max max-w-[min(200px,calc(100vw-8rem))] shrink-0 rounded-full border border-emerald-500/40 bg-neutral-900/60">
                 <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 pl-3 pr-2 text-left [&::-webkit-details-marker]:hidden">
@@ -310,7 +367,7 @@ export default function App() {
                   </span>
                   <ChevronDown className="h-4 w-4 shrink-0 text-emerald-400 transition-transform group-open:rotate-180" />
                 </summary>
-                <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-[10rem] max-w-[min(calc(100vw-2rem),220px)] overflow-hidden rounded-xl border border-emerald-500/40 bg-neutral-900 py-1 shadow-xl">
+                <div className="absolute left-1/2 top-[calc(100%+6px)] z-50 min-w-[10rem] max-w-[min(calc(100vw-2rem),220px)] -translate-x-1/2 overflow-hidden rounded-xl border border-emerald-500/40 bg-neutral-900 py-1 shadow-xl">
                   {sortedLiftDays.map((d, idx) => (
                     <button
                       key={d.id}
@@ -341,49 +398,6 @@ export default function App() {
                   </button>
                 </div>
               </details>
-            ) : selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'log' ? (
-              <button
-                type="button"
-                aria-label="Back to workout"
-                onClick={() => void persistAppState({ lift_sub_route: 'workout' })}
-                className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-            ) : SHOW_HAMBURGER_MENU ? (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 -ml-2 text-white hover:text-emerald-400 rounded-full hover:bg-neutral-900"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-            ) : (
-              <div className="h-10 w-12 shrink-0" aria-hidden />
-            )}
-          </div>
-
-          <div className="flex min-w-0 max-w-[min(100%,calc(100vw-10rem))] flex-col items-center justify-center gap-1 text-center">
-            {settingsOpen ? (
-              <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
-            ) : selectedTab === 'habits' || selectedTab === 'macro' ? (
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => void changeDate(-1)}
-                  className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
-                >
-                  ‹
-                </button>
-                <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
-                <button
-                  type="button"
-                  onClick={() => void changeDate(1)}
-                  className="p-2 text-neutral-500 hover:text-white rounded-full hover:bg-neutral-900"
-                >
-                  ›
-                </button>
-              </div>
             ) : headerTitle ? (
               <h1 className="text-sm font-black text-white tracking-widest uppercase">{headerTitle}</h1>
             ) : (
@@ -392,26 +406,23 @@ export default function App() {
           </div>
 
           <div className="flex min-w-0 items-center justify-self-end justify-end">
-            <button
-              type="button"
-              aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
-              aria-pressed={settingsOpen}
-              onClick={() => void (settingsOpen ? closeSettings() : openSettings())}
-              className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
-                settingsOpen
-                  ? 'text-emerald-400 bg-black/50'
-                  : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
-              }`}
-            >
-              <Settings2 className="h-6 w-6" />
-            </button>
+            {!settingsOpen &&
+            (selectedTab === 'habits' || selectedTab === 'macro') &&
+            !isTodaySelected ? (
+              <AppAccentTextButton onClick={() => void goToToday()}>Today</AppAccentTextButton>
+            ) : (
+              <div className="h-10 w-12 shrink-0" aria-hidden />
+            )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-5 flex flex-col pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]">
+      <main
+        id="app-main"
+        className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-[var(--app-pad-x)] flex flex-col pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]"
+      >
         {settingsOpen ? (
-          <div className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300">
+          <div className="flex-1 flex flex-col space-y-6 animate-in fade-in duration-300">
             {settingsSection === 'habits' && (
               <Suspense fallback={<TabFallback />}>
                 <HabitsScreen

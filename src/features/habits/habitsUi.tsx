@@ -234,7 +234,7 @@ export function GoalCard({
     <button
       type="button"
       onClick={onTap}
-      className={`relative overflow-hidden cursor-pointer select-none rounded-[var(--radius-card)] p-5 h-40 flex flex-col justify-between transition-all duration-300 border w-full text-left ${
+      className={`relative overflow-hidden cursor-pointer select-none rounded-[var(--radius-card)] p-4 h-[8.5rem] flex flex-col justify-between transition-all duration-300 border w-full text-left ${
         dayComplete ? `${doneCard.surface} ${doneCard.border} shadow-md` : cardElevated ? 'bg-neutral-800 border-neutral-700 shadow-md' : 'bg-neutral-900 border-neutral-800'
       } active:scale-95`}
     >

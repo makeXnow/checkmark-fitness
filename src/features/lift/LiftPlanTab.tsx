@@ -176,8 +176,8 @@ function WorkoutEditor({
   }
 
   return (
-    <div className="space-y-6 text-white">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="space-y-5 text-white">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold">{source.id ? 'Edit workout' : 'New workout'}</h2>
         <button
           type="button"
@@ -344,7 +344,7 @@ function WorkoutEditor({
         </div>
       </div>
 
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
         <PlanInput
           label="Next weight"
           value={draft.mainWeight}
@@ -596,7 +596,7 @@ export function LiftPlanTab({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {sortedDays.length === 0 && (
         <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900 p-6 text-center text-neutral-500">
           {addingDay ? (

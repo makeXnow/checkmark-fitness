@@ -3,13 +3,22 @@
  */
 :root {
   /** Max width for header + main (phone-sized layout); footer bar stays full viewport width. */
-  --app-max-width: 430px;
+  --app-max-width: 400px;
+  /** Horizontal inset for header + main (16px — common mobile content margin). */
+  --app-pad-x: 1rem;
+  /** Header chrome below the notch (12px + row + 12px). */
+  --app-header-pad-top: 0.75rem;
+  --app-header-pad-bottom: 0.75rem;
+  --app-header-row-height: 3rem;
   /**
    * Fixed header: safe-area + top padding + row (settings / date row) + bottom padding.
    * Main uses --app-main-pad-top so scroll content clears the header (no clipped card tops).
    */
-  --app-header-height: calc(env(safe-area-inset-top, 0px) + 1.5rem + 3.5rem + 1rem);
-  --app-main-pad-top: calc(var(--app-header-height) + 0.5rem);
+  --app-header-height: calc(
+    env(safe-area-inset-top, 0px) + var(--app-header-pad-top) + var(--app-header-row-height) +
+      var(--app-header-pad-bottom)
+  );
+  --app-main-pad-top: calc(var(--app-header-height) + 0.25rem);
   --color-bg: #000000;
   --color-surface: #171717;
   --color-surface-elevated: #262626;
@@ -20,7 +29,7 @@
   --color-accent-muted: rgba(52, 211, 153, 0.12);
   --color-danger: #f87171;
   --color-text-muted: #a3a3a3;
-  --radius-card: 1.25rem;
+  --radius-card: 1rem;
   --radius-control: 0.75rem;
   --radius-pill: 9999px;
   --border-width: 1px;
@@ -28,5 +37,80 @@
   /** Fixed bottom tab bar (excluding safe-area). */
   --app-nav-bar-height: 3.75rem;
   --app-nav-offset: calc(var(--app-nav-bar-height) + env(safe-area-inset-bottom, 0px));
-  --app-main-pad-bottom: calc(var(--app-nav-offset) + 0.75rem);
+  --app-main-pad-bottom: calc(var(--app-nav-offset) + 0.5rem);
+
+  --lift-workout-anim-ms: 1500ms;
+  --lift-workout-anim-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --lift-workout-blur-max: 16px;
+  --lift-workout-slide-distance: 2.5rem;
+}
+
+/* Workout day swap — outgoing right, incoming from left (simultaneous) */
+@keyframes lift-workout-exit-right {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(var(--lift-workout-slide-distance), 0, 0) scale(0.98);
+    filter: blur(var(--lift-workout-blur-max));
+  }
+}
+
+@keyframes lift-workout-enter-from-left {
+  from {
+    opacity: 0;
+    transform: translate3d(calc(-1 * var(--lift-workout-slide-distance)), 0, 0) scale(0.98);
+    filter: blur(var(--lift-workout-blur-max));
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.lift-workout-transition-root {
+  position: relative;
+  overflow: visible;
+}
+
+/* Let slide + blur extend past the app column while swapping */
+html.lift-workout-swapping #app-root,
+html.lift-workout-swapping #app-main {
+  overflow-x: visible;
+}
+
+.lift-workout-layer {
+  width: 100%;
+}
+
+.lift-workout-layer-exit-right {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  animation: lift-workout-exit-right var(--lift-workout-anim-ms) var(--lift-workout-anim-ease) forwards;
+}
+
+.lift-workout-layer-enter-from-left {
+  position: relative;
+  z-index: 2;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  animation: lift-workout-enter-from-left var(--lift-workout-anim-ms) var(--lift-workout-anim-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lift-workout-layer-exit-right,
+  .lift-workout-layer-enter-from-left {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
 }
