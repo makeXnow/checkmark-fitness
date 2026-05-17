@@ -19,6 +19,7 @@ import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
 import {
   buildMacroEstimatePrompt,
   formatNumberedFoodLibrary,
+  mergeMacroLogs,
   parsedItemToDayItem,
   resolveMacroEstimate,
   type MacroEstimateResponse,
@@ -121,9 +122,10 @@ export function MacroVoiceTracker({
 }) {
   const items = logs[dateKey] || []
   const logsRef = useRef(logs)
-  logsRef.current = logs
+  logsRef.current = mergeMacroLogs(logs, logsRef.current)
   const customFoodsRef = useRef(customFoods)
   customFoodsRef.current = customFoods
+  const estimatingIdsRef = useRef(new Set<string>())
 
   const [inputText, setInputText] = useState('')
   const [recording, setRecording] = useState(false)
@@ -195,6 +197,7 @@ export function MacroVoiceTracker({
       extraCtx = '',
     ) => {
       const foods = customFoodsRef.current
+      estimatingIdsRef.current.add(id)
       try {
         const json = (await aiJson({
           system: MACRO_PROMPTS.MACROS,
@@ -224,6 +227,8 @@ export function MacroVoiceTracker({
               : i,
           ),
         )
+      } finally {
+        estimatingIdsRef.current.delete(id)
       }
     },
     [replaceDay],
@@ -231,6 +236,7 @@ export function MacroVoiceTracker({
 
   const estimateMacrosForItem = useCallback(
     (item: MacroDayItem, extraCtx = '') => {
+      if (estimatingIdsRef.current.has(item.id)) return
       void calculateMacros(
         item.id,
         { name: item.name, amount: item.amount, notes: item.notes, emoji: item.emoji },
@@ -239,6 +245,25 @@ export function MacroVoiceTracker({
     },
     [calculateMacros],
   )
+
+  const pendingEstimateKey = useMemo(
+    () =>
+      items
+        .filter((i) => i.status === 'pending' && i.name?.trim())
+        .map((i) => i.id)
+        .sort()
+        .join(','),
+    [items],
+  )
+
+  useEffect(() => {
+    if (!pendingEstimateKey) return
+    for (const id of pendingEstimateKey.split(',')) {
+      const item = items.find((i) => i.id === id)
+      if (!item) continue
+      estimateMacrosForItem(item)
+    }
+  }, [pendingEstimateKey, items, estimateMacrosForItem])
 
   const startParsingFlow = useCallback(
     async (id: string, rawText: string, baseFood?: Record<string, unknown> | null) => {

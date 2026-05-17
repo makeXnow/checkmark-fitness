@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Apple,
   ChevronDown,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { AppAccentTextButton } from './core/AppAccentTextButton'
 import { fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
+import { mergeMacroLogs } from './features/macro/macroLib'
 import { localDateISO } from './lib/localDate'
 import type {
   AppStateRow,
@@ -218,27 +219,45 @@ export default function App() {
     [boot, habitsGoals, habitsLogs, habitsSettings],
   )
 
+  const macroSaveSeq = useRef(Promise.resolve())
+
   const saveMacroBundle = useCallback(
-    async (next: {
+    (next: {
       goals?: typeof macroGoals
       logs?: Record<string, MacroDayItem[]>
       customFoods?: MacroCustomFood[]
     }) => {
-      if (!boot) return
-      const goals = next.goals ?? macroGoals
-      const logs = next.logs ?? macroLogs
-      const customFoods = next.customFoods ?? macroFoods
-      await putMacro({ goals, customFoods, logs })
-      setBoot((prev) =>
-        prev
-          ? {
+      macroSaveSeq.current = macroSaveSeq.current
+        .then(async () => {
+          let snapshot: {
+            goals: typeof macroGoals
+            logs: Record<string, MacroDayItem[]>
+            customFoods: MacroCustomFood[]
+          } | null = null
+
+          setBoot((prev) => {
+            if (!prev) return prev
+            const goals = next.goals ?? prev.macro.goals
+            const logs = next.logs
+              ? mergeMacroLogs(prev.macro.logs, next.logs)
+              : prev.macro.logs
+            const customFoods = next.customFoods ?? prev.macro.customFoods
+            snapshot = { goals, logs, customFoods }
+            return {
               ...prev,
               macro: { goals, customFoods, logs, updatedAt: Date.now() },
             }
-          : prev,
-      )
+          })
+
+          if (!snapshot) return
+          await putMacro(snapshot)
+        })
+        .catch(() => {
+          /* keep queue alive after a failed persist */
+        })
+      return macroSaveSeq.current
     },
-    [boot, macroFoods, macroGoals, macroLogs],
+    [],
   )
 
   const saveLiftBundle = useCallback(

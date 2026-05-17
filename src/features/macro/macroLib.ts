@@ -81,6 +81,68 @@ export function resolveMacroEstimate(response: MacroEstimateResponse, foods: Mac
   }
 }
 
+const MACRO_ITEM_STATUS_RANK: Record<string, number> = {
+  ready: 4,
+  editing_raw: 3,
+  processing_cancellable: 2,
+  transcribing: 2,
+  pending: 1,
+}
+
+function macroItemStatusRank(status?: string): number {
+  return MACRO_ITEM_STATUS_RANK[status ?? ''] ?? 0
+}
+
+/** Prefer the more complete item when parallel saves race (e.g. ready over pending). */
+export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayItem {
+  const ra = macroItemStatusRank(a.status)
+  const rb = macroItemStatusRank(b.status)
+  if (ra !== rb) return ra > rb ? { ...b, ...a } : { ...a, ...b }
+  const ta = a.timestamp ?? 0
+  const tb = b.timestamp ?? 0
+  return ta >= tb ? { ...b, ...a } : { ...a, ...b }
+}
+
+export function mergeMacroDayLists(prev: MacroDayItem[], incoming: MacroDayItem[]): MacroDayItem[] {
+  const byId = new Map<string, MacroDayItem>()
+  for (const item of prev) byId.set(item.id, item)
+  for (const item of incoming) {
+    const existing = byId.get(item.id)
+    byId.set(item.id, existing ? mergeMacroDayItem(existing, item) : item)
+  }
+  const seen = new Set<string>()
+  const ordered: MacroDayItem[] = []
+  for (const item of incoming) {
+    if (!seen.has(item.id)) {
+      ordered.push(byId.get(item.id)!)
+      seen.add(item.id)
+    }
+  }
+  for (const item of prev) {
+    if (!seen.has(item.id)) {
+      ordered.push(byId.get(item.id)!)
+      seen.add(item.id)
+    }
+  }
+  return ordered
+}
+
+export function mergeMacroLogs(
+  prev: Record<string, MacroDayItem[]>,
+  incoming: Record<string, MacroDayItem[]>,
+): Record<string, MacroDayItem[]> {
+  const keys = new Set([...Object.keys(prev), ...Object.keys(incoming)])
+  const out: Record<string, MacroDayItem[]> = { ...prev }
+  for (const key of keys) {
+    const p = prev[key]
+    const n = incoming[key]
+    if (p && n) out[key] = mergeMacroDayLists(p, n)
+    else if (n) out[key] = n
+    else if (p) out[key] = p
+  }
+  return out
+}
+
 export function parsedItemToDayItem(it: ParsedFoodItem, overrides: Partial<MacroDayItem> = {}): MacroDayItem {
   return {
     id: crypto.randomUUID(),
