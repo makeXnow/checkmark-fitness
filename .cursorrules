@@ -66,9 +66,10 @@ Deployment is handled via the makeXnow dashboard:
 
 The system will automatically:
 - Push to GitHub (if configured)
-- Build the app (if a `build` script exists)
-- Deploy to Cloudflare Pages
+- Build and deploy the app
 - Update the router so it's live at `makexnow.com/apps/<slug>` (or at a custom domain if one is assigned)
+
+**This app requires the Cloudflare Worker (API + D1), not static-only Pages.** Use `npm run deploy` (runs `wrangler deploy` with `./dist` assets). A static-only deploy breaks `/api/*` and shows "Unexpected token '<'" because the server returns `index.html` instead of JSON.
 
 ### Static Sites (No Build Step)
 
@@ -85,6 +86,7 @@ If your app is a static HTML/CSS/JS site without a build step:
 - **Build fails with "Property 'glob' does not exist on type 'ImportMeta'":** You're missing `src/vite-env.d.ts`. Create it with: `/// <reference types="vite/client" />`
 - **Build fails with "is declared but never used":** TypeScript strict mode is enabled. Prefix unused variables with `_` (e.g., `const [_unused, setUsed] = useState()`)
 - **Deploy succeeded but old version is live:** The build likely failed silently. Run `npm run build` manually to see errors.
+- **"Unexpected token '<'" / `<!DOCTYPE` is not valid JSON:** API requests are getting the SPA HTML page. Redeploy with `npm run deploy` (Worker + D1), and run `npm run db:migrate:remote` if the database is new.
 
 ## Failure Recovery & AI Debugging
 

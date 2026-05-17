@@ -1,6 +1,12 @@
 import type { AppStateRow, BootstrapResponse } from '../types/domain'
 import { apiFetch } from './apiPaths'
 
+function htmlResponseHint(text: string): string | undefined {
+  const t = text.trimStart()
+  if (!t.startsWith('<!') && !t.startsWith('<html')) return undefined
+  return ' Got HTML instead of JSON — deploy with `npm run deploy` (Worker + assets), not static-only.'
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   const text = await res.text()
   if (!res.ok) {
@@ -9,12 +15,22 @@ async function parseJson<T>(res: Response): Promise<T> {
       const j = JSON.parse(text) as { error?: string; hint?: string }
       if (j?.error) msg = [j.error, j.hint].filter(Boolean).join(' — ')
     } catch {
-      /* use raw snippet */
+      const htmlHint = htmlResponseHint(text)
+      if (htmlHint) msg = (msg || 'Invalid response') + htmlHint
     }
     throw new Error(msg)
   }
   if (!text) return {} as T
-  return JSON.parse(text) as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    const htmlHint = htmlResponseHint(text)
+    throw new Error(
+      htmlHint
+        ? `Unexpected token '<' — API returned the app page, not JSON.${htmlHint}`
+        : 'Invalid JSON in API response',
+    )
+  }
 }
 
 export async function fetchBootstrap(): Promise<BootstrapResponse> {

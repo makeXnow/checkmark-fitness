@@ -16,6 +16,7 @@
     "seed:remote": "node scripts/seed-d1.mjs && wrangler d1 execute checkmark-fitness --remote --file=seed-generated.sql",
     "db:migrate:local": "wrangler d1 migrations apply checkmark-fitness --local",
     "db:migrate:remote": "wrangler d1 migrations apply checkmark-fitness --remote",
+    "deploy": "npm run pages:deploy",
     "pages:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {

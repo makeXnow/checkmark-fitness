@@ -1,9 +1,11 @@
+import { getBasename } from '../lib/getBasename'
+
 /**
  * Optional absolute API origin (e.g. Worker URL) when the SPA and API are not same-origin.
  * Vite: set `VITE_API_URL=https://your-worker.example.com` in `.env.local`
  *
- * When unset, URLs are rooted at `import.meta.env.BASE_URL` so the same build works under
- * a subpath (e.g. makexnow.com/apps/your-app/) instead of always hitting `/api` on the domain root.
+ * When unset, API paths are rooted at the app’s runtime base path (e.g. `/apps/your-app`)
+ * so requests hit the Worker’s `/api/*` routes instead of resolving incorrectly as `./api/...`.
  */
 export function apiUrl(path: string): string {
   const explicit = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
@@ -11,9 +13,18 @@ export function apiUrl(path: string): string {
     const p = path.startsWith('/') ? path : `/${path}`
     return `${explicit}${p}`
   }
-  const base = import.meta.env.BASE_URL || '/'
-  const normalized = base.endsWith('/') ? base : `${base}/`
-  const rel = path.startsWith('/') ? path.slice(1) : path
+
+  const apiPath = path.startsWith('/') ? path : `/${path}`
+
+  if (typeof window !== 'undefined') {
+    const base = getBasename()
+    if (base === '/') return apiPath
+    return `${base.replace(/\/$/, '')}${apiPath}`
+  }
+
+  const viteBase = import.meta.env.BASE_URL || './'
+  const normalized = viteBase.endsWith('/') ? viteBase : `${viteBase}/`
+  const rel = apiPath.startsWith('/') ? apiPath.slice(1) : apiPath
   return `${normalized}${rel}`
 }
 
