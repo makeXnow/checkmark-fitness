@@ -26,7 +26,7 @@
   --border-width: 1px;
   --shadow-nav: 0 -8px 24px rgba(0, 0, 0, 0.45);
   /** Fixed bottom tab bar (excluding safe-area). */
-  --app-nav-bar-height: 3.25rem;
+  --app-nav-bar-height: 3.75rem;
   --app-nav-offset: calc(var(--app-nav-bar-height) + env(safe-area-inset-bottom, 0px));
   --app-main-pad-bottom: calc(var(--app-nav-offset) + 0.75rem);
 }

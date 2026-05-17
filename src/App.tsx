@@ -46,7 +46,7 @@ function parseISODateOnly(iso: string): Date {
 const SHOW_HAMBURGER_MENU = false
 
 function bottomNavButtonClass(active: boolean): string {
-  return `p-2 rounded-xl transition-colors duration-200 active:scale-95 ${
+  return `p-2.5 rounded-xl transition-colors duration-200 active:scale-95 ${
     active
       ? 'text-emerald-400 bg-emerald-500/10'
       : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/50'
@@ -502,7 +502,7 @@ export default function App() {
         className="fixed bottom-0 left-0 right-0 z-30 w-full border-t border-neutral-800/80 bg-neutral-900/95 backdrop-blur-md rounded-t-2xl"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: 'var(--shadow-nav)' }}
       >
-        <div className="mx-auto flex h-[var(--app-nav-bar-height)] w-full max-w-[var(--app-max-width)] items-center justify-center gap-10 px-6">
+        <div className="mx-auto flex h-[var(--app-nav-bar-height)] w-full max-w-[var(--app-max-width)] items-center justify-center gap-12 px-6">
           <button
             type="button"
             aria-label="Habits"
@@ -510,7 +510,7 @@ export default function App() {
             onClick={() => void selectBottomTab('habits')}
             className={bottomNavButtonClass(navActiveTab === 'habits')}
           >
-            <Target size={20} strokeWidth={navActiveTab === 'habits' ? 2.5 : 2} />
+            <Target size={22} strokeWidth={navActiveTab === 'habits' ? 2.5 : 2} />
           </button>
           <button
             type="button"
@@ -519,7 +519,7 @@ export default function App() {
             onClick={() => void selectBottomTab('macro')}
             className={bottomNavButtonClass(navActiveTab === 'macro')}
           >
-            <Apple size={20} strokeWidth={navActiveTab === 'macro' ? 2.5 : 2} />
+            <Apple size={22} strokeWidth={navActiveTab === 'macro' ? 2.5 : 2} />
           </button>
           <button
             type="button"
@@ -528,7 +528,7 @@ export default function App() {
             onClick={() => void selectBottomTab('lift')}
             className={bottomNavButtonClass(navActiveTab === 'lift')}
           >
-            <Dumbbell size={20} strokeWidth={navActiveTab === 'lift' ? 2.5 : 2} />
+            <Dumbbell size={22} strokeWidth={navActiveTab === 'lift' ? 2.5 : 2} />
           </button>
         </div>
       </nav>
