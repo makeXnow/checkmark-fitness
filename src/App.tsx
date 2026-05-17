@@ -45,6 +45,14 @@ function parseISODateOnly(iso: string): Date {
 /** Set to `true` to show the slide-out menu (hamburger) trigger in the header again. */
 const SHOW_HAMBURGER_MENU = false
 
+function bottomNavButtonClass(active: boolean): string {
+  return `p-2 rounded-xl transition-colors duration-200 active:scale-95 ${
+    active
+      ? 'text-emerald-400 bg-emerald-500/10'
+      : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/50'
+  }`
+}
+
 export default function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -401,7 +409,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-5 flex flex-col pt-[var(--app-main-pad-top)] pb-[100px]">
+      <main className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-5 flex flex-col pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]">
         {settingsOpen ? (
           <div className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300">
             {settingsSection === 'habits' && (
@@ -491,36 +499,36 @@ export default function App() {
       </main>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 w-full bg-neutral-900 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] rounded-t-[32px]"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="fixed bottom-0 left-0 right-0 z-30 w-full border-t border-neutral-800/80 bg-neutral-900/95 backdrop-blur-md rounded-t-2xl"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: 'var(--shadow-nav)' }}
       >
-        <div className="w-full max-w-[var(--app-max-width)] mx-auto flex justify-around items-center px-4 py-4">
+        <div className="mx-auto flex h-[var(--app-nav-bar-height)] w-full max-w-[var(--app-max-width)] items-center justify-center gap-10 px-6">
           <button
             type="button"
+            aria-label="Habits"
+            aria-current={navActiveTab === 'habits' ? 'page' : undefined}
             onClick={() => void selectBottomTab('habits')}
-            className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
-              navActiveTab === 'habits' ? 'text-emerald-400 bg-black/50' : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
-            }`}
+            className={bottomNavButtonClass(navActiveTab === 'habits')}
           >
-            <Target size={24} />
+            <Target size={20} strokeWidth={navActiveTab === 'habits' ? 2.5 : 2} />
           </button>
           <button
             type="button"
+            aria-label="Macro"
+            aria-current={navActiveTab === 'macro' ? 'page' : undefined}
             onClick={() => void selectBottomTab('macro')}
-            className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
-              navActiveTab === 'macro' ? 'text-emerald-400 bg-black/50' : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
-            }`}
+            className={bottomNavButtonClass(navActiveTab === 'macro')}
           >
-            <Apple size={24} />
+            <Apple size={20} strokeWidth={navActiveTab === 'macro' ? 2.5 : 2} />
           </button>
           <button
             type="button"
+            aria-label="Lift"
+            aria-current={navActiveTab === 'lift' ? 'page' : undefined}
             onClick={() => void selectBottomTab('lift')}
-            className={`p-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${
-              navActiveTab === 'lift' ? 'text-emerald-400 bg-black/50' : 'text-neutral-500 hover:text-white hover:bg-neutral-800/50'
-            }`}
+            className={bottomNavButtonClass(navActiveTab === 'lift')}
           >
-            <Dumbbell size={24} />
+            <Dumbbell size={20} strokeWidth={navActiveTab === 'lift' ? 2.5 : 2} />
           </button>
         </div>
       </nav>

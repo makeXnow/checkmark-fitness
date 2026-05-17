@@ -578,11 +578,11 @@ export function LiftScreen({
 
         return (
           <div key={workout.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-md">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-              <h3 className="min-w-0 flex-1 text-xl font-bold leading-tight text-white [overflow-wrap:break-word] [word-break:normal]">
+            <div className="mb-4 flex items-start justify-between gap-2">
+              <h3 className="min-w-0 flex-1 pr-2 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
                 {workout.name}
               </h3>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-start gap-2">
                 {onPersist ? (
                   <button
                     type="button"
@@ -605,7 +605,7 @@ export function LiftScreen({
                 ) : null}
                 {statuses.length > 0 ? (
                   <LiftStatusSelector
-                    className="h-10 w-full min-w-0 sm:w-auto sm:max-w-[min(100%,12rem)]"
+                    className="h-10 w-auto min-w-0 max-w-[min(100%,12rem)]"
                     isNegative={isNeg}
                     value={sid}
                     onChange={(e) =>

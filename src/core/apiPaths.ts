@@ -13,6 +13,11 @@ function useWorkerOriginInBrowser(): boolean {
   if (typeof window === 'undefined') return false
   const host = window.location.hostname
   if (host === 'localhost' || host === '127.0.0.1') return false
+  try {
+    if (host === new URL(WORKER_ORIGIN).hostname) return false
+  } catch {
+    /* ignore */
+  }
   if (host.endsWith('.workers.dev')) return false
   return true
 }
@@ -23,6 +28,16 @@ function useWorkerOriginInBrowser(): boolean {
  */
 export function apiUrl(path: string): string {
   const apiPath = path.startsWith('/') ? path : `/${path}`
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (window.location.hostname === new URL(WORKER_ORIGIN).hostname) {
+        return apiPath
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (useWorkerOriginInBrowser()) {
     return `${WORKER_ORIGIN}${apiPath}`

@@ -321,17 +321,27 @@ api.put('/api/lift', async (c) => {
   return c.json({ ok: true })
 })
 
-/** OpenAI: audio transcription (webm/mp3/wav) */
+function audioUploadFromFormData(formData: FormData): { blob: Blob; filename: string } | null {
+  const entry = formData.get('file')
+  if (entry == null || typeof entry === 'string' || !(entry instanceof Blob)) return null
+  const mime = entry.type || 'audio/webm'
+  const ext = mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a') ? 'm4a' : 'webm'
+  const filename = entry instanceof File && entry.name ? entry.name : `audio.${ext}`
+  return { blob: entry, filename }
+}
+
+/** OpenAI: audio transcription (webm/mp3/wav/m4a) */
 api.post('/api/ai/transcribe', async (c) => {
   const key = c.env.OPENAI_API_KEY
   if (!key) return c.json({ error: 'OPENAI_API_KEY missing' }, 500)
 
   const formData = await c.req.formData()
-  const file = formData.get('file')
-  if (!(file instanceof File)) return c.json({ error: 'Expected file field' }, 400)
+  const upload = audioUploadFromFormData(formData)
+  if (!upload) return c.json({ error: 'Expected file field' }, 400)
+  if (upload.blob.size === 0) return c.json({ error: 'Empty audio file' }, 400)
 
   const upstream = new FormData()
-  upstream.append('file', file, file.name || 'audio.webm')
+  upstream.append('file', upload.blob, upload.filename)
   const model =
     c.req.query('model') === 'quality'
       ? OPENAI_MODELS.transcribeQuality

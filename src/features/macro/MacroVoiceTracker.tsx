@@ -30,6 +30,14 @@ type QuickScanState = {
   nutritionData: Record<string, unknown> | null
 }
 
+/** Safari often records mp4/aac; Chrome uses webm. OpenAI needs the real container type. */
+function preferredRecorderMimeType(): string {
+  for (const t of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac']) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t
+  }
+  return ''
+}
+
 function MacroMiniCard({
   value,
   label,
@@ -150,7 +158,7 @@ export function MacroVoiceTracker({
   const frontPromiseRef = useRef<Promise<unknown> | null>(null)
   const nutritionPromiseRef = useRef<Promise<unknown> | null>(null)
 
-  const [dbModal, setDbModal] = useState<'closed' | 'scan' | 'manual'>('closed')
+  const [dbModalOpen, setDbModalOpen] = useState(false)
 
   const totals = useMemo(() => {
     return items.reduce(
@@ -326,7 +334,8 @@ export function MacroVoiceTracker({
         rafRef.current = requestAnimationFrame(tick)
       }
       tick()
-      const rec = new MediaRecorder(stream)
+      const recorderMime = preferredRecorderMimeType()
+      const rec = recorderMime ? new MediaRecorder(stream, { mimeType: recorderMime }) : new MediaRecorder(stream)
       mediaRecorderRef.current = rec
       audioChunksRef.current = []
       rec.ondataavailable = (e) => audioChunksRef.current.push(e.data)
@@ -336,30 +345,31 @@ export function MacroVoiceTracker({
         if (audioChunksRef.current.length === 0) return
         const tempId = crypto.randomUUID()
         replaceDay((prev) => [...prev, { id: tempId, status: 'transcribing', timestamp: Date.now(), name: '', amount: '' }])
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        const file = new File([blob], 'audio.webm', { type: 'audio/webm' })
+        const mime = rec.mimeType || recorderMime || 'audio/webm'
+        const ext = mime.includes('mp4') || mime.includes('aac') ? 'm4a' : 'webm'
+        const blob = new Blob(audioChunksRef.current, { type: mime })
+        const file = new File([blob], `audio.${ext}`, { type: mime })
         abortRef.current = new AbortController()
         try {
           const text = await transcribeAudio(file)
-          if (text?.trim()) {
-            replaceDay((prev) =>
-              prev
-                .filter((i) => i.id !== tempId)
-                .concat({
-                  id: tempId,
-                  status: 'processing_cancellable',
-                  rawText: text.trim(),
-                  timestamp: Date.now(),
-                  name: '',
-                  amount: '',
-                }),
-            )
-            void startParsingFlow(tempId, text.trim(), null)
-          } else {
-            removeItem(tempId)
-          }
-        } catch {
-          removeItem(tempId)
+          replaceDay((prev) =>
+            prev
+              .filter((i) => i.id !== tempId)
+              .concat({
+                id: tempId,
+                status: 'processing_cancellable',
+                rawText: text.trim(),
+                timestamp: Date.now(),
+                name: '',
+                amount: '',
+              }),
+          )
+          void startParsingFlow(tempId, text.trim(), null)
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Transcription failed'
+          replaceDay((prev) =>
+            prev.map((i) => (i.id === tempId ? { ...i, status: 'editing_raw', rawText: msg } : i)),
+          )
         }
         stream.getTracks().forEach((t) => t.stop())
       }
@@ -515,22 +525,14 @@ export function MacroVoiceTracker({
           <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
             <NotebookText size={16} className="text-emerald-400" /> Food Library
           </h2>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setDbModal('scan')}
-              className="p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
-            >
-              <ScanText size={16} strokeWidth={2.5} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDbModal('manual')}
-              className="p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setDbModalOpen(true)}
+            className="p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
+            aria-label="Add food"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+          </button>
         </div>
         <div className="p-4 space-y-3 max-h-52 overflow-y-auto">
           {customFoods.length === 0 ? (
@@ -570,13 +572,12 @@ export function MacroVoiceTracker({
         onQuickFile={handleQuickFile}
       />
 
-      {dbModal !== 'closed' && (
+      {dbModalOpen && (
         <DatabaseModal
-          mode={dbModal === 'manual' ? 'manual' : 'scan'}
-          onClose={() => setDbModal('closed')}
+          onClose={() => setDbModalOpen(false)}
           onSave={(entry) => {
             onSaveFoods([...customFoods, { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }])
-            setDbModal('closed')
+            setDbModalOpen(false)
           }}
         />
       )}
@@ -770,7 +771,7 @@ function InteractionDock({
   const showSend = Boolean(inputText.trim() || isQuickReady || recording)
 
   return (
-    <div className="fixed bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
+    <div className="fixed bottom-[calc(var(--app-nav-offset)+0.5rem)] left-0 right-0 z-20 pointer-events-none">
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none" />
       <div className="max-w-md mx-auto flex flex-col gap-3 p-6 relative pointer-events-auto">
         {quickScan.isOpen && (
@@ -866,23 +867,19 @@ function InteractionDock({
 }
 
 function DatabaseModal({
-  mode,
   onClose,
   onSave,
 }: {
-  mode: 'scan' | 'manual'
   onClose: () => void
   onSave: (entry: Omit<MacroCustomFood, 'id' | 'createdAt'>) => void
 }) {
   const [frontImage, setFrontImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
   const [nutritionImage, setNutritionImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
-  const [activeEntry, setActiveEntry] = useState<Omit<MacroCustomFood, 'id' | 'createdAt'> | null>(
-    mode === 'manual' ? { name: '', emoji: '🍱', baseAmount: '', calories: 0, protein: 0, fat: 0, carbs: 0 } : null,
-  )
+  const [activeEntry, setActiveEntry] = useState<Omit<MacroCustomFood, 'id' | 'createdAt'> | null>(null)
 
   useEffect(() => {
-    if (frontImage && nutritionImage && !analyzing && !activeEntry && mode === 'scan') void runAnalyze()
+    if (frontImage && nutritionImage && !analyzing && !activeEntry) void runAnalyze()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional run when images ready
   }, [frontImage, nutritionImage])
 
@@ -940,34 +937,33 @@ function DatabaseModal({
           </button>
         </div>
         <div className="w-full max-w-md space-y-4 pb-10">
-          {mode === 'scan' ? (
-            <>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setNutritionImage)} />
-                  {nutritionImage ? <img src={nutritionImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
-                  <span className="relative z-10 text-[10px] font-black uppercase text-center text-white">{nutritionImage ? 'Nutrition OK' : '1. Nutrition'}</span>
-                </label>
-                <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setFrontImage)} />
-                  {frontImage ? <img src={frontImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
-                  <span className="relative z-10 text-[10px] font-black uppercase text-center text-white">{frontImage ? 'Front OK' : '2. Front'}</span>
-                </label>
+          <>
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center mb-2">Scan labels</p>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setNutritionImage)} />
+                {nutritionImage ? <img src={nutritionImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
+                <span className="relative z-10 text-[10px] font-black uppercase text-center text-white">{nutritionImage ? 'Nutrition OK' : '1. Nutrition'}</span>
+              </label>
+              <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setFrontImage)} />
+                {frontImage ? <img src={frontImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
+                <span className="relative z-10 text-[10px] font-black uppercase text-center text-white">{frontImage ? 'Front OK' : '2. Front'}</span>
+              </label>
+            </div>
+            {analyzing && (
+              <div className="bg-white/5 rounded-2xl p-4 flex items-center justify-center gap-3 text-emerald-400 font-bold mb-4">
+                <Loader2 size={20} className="animate-spin" /> Analyzing…
               </div>
-              {analyzing && (
-                <div className="bg-white/5 rounded-2xl p-4 flex items-center justify-center gap-3 text-emerald-400 font-bold mb-4">
-                  <Loader2 size={20} className="animate-spin" /> Analyzing…
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setActiveEntry({ name: '', emoji: '🍱', baseAmount: '', calories: 0, protein: 0, fat: 0, carbs: 0 })}
-                className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-[1.5rem] font-bold flex items-center justify-center gap-2"
-              >
-                <Plus size={20} /> Add Manually
-              </button>
-            </>
-          ) : null}
+            )}
+            <button
+              type="button"
+              onClick={() => setActiveEntry({ name: '', emoji: '🍱', baseAmount: '', calories: 0, protein: 0, fat: 0, carbs: 0 })}
+              className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-[1.5rem] font-bold flex items-center justify-center gap-2"
+            >
+              <Plus size={20} /> Add Manually
+            </button>
+          </>
         </div>
       </div>
     )

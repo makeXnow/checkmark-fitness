@@ -12,8 +12,19 @@ async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let msg = text.trim().slice(0, 600) || res.statusText
     try {
-      const j = JSON.parse(text) as { error?: string; hint?: string }
-      if (j?.error) msg = [j.error, j.hint].filter(Boolean).join(' — ')
+      const j = JSON.parse(text) as { error?: string; hint?: string; detail?: string }
+      if (j?.error) {
+        let detail = j.detail?.trim()
+        if (detail) {
+          try {
+            const inner = JSON.parse(detail) as { error?: { message?: string } }
+            if (inner?.error?.message) detail = inner.error.message
+          } catch {
+            /* use raw detail */
+          }
+        }
+        msg = [j.error, detail, j.hint].filter(Boolean).join(' — ')
+      }
     } catch {
       const htmlHint = htmlResponseHint(text)
       if (htmlHint) msg = (msg || 'Invalid response') + htmlHint
@@ -115,8 +126,10 @@ export async function transcribeAudio(file: File, model?: string): Promise<strin
   const q = model ? `?model=${encodeURIComponent(model)}` : ''
   const res = await apiFetch(`/api/ai/transcribe${q}`, { method: 'POST', body: fd })
   const data = await parseJson<{ text?: string; error?: string }>(res)
-  if (!data.text) throw new Error(data.error || 'No transcription')
-  return data.text
+  if (data.error) throw new Error(data.error)
+  const text = (data.text ?? '').trim()
+  if (!text) throw new Error('No speech detected — try speaking longer or check your mic.')
+  return text
 }
 
 export async function aiJson(body: {
