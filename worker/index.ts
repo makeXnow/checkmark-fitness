@@ -7,6 +7,8 @@ import {
   parseMacroGoalsStored,
   serializeHabitsGoalsStored,
   serializeMacroGoalsStored,
+  unwrapHabitsGoalsLeaf,
+  unwrapMacroGoalsLeaf,
 } from './goalSnapshots'
 import { runMacroEstimate } from './macroEstimate'
 import { OPENAI_MODELS } from './openaiModels'
@@ -173,8 +175,7 @@ api.get('/api/bootstrap', async (c) => {
 
     const goalsRaw = safeJsonParse<unknown>((habits?.goals_json as string) || '', {})
     const logsRaw = safeJsonParse<unknown>((habits?.logs_json as string) || '', {})
-    const habitsGoalsNormalized = normalizeHabitsGoals(asObjectRecord(goalsRaw))
-    const habitsStored = parseHabitsGoalsStored(goalsRaw, habitsGoalsNormalized)
+    const habitsStored = parseHabitsGoalsStored(goalsRaw, defaultHabitsGoals)
     const logs = normalizeHabitsLogs(asLogsMap(logsRaw))
 
     const macroGoalsRaw = safeJsonParse<unknown>((macro?.goals_json as string) || '', {})
@@ -278,7 +279,8 @@ api.put('/api/habits', async (c) => {
     logs?: Record<string, Record<string, unknown>>
     appSettings?: Record<string, unknown>
   }
-  const current = normalizeHabitsGoals(body.goals || {})
+  const current =
+    unwrapHabitsGoalsLeaf(normalizeHabitsGoals(asObjectRecord(body.goals || {}))) ?? defaultHabitsGoals
   const stored = serializeHabitsGoalsStored({
     current,
     snapshotsByWeek: body.goalsSnapshotsByWeek || {},
@@ -314,8 +316,9 @@ api.put('/api/macro', async (c) => {
     customFoods?: unknown[]
     logs?: Record<string, unknown>
   }
+  const macroCurrent = unwrapMacroGoalsLeaf(body.goals) ?? asObjectRecord(body.goals || {})
   const stored = serializeMacroGoalsStored({
-    current: body.goals || {},
+    current: macroCurrent,
     snapshotsByDay: body.goalsSnapshotsByDay || {},
     goalHistory: body.goalsHistory || [],
   })
