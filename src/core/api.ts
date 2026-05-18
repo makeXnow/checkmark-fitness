@@ -1,4 +1,4 @@
-import type { AppStateRow, BootstrapResponse, FatSecretFoodRef } from '../types/domain'
+import type { AppStateRow, BootstrapResponse, FatSecretFoodRef, MacroEstimateSnapshot } from '../types/domain'
 import { apiFetch } from './apiPaths'
 
 function htmlResponseHint(text: string): string | undefined {
@@ -49,13 +49,28 @@ export async function fetchBootstrap(): Promise<BootstrapResponse> {
   return parseJson<BootstrapResponse>(res)
 }
 
-export async function patchAppState(
-  patch: Partial<
-    Omit<AppStateRow, 'settings_open'> & {
-      settings_open?: boolean | number
-    }
-  >,
-): Promise<{ ok: boolean; appState: AppStateRow }> {
+export type AppStatePatch = Partial<
+  Omit<AppStateRow, 'settings_open'> & {
+    settings_open?: boolean | number
+  }
+>
+
+/** Merge navigation patch into local app state (instant UI; persist with patchAppState in background). */
+export function applyAppStatePatch(current: AppStateRow, patch: AppStatePatch): AppStateRow {
+  const next: AppStateRow = { ...current, updated_at: Date.now() }
+  if (patch.selected_tab !== undefined) next.selected_tab = patch.selected_tab
+  if (patch.settings_open !== undefined) next.settings_open = patch.settings_open ? 1 : 0
+  if (patch.settings_section !== undefined) next.settings_section = patch.settings_section
+  if (patch.lift_sub_route !== undefined) next.lift_sub_route = patch.lift_sub_route
+  if (patch.lift_selected_day_id !== undefined) next.lift_selected_day_id = patch.lift_selected_day_id
+  if (patch.lift_current_day_index !== undefined) {
+    next.lift_current_day_index = Number(patch.lift_current_day_index)
+  }
+  if (patch.selected_date !== undefined) next.selected_date = patch.selected_date
+  return next
+}
+
+export async function patchAppState(patch: AppStatePatch): Promise<{ ok: boolean; appState: AppStateRow }> {
   const body: Record<string, unknown> = {}
   const keys = [
     'selected_tab',
@@ -87,6 +102,8 @@ export async function patchAppState(
 
 export async function putHabits(data: {
   goals: unknown
+  goalsSnapshotsByWeek?: unknown
+  goalsHistory?: unknown
   logs: unknown
   appSettings: unknown
 }): Promise<void> {
@@ -100,6 +117,8 @@ export async function putHabits(data: {
 
 export async function putMacro(data: {
   goals: unknown
+  goalsSnapshotsByDay?: unknown
+  goalsHistory?: unknown
   customFoods: unknown
   logs: unknown
 }): Promise<void> {
@@ -164,10 +183,9 @@ export type MacroEstimateApiResult = {
   protein: number
   libraryFoodId?: string
   servingMultiplier?: number
-  name?: string
-  emoji?: string
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
+  macroEstimateSnapshot?: MacroEstimateSnapshot
 }
 
 export class MacroEstimateError extends Error {

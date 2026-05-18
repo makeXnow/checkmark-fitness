@@ -43,12 +43,16 @@ export interface BootstrapResponse {
   appState: AppStateRow
   habits: {
     goals: HabitsGoals
+    goalsSnapshotsByWeek?: Record<string, HabitsGoals>
+    goalsHistory?: { effectiveWeekStart: string; goals: HabitsGoals }[]
     logs: Record<string, DayLog>
     appSettings: { firstDayOfWeek: number }
     updatedAt: number
   }
   macro: {
-    goals: { calorieGoal: number; proteinPctGoal: number }
+    goals: MacroGoals
+    goalsSnapshotsByDay?: Record<string, MacroDayGoalsSnapshot>
+    goalsHistory?: MacroGoalHistoryEntry[]
     customFoods: MacroCustomFood[]
     logs: Record<string, MacroDayItem[]>
     updatedAt: number
@@ -75,6 +79,27 @@ export type FatSecretFoodRef = {
   servings: FatSecretServingRef[]
 }
 
+export type MacroGoalMode = 'fast-cut' | 'slow-cut' | 'maintain' | 'bulk'
+
+export interface MacroGoals {
+  calorieGoal: number
+  proteinPctGoal: number
+  weightLbs?: number
+  bodyFatPct?: number
+  activeHours?: number
+  goalMode?: MacroGoalMode | null
+}
+
+/** Cemented calorie + protein targets for one calendar day. */
+export type MacroDayGoalsSnapshot = {
+  calorieGoal: number
+  proteinPctGoal: number
+}
+
+export type MacroGoalHistoryEntry = MacroDayGoalsSnapshot & {
+  effectiveDate: string
+}
+
 export interface MacroCustomFood {
   id: string
   emoji?: string
@@ -85,6 +110,25 @@ export interface MacroCustomFood {
   fat: number
   carbs: number
   createdAt?: number
+}
+
+/** Snapshot from the parser AI for one food item. */
+export type MacroParseSnapshot = {
+  emoji?: string
+  name: string
+  amount: string
+  notes?: string
+  fatSecretSearch?: string
+}
+
+/** Raw macro-estimate AI response before resolveMacroEstimate. */
+export type MacroEstimateSnapshot = {
+  libraryIndex?: number | null
+  fatSecretIndex?: number | null
+  servingIndex?: number | null
+  multiplier?: number
+  calories?: number
+  protein?: number
 }
 
 export interface MacroDayItem {
@@ -101,6 +145,12 @@ export interface MacroDayItem {
   status?: string
   timestamp?: number
   rawText?: string
+  /** Original voice/text input (shared when one utterance splits into multiple items). */
+  userInput?: string
+  /** Parser classification snapshot for the info panel. */
+  parseSnapshot?: MacroParseSnapshot
+  /** Macro AI JSON response snapshot for the info panel. */
+  macroEstimateSnapshot?: MacroEstimateSnapshot
   /** Set when macros were scaled from the food library. */
   libraryFoodId?: string
   servingMultiplier?: number

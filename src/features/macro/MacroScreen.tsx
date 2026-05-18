@@ -1,4 +1,5 @@
-import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
+import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
+import { MacroSettings } from './MacroSettings'
 import { MacroVoiceTracker } from './MacroVoiceTracker'
 
 export function MacroScreen({
@@ -12,10 +13,10 @@ export function MacroScreen({
   view,
 }: {
   currentDate: Date
-  goals: { calorieGoal: number; proteinPctGoal: number }
+  goals: MacroGoals
   logs: Record<string, MacroDayItem[]>
   customFoods: MacroCustomFood[]
-  onSaveGoals: (g: { calorieGoal: number; proteinPctGoal: number }) => void
+  onSaveGoals: (g: MacroGoals) => void
   onSaveLogs?: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods?: (foods: MacroCustomFood[]) => void
   view: 'tracker' | 'settings'
@@ -35,32 +36,7 @@ export function MacroScreen({
         />
       )}
 
-      {view === 'settings' && (
-        <div className="space-y-4">
-          <div>
-            <label className="text-[10px] font-black opacity-30 uppercase tracking-widest block mb-2 text-white">
-              Daily Calories
-            </label>
-            <input
-              type="number"
-              value={goals.calorieGoal}
-              onChange={(e) => onSaveGoals({ ...goals, calorieGoal: parseInt(e.target.value, 10) || 0 })}
-              className="w-full p-4 bg-white/5 rounded-2xl font-black text-xl text-white focus:ring-2 ring-emerald-500 outline-none border border-white/10"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black opacity-30 uppercase tracking-widest block mb-2 text-white">
-              Protein Goal %
-            </label>
-            <input
-              type="number"
-              value={goals.proteinPctGoal}
-              onChange={(e) => onSaveGoals({ ...goals, proteinPctGoal: parseInt(e.target.value, 10) || 0 })}
-              className="w-full p-4 bg-white/5 rounded-2xl font-black text-xl text-white focus:ring-2 ring-emerald-500 outline-none border border-white/10"
-            />
-          </div>
-        </div>
-      )}
+      {view === 'settings' && <MacroSettings goals={goals} onSaveGoals={onSaveGoals} />}
     </div>
   )
 }

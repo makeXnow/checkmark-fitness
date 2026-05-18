@@ -110,6 +110,30 @@ export function isNonPositiveProgressionMultiplier(multiplier: number): boolean 
   return multiplier <= 0
 }
 
+/** Raw amount added to mainWeight on submit: increment × status multiplier. */
+export function getProgressDelta(increment: number, multiplier: number): number {
+  return (increment || 0) * multiplier
+}
+
+export function formatProgressDelta(delta: number): string {
+  if (!Number.isFinite(delta) || delta === 0) return '0'
+  const rounded = Math.round(delta * 10) / 10
+  const abs = Math.abs(rounded)
+  const body =
+    Math.abs(abs - Math.round(abs)) < 1e-9 ? String(Math.round(abs)) : abs.toFixed(1).replace(/\.0$/, '')
+  return rounded > 0 ? `+${body}` : `-${body}`
+}
+
+/** Next session lift weight (plate-rounded), not internal mainWeight. */
+export function getNextLiftWeight(
+  workout: LiftWorkout,
+  multiplier: number,
+  availablePlates: number[],
+): number {
+  const nextMain = Math.max(0, workout.mainWeight + getProgressDelta(workout.increment, multiplier))
+  return getOptimalPlates(nextMain, workout.barWeight, availablePlates).actualWeight
+}
+
 export function formatLogDate(dateObj: Date) {
   const weekday = dateObj.toLocaleDateString(undefined, { weekday: 'short' })
   const month = dateObj.toLocaleDateString(undefined, { month: 'short' })

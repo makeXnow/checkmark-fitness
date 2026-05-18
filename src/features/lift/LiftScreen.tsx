@@ -6,8 +6,11 @@ import { LiftPlanTab } from './LiftPlanTab'
 import {
   buildGroupedSets,
   formatLogDate,
+  formatProgressDelta,
   formatWeightStr,
+  getNextLiftWeight,
   getOptimalPlates,
+  getProgressDelta,
   groupHistory,
   isNonPositiveProgressionMultiplier,
   nextDayIndexFromHistory,
@@ -231,17 +234,9 @@ function WorkoutDayTransition({
   const [shownIndex, setShownIndex] = useState(dayIndex)
   const [fromIndex, setFromIndex] = useState(dayIndex)
   const [isSwapping, setIsSwapping] = useState(false)
-  const skipAnimRef = useRef(true)
 
   useEffect(() => {
     if (dayIndex === shownIndex && !isSwapping) return
-
-    if (skipAnimRef.current) {
-      skipAnimRef.current = false
-      setShownIndex(dayIndex)
-      setFromIndex(dayIndex)
-      return
-    }
 
     if (!isSwapping) {
       setFromIndex(shownIndex)
@@ -650,6 +645,9 @@ export function LiftScreen({
         const currentStatus = statuses.find((s) => s.id === sid) ?? statuses[0]
         const mVal = parseStatusMultiplier(currentStatus?.multiplier)
         const isNeg = isNonPositiveProgressionMultiplier(mVal)
+        const plates = payload.availablePlates || []
+        const progressDelta = getProgressDelta(workout.increment, mVal)
+        const nextLiftWeight = getNextLiftWeight(workout, mVal, plates)
 
         const hasNotes = Boolean(workout.notes?.trim())
         const isNotesOpen = Boolean(openNotesByWorkoutId[workout.id])
@@ -657,51 +655,29 @@ export function LiftScreen({
         return (
           <div key={workout.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md">
             <div className="mb-4 flex items-start justify-between gap-2">
-              <h3 className="min-w-0 flex-1 pr-2 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
+              <h3 className="min-w-0 flex-1 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
                 {workout.name}
               </h3>
-              <div className="flex shrink-0 items-start gap-2">
-                {onPersist ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenNotesByWorkoutId((prev) => ({ ...prev, [workout.id]: !prev[workout.id] }))
-                    }}
-                    className={`relative flex h-10 w-10 items-center justify-center rounded-lg border outline-none transition-all focus:ring-2 ${
-                      isNotesOpen
-                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 focus:ring-emerald-500/30'
-                        : 'border-neutral-700 bg-transparent text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 focus:ring-neutral-700'
-                    }`}
-                    title={isNotesOpen ? 'Hide notes' : hasNotes ? 'View notes' : 'Add notes'}
-                  >
-                    <FileText className="h-5 w-5" />
-                    {!isNotesOpen && hasNotes ? (
-                      <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-neutral-900" />
-                    ) : null}
-                  </button>
-                ) : null}
-                {statuses.length > 0 ? (
-                  <LiftStatusSelector
-                    className="h-10 w-auto min-w-0 max-w-[min(100%,12rem)]"
-                    isNegative={isNeg}
-                    value={sid}
-                    onChange={(e) =>
-                      setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
-                    }
-                  >
-                    {statuses.map((s) => (
-                      <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
-                        {s.name}
-                      </option>
-                    ))}
-                  </LiftStatusSelector>
-                ) : (
-                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                    Add statuses in settings
-                  </span>
-                )}
-              </div>
+              {onPersist ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenNotesByWorkoutId((prev) => ({ ...prev, [workout.id]: !prev[workout.id] }))
+                  }}
+                  className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border outline-none transition-all focus:ring-2 ${
+                    isNotesOpen
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 focus:ring-emerald-500/30'
+                      : 'border-neutral-700 bg-transparent text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 focus:ring-neutral-700'
+                  }`}
+                  title={isNotesOpen ? 'Hide notes' : hasNotes ? 'View notes' : 'Add notes'}
+                >
+                  <FileText className="h-5 w-5" />
+                  {!isNotesOpen && hasNotes ? (
+                    <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-neutral-900" />
+                  ) : null}
+                </button>
+              ) : null}
             </div>
 
             {isNotesOpen && onPersist ? (
@@ -845,6 +821,40 @@ export function LiftScreen({
                   </div>
                 )
               })}
+            </div>
+
+            <div className="mt-4 flex items-end justify-between gap-3">
+              <p
+                className={`min-w-0 text-sm font-bold tabular-nums leading-tight ${
+                  isNeg ? 'text-red-400' : 'text-emerald-400'
+                }`}
+              >
+                <span>{formatProgressDelta(progressDelta)}</span>
+                <span className="text-neutral-500">, </span>
+                <span className="font-semibold text-neutral-300">
+                  {nextLiftWeight} {weightUnit}
+                </span>
+              </p>
+              {statuses.length > 0 ? (
+                <LiftStatusSelector
+                  className="h-10 w-auto min-w-0 max-w-[min(100%,12rem)] shrink-0"
+                  isNegative={isNeg}
+                  value={sid}
+                  onChange={(e) =>
+                    setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
+                  }
+                >
+                  {statuses.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
+                      {s.name}
+                    </option>
+                  ))}
+                </LiftStatusSelector>
+              ) : (
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                  Add statuses in settings
+                </span>
+              )}
             </div>
           </div>
         )

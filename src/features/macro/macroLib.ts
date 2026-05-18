@@ -1,4 +1,10 @@
-import type { FatSecretFoodRef, MacroCustomFood, MacroDayItem } from '../../types/domain'
+import type {
+  FatSecretFoodRef,
+  MacroCustomFood,
+  MacroDayItem,
+  MacroEstimateSnapshot,
+  MacroParseSnapshot,
+} from '../../types/domain'
 
 export type ParsedFoodItem = {
   emoji?: string
@@ -22,8 +28,6 @@ export type MacroEstimateResult = {
   protein: number
   libraryFoodId?: string
   servingMultiplier?: number
-  name?: string
-  emoji?: string
 }
 
 /** 1-based numbered list for the macro-estimate prompt. */
@@ -101,8 +105,6 @@ export function resolveMacroEstimate(
       protein: scaled.protein,
       libraryFoodId: food.id,
       servingMultiplier: multiplier,
-      name: food.name,
-      emoji: food.emoji,
     }
   }
 
@@ -116,12 +118,10 @@ export function resolveMacroEstimate(
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
     const multiplier = typeof response.multiplier === 'number' && response.multiplier > 0 ? response.multiplier : 1
     const scaled = scaleFatSecretServing(serving, multiplier)
-    const displayName = food.brandName ? `${food.brandName} ${food.name}`.trim() : food.name
     return {
       calories: scaled.calories,
       protein: scaled.protein,
       servingMultiplier: multiplier,
-      name: displayName.slice(0, 25),
     }
   }
 
@@ -131,12 +131,104 @@ export function resolveMacroEstimate(
   }
 }
 
+export type MacroEstimateDescription = {
+  method: string
+  summary: string
+  details: { label: string; value: string }[]
+}
+
+/** Human-readable breakdown of a macro-estimate AI response for the info panel. */
+export function describeMacroEstimate(
+  snap: MacroEstimateSnapshot,
+  ctx?: {
+    fatSecretResults?: FatSecretFoodRef[]
+    customFoods?: MacroCustomFood[]
+  },
+): MacroEstimateDescription {
+  const mult = typeof snap.multiplier === 'number' && snap.multiplier > 0 ? snap.multiplier : 1
+  const libIdx = parseIndex(snap.libraryIndex)
+  const fsIdx = parseIndex(snap.fatSecretIndex)
+  const servIdx = parseIndex(snap.servingIndex)
+
+  if (libIdx !== null && ctx?.customFoods && libIdx >= 1 && libIdx <= ctx.customFoods.length) {
+    const food = ctx.customFoods[libIdx - 1]!
+    const scaled = scaleLibraryMacros(food, mult)
+    return {
+      method: 'Food library match',
+      summary: `${scaled.calories} cal · ${scaled.protein}g protein`,
+      details: [
+        { label: 'Library #', value: String(libIdx) },
+        { label: 'Item', value: food.name },
+        { label: 'Base serving', value: food.baseAmount || '1 serving' },
+        { label: 'Multiplier', value: formatMultiplier(mult) },
+        { label: 'Base macros', value: `${food.calories} cal · ${food.protein}g protein` },
+      ],
+    }
+  }
+
+  if (fsIdx !== null && ctx?.fatSecretResults && fsIdx >= 1 && fsIdx <= ctx.fatSecretResults.length) {
+    const food = ctx.fatSecretResults[fsIdx - 1]!
+    const serving =
+      servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
+        ? food.servings[servIdx - 1]!
+        : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
+    const scaled = scaleFatSecretServing(serving, mult)
+    const label = food.brandName ? `${food.brandName} ${food.name}`.trim() : food.name
+    return {
+      method: 'FatSecret match',
+      summary: `${scaled.calories} cal · ${scaled.protein}g protein`,
+      details: [
+        { label: 'FatSecret #', value: String(fsIdx) },
+        { label: 'Product', value: label },
+        { label: 'Serving #', value: servIdx !== null ? String(servIdx) : 'default' },
+        { label: 'Serving size', value: serving.description },
+        { label: 'Multiplier', value: formatMultiplier(mult) },
+        { label: 'Per serving', value: `${serving.calories} cal · ${serving.protein}g protein` },
+      ],
+    }
+  }
+
+  const cal = Math.round(snap.calories ?? 0)
+  const pro = Math.round((snap.protein ?? 0) * 10) / 10
+  const details: { label: string; value: string }[] = [{ label: 'Source', value: 'AI direct estimate' }]
+  if (libIdx !== null) details.push({ label: 'Library index', value: String(libIdx) })
+  if (fsIdx !== null) details.push({ label: 'FatSecret index', value: String(fsIdx) })
+  if (snap.multiplier != null && snap.multiplier !== 1) {
+    details.push({ label: 'Multiplier', value: formatMultiplier(mult) })
+  }
+
+  return {
+    method: 'AI estimate',
+    summary: `${cal} cal · ${pro}g protein`,
+    details,
+  }
+}
+
+function formatMultiplier(m: number): string {
+  return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
+}
+
+/** Display name from parser classification; falls back to current item name. */
+export function macroItemDisplayName(item: {
+  name: string
+  parseSnapshot?: MacroParseSnapshot
+}): string {
+  return item.parseSnapshot?.name?.trim() || item.name
+}
+
+export function macroItemDisplayEmoji(item: {
+  emoji?: string
+  parseSnapshot?: MacroParseSnapshot
+}): string {
+  return item.parseSnapshot?.emoji || item.emoji || '🍱'
+}
+
 const MACRO_ITEM_STATUS_RANK: Record<string, number> = {
   ready: 4,
-  editing_raw: 3,
-  processing_cancellable: 2,
-  transcribing: 2,
-  pending: 1,
+  pending: 3,
+  editing_raw: 2,
+  processing_cancellable: 1,
+  transcribing: 1,
 }
 
 function macroItemStatusRank(status?: string): number {
@@ -154,10 +246,26 @@ export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayIte
     a.fatSecretResults ??
     b.fatSecretResults
   const fatSecretSearch = base.fatSecretSearch ?? a.fatSecretSearch ?? b.fatSecretSearch
+  const userInput = base.userInput ?? a.userInput ?? b.userInput
+  const parseSnapshot = base.parseSnapshot ?? a.parseSnapshot ?? b.parseSnapshot
+  const macroEstimateSnapshot = base.macroEstimateSnapshot ?? a.macroEstimateSnapshot ?? b.macroEstimateSnapshot
   return {
     ...base,
     fatSecretResults,
     fatSecretSearch,
+    userInput,
+    parseSnapshot,
+    macroEstimateSnapshot,
+  }
+}
+
+export function parseSnapshotFromItem(it: ParsedFoodItem): MacroParseSnapshot {
+  return {
+    emoji: it.emoji,
+    name: it.name || '',
+    amount: it.amount || '',
+    notes: it.notes?.trim() || undefined,
+    fatSecretSearch: it.fatSecretSearch?.trim() || undefined,
   }
 }
 
@@ -168,6 +276,23 @@ export function mergeMacroDayLists(prev: MacroDayItem[], incoming: MacroDayItem[
     const existing = prevById.get(item.id)
     return existing ? mergeMacroDayItem(existing, item) : item
   })
+}
+
+/** Resume macro estimation for items saved before calories were calculated. */
+export function normalizeMacroLogsOnLoad(logs: Record<string, MacroDayItem[]>): Record<string, MacroDayItem[]> {
+  let changed = false
+  const out: Record<string, MacroDayItem[]> = {}
+  for (const [date, items] of Object.entries(logs)) {
+    const next = items.map((item) => {
+      if (item.status === 'editing_raw' && item.name?.trim()) {
+        changed = true
+        return { ...item, status: 'pending' as const }
+      }
+      return item
+    })
+    out[date] = next
+  }
+  return changed ? out : logs
 }
 
 export function mergeMacroLogs(
@@ -187,13 +312,15 @@ export function mergeMacroLogs(
 }
 
 export function parsedItemToDayItem(it: ParsedFoodItem, overrides: Partial<MacroDayItem> = {}): MacroDayItem {
+  const snap = parseSnapshotFromItem(it)
   return {
     id: crypto.randomUUID(),
     emoji: it.emoji,
     name: it.name || '',
     amount: it.amount || '',
-    notes: it.notes?.trim() || undefined,
-    fatSecretSearch: it.fatSecretSearch?.trim() || undefined,
+    notes: snap.notes,
+    fatSecretSearch: snap.fatSecretSearch,
+    parseSnapshot: snap,
     status: 'pending',
     timestamp: Date.now(),
     calories: 0,

@@ -1,4 +1,5 @@
 # Rename to .dev.vars for local `wrangler dev`.
+# D1 is configured with remote = true in wrangler.toml — local dev uses the live database.
 OPENAI_API_KEY=
 
 # FatSecret Platform API (https://platform.fatsecret.com)

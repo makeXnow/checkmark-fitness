@@ -316,6 +316,7 @@ export function getWeekDatesFor(anchor: Date, firstDayOfWeek: number): string[] 
 export interface PastWeekSummary {
   id: string
   startDate: Date
+  goals: HabitsGoals
   cardioCount: number
   liftCount: number
   dietCount: number
@@ -327,7 +328,7 @@ export function computePastWeeks(
   logs: Record<string, DayLog>,
   currentDate: Date,
   firstDayOfWeek: number,
-  goals: HabitsGoals,
+  goalsForWeek: (weekStartISO: string) => HabitsGoals,
 ): PastWeekSummary[] {
   const logDates = Object.keys(logs).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort()
   if (logDates.length === 0) return []
@@ -352,7 +353,6 @@ export function computePastWeeks(
       : 7 - (firstDayOfWeek - earliestDayOfWeek)
   startOfEarliestWeek.setDate(startOfEarliestWeek.getDate() - earliestDiff)
 
-  const waterTarget = goals.water.dailyTarget ?? 4
   const weeks: PastWeekSummary[] = []
   const iter = new Date(startOfCurrentWeek)
   iter.setDate(iter.getDate() - 7)
@@ -363,6 +363,9 @@ export function computePastWeeks(
       dObj.setDate(dObj.getDate() + i)
       return localDateISO(dObj)
     })
+
+    const weekGoals = goalsForWeek(weekDates[0]!)
+    const waterTarget = weekGoals.water.dailyTarget ?? 4
 
     let cardioCount = 0
     let liftCount = 0
@@ -377,15 +380,16 @@ export function computePastWeeks(
       if ((dayLog.water || 0) >= waterTarget) waterCount++
     }
 
-    const cardioScore = Math.min(cardioCount / goals.cardio.min, 1)
-    const liftScore = Math.min(liftCount / goals.lift.min, 1)
-    const dietScore = Math.min(dietCount / goals.diet.min, 1)
-    const waterScore = Math.min(waterCount / goals.water.min, 1)
+    const cardioScore = Math.min(cardioCount / weekGoals.cardio.min, 1)
+    const liftScore = Math.min(liftCount / weekGoals.lift.min, 1)
+    const dietScore = Math.min(dietCount / weekGoals.diet.min, 1)
+    const waterScore = Math.min(waterCount / weekGoals.water.min, 1)
     const percentage = Math.round(((cardioScore + liftScore + dietScore + waterScore) / 4) * 100) || 0
 
     weeks.push({
       id: weekDates[0],
       startDate: new Date(iter),
+      goals: weekGoals,
       cardioCount,
       liftCount,
       dietCount,
@@ -455,13 +459,8 @@ function MiniGoalSummary({
   )
 }
 
-export function HabitsWeekHistoryCard({
-  week,
-  goals,
-}: {
-  week: PastWeekSummary
-  goals: HabitsGoals
-}) {
+export function HabitsWeekHistoryCard({ week }: { week: PastWeekSummary }) {
+  const goals = week.goals
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-[var(--radius-card)] p-4">
       <div className="flex justify-between items-center mb-4">

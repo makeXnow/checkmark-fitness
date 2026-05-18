@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { resolveHabitsWeekGoals, type HabitsGoalsBundleData } from '../../lib/goalSnapshots'
 import { localDateISO } from '../../lib/localDate'
 import type { HabitsGoals, DayLog } from '../../types/domain'
 import {
@@ -15,6 +16,7 @@ import {
 export function HabitsScreen({
   currentDate,
   goals,
+  goalsBundle,
   logs,
   appSettings,
   onSaveGoals,
@@ -24,6 +26,7 @@ export function HabitsScreen({
 }: {
   currentDate: Date
   goals: HabitsGoals
+  goalsBundle: HabitsGoalsBundleData
   logs: Record<string, DayLog>
   appSettings: { firstDayOfWeek: number }
   onSaveGoals: (g: HabitsGoals) => void
@@ -38,9 +41,15 @@ export function HabitsScreen({
     [currentDate, appSettings.firstDayOfWeek],
   )
 
+  const goalsForWeek = useCallback(
+    (weekStart: string) =>
+      resolveHabitsWeekGoals(weekStart, goalsBundle, appSettings.firstDayOfWeek),
+    [goalsBundle, appSettings.firstDayOfWeek],
+  )
+
   const pastWeeks = useMemo(
-    () => computePastWeeks(logs, currentDate, appSettings.firstDayOfWeek, goals),
-    [logs, currentDate, appSettings.firstDayOfWeek, goals],
+    () => computePastWeeks(logs, currentDate, appSettings.firstDayOfWeek, goalsForWeek),
+    [logs, currentDate, appSettings.firstDayOfWeek, goalsForWeek],
   )
 
   const currentDayLog = logs[dateKey] || {}
@@ -101,7 +110,7 @@ export function HabitsScreen({
               <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest px-1">History</p>
               <div className="space-y-3">
                 {pastWeeks.map((week) => (
-                  <HabitsWeekHistoryCard key={week.id} week={week} goals={goals} />
+                  <HabitsWeekHistoryCard key={week.id} week={week} />
                 ))}
               </div>
             </section>

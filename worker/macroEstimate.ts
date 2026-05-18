@@ -35,10 +35,9 @@ export type MacroEstimateApiResult = {
   protein: number
   libraryFoodId?: string
   servingMultiplier?: number
-  name?: string
-  emoji?: string
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
+  macroEstimateSnapshot: MacroEstimateResponse
 }
 
 type EnvMacro = {
@@ -82,10 +81,9 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
       protein: result.protein,
       libraryFoodId: result.libraryFoodId,
       servingMultiplier: result.servingMultiplier,
-      name: result.name,
-      emoji: result.emoji,
       fatSecretResults,
       fatSecretSource,
+      macroEstimateSnapshot: json,
     }
   } catch (e) {
     if (fatSecretResults.length > 0) {

@@ -1,6 +1,13 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { fatSecretSearchFoods } from './fatsecret'
+import {
+  type HabitsGoalsStored,
+  parseHabitsGoalsStored,
+  parseMacroGoalsStored,
+  serializeHabitsGoalsStored,
+  serializeMacroGoalsStored,
+} from './goalSnapshots'
 import { runMacroEstimate } from './macroEstimate'
 import { OPENAI_MODELS } from './openaiModels'
 
@@ -81,7 +88,14 @@ async function ensureDevice(db: D1Database, deviceId: string): Promise<void> {
   const habitsGoals = JSON.stringify(defaultHabitsGoals)
   const habitsLogs = JSON.stringify({})
   const habitsSettings = JSON.stringify({ firstDayOfWeek: 0 })
-  const macroGoals = JSON.stringify({ calorieGoal: 2000, proteinPctGoal: 30 })
+  const macroGoals = JSON.stringify({
+    calorieGoal: 2150,
+    proteinPctGoal: 35,
+    weightLbs: 180,
+    bodyFatPct: 18,
+    activeHours: 5,
+    goalMode: 'fast-cut',
+  })
   const macroFoods = JSON.stringify([])
   const macroLogs = JSON.stringify({})
   const liftPayload = JSON.stringify({
@@ -159,19 +173,27 @@ api.get('/api/bootstrap', async (c) => {
 
     const goalsRaw = safeJsonParse<unknown>((habits?.goals_json as string) || '', {})
     const logsRaw = safeJsonParse<unknown>((habits?.logs_json as string) || '', {})
-    const goals = normalizeHabitsGoals(asObjectRecord(goalsRaw))
+    const habitsGoalsNormalized = normalizeHabitsGoals(asObjectRecord(goalsRaw))
+    const habitsStored = parseHabitsGoalsStored(goalsRaw, habitsGoalsNormalized)
     const logs = normalizeHabitsLogs(asLogsMap(logsRaw))
+
+    const macroGoalsRaw = safeJsonParse<unknown>((macro?.goals_json as string) || '', {})
+    const macroStored = parseMacroGoalsStored(macroGoalsRaw)
 
     const body = {
       appState: state,
       habits: {
-        goals,
+        goals: habitsStored.current,
+        goalsSnapshotsByWeek: habitsStored.snapshotsByWeek,
+        goalsHistory: habitsStored.goalHistory,
         logs,
         appSettings: safeJsonParse((habits?.app_settings_json as string) || '', { firstDayOfWeek: 0 }),
         updatedAt: habits?.updated_at,
       },
       macro: {
-        goals: safeJsonParse((macro?.goals_json as string) || '', {}),
+        goals: macroStored.current,
+        goalsSnapshotsByDay: macroStored.snapshotsByDay,
+        goalsHistory: macroStored.goalHistory,
         customFoods: safeJsonParse((macro?.custom_foods_json as string) || '', []),
         logs: safeJsonParse((macro?.logs_json as string) || '', {}),
         updatedAt: macro?.updated_at,
@@ -191,7 +213,7 @@ api.get('/api/bootstrap', async (c) => {
         error: message,
         hint:
           message.includes('no such table') || message.includes('does not exist')
-            ? 'Run D1 migrations: npm run db:migrate:remote (or db:migrate:local)'
+            ? 'Run D1 migrations: npm run db:migrate:remote'
             : undefined,
       },
       500,
@@ -251,10 +273,17 @@ api.put('/api/habits', async (c) => {
   await ensureDevice(db, DEVICE_DEFAULT)
   const body = (await c.req.json()) as {
     goals?: Record<string, unknown>
+    goalsSnapshotsByWeek?: Record<string, Record<string, unknown>>
+    goalsHistory?: HabitsGoalsStored['goalHistory']
     logs?: Record<string, Record<string, unknown>>
     appSettings?: Record<string, unknown>
   }
-  const goals = normalizeHabitsGoals(body.goals || {})
+  const current = normalizeHabitsGoals(body.goals || {})
+  const stored = serializeHabitsGoalsStored({
+    current,
+    snapshotsByWeek: body.goalsSnapshotsByWeek || {},
+    goalHistory: body.goalsHistory || [],
+  })
   const logs = normalizeHabitsLogs(body.logs || {})
   const appSettings = body.appSettings || { firstDayOfWeek: 0 }
   const now = Date.now()
@@ -269,7 +298,7 @@ api.put('/api/habits', async (c) => {
          app_settings_json = excluded.app_settings_json,
          updated_at = excluded.updated_at`,
     )
-    .bind(DEVICE_DEFAULT, JSON.stringify(goals), JSON.stringify(logs), JSON.stringify(appSettings), now)
+    .bind(DEVICE_DEFAULT, JSON.stringify(stored), JSON.stringify(logs), JSON.stringify(appSettings), now)
     .run()
 
   return c.json({ ok: true })
@@ -280,9 +309,16 @@ api.put('/api/macro', async (c) => {
   await ensureDevice(db, DEVICE_DEFAULT)
   const body = (await c.req.json()) as {
     goals?: Record<string, unknown>
+    goalsSnapshotsByDay?: Record<string, { calorieGoal: number; proteinPctGoal: number }>
+    goalsHistory?: { effectiveDate: string; calorieGoal: number; proteinPctGoal: number }[]
     customFoods?: unknown[]
     logs?: Record<string, unknown>
   }
+  const stored = serializeMacroGoalsStored({
+    current: body.goals || {},
+    snapshotsByDay: body.goalsSnapshotsByDay || {},
+    goalHistory: body.goalsHistory || [],
+  })
   const now = Date.now()
   await db
     .prepare(
@@ -296,7 +332,7 @@ api.put('/api/macro', async (c) => {
     )
     .bind(
       DEVICE_DEFAULT,
-      JSON.stringify(body.goals || {}),
+      JSON.stringify(stored),
       JSON.stringify(body.customFoods || []),
       JSON.stringify(body.logs || {}),
       now,

@@ -15,8 +15,10 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
-import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
+import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
 import {
+  macroItemDisplayEmoji,
+  macroItemDisplayName,
   mergeMacroLogs,
   parsedItemToDayItem,
   type ParsedFoodItem,
@@ -25,6 +27,8 @@ import {
   MacroFoodEditCard,
   MacroFoodViewCard,
   itemToEditFields,
+  libraryFoodToEditFields,
+  macroItemAuditTrail,
   type MacroFoodEditFields,
 } from './MacroFoodCard'
 import { MACRO_PROMPTS } from './prompts'
@@ -112,7 +116,7 @@ export function MacroVoiceTracker({
   onSaveFoods,
 }: {
   dateKey: string
-  goals: { calorieGoal: number; proteinPctGoal: number }
+  goals: MacroGoals
   logs: Record<string, MacroDayItem[]>
   customFoods: MacroCustomFood[]
   onSaveLogs: (logs: Record<string, MacroDayItem[]>) => void
@@ -151,9 +155,11 @@ export function MacroVoiceTracker({
 
   const [dbModalOpen, setDbModalOpen] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editingLibraryFoodId, setEditingLibraryFoodId] = useState<string | null>(null)
 
   useEffect(() => {
     setEditingItemId(null)
+    setEditingLibraryFoodId(null)
   }, [dateKey])
 
   const clearRecordingLimitTimer = useCallback(() => {
@@ -234,13 +240,12 @@ export function MacroVoiceTracker({
             if (i.id !== id) return i
             return {
               ...i,
-              name: result.name ?? i.name,
-              emoji: result.emoji ?? i.emoji,
               calories: result.calories,
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
               servingMultiplier: result.servingMultiplier,
               fatSecretResults: result.fatSecretResults,
+              macroEstimateSnapshot: result.macroEstimateSnapshot ?? i.macroEstimateSnapshot,
               status: 'ready',
             }
           }),
@@ -371,7 +376,7 @@ export function MacroVoiceTracker({
           onSaveFoods([...customFoodsRef.current, libItem])
           replaceDay((prev) => prev.filter((i) => i.id !== id))
           if (data.items?.length) {
-            const newItems = data.items.map((it) => parsedItemToDayItem(it))
+            const newItems = data.items.map((it) => parsedItemToDayItem(it, { userInput: rawText }))
             replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
             newItems.forEach((it) =>
               void estimateMacrosForItem(it, `\n\nScanned base: ${JSON.stringify(baseFood)}`),
@@ -386,7 +391,7 @@ export function MacroVoiceTracker({
         const data = parsed as { items?: ParsedFoodItem[] }
         replaceDay((prev) => prev.filter((i) => i.id !== id))
         if (data.items?.length) {
-          const newItems = data.items.map((it) => parsedItemToDayItem(it))
+          const newItems = data.items.map((it) => parsedItemToDayItem(it, { userInput: rawText }))
           replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
           newItems.forEach((it) => void estimateMacrosForItem(it))
         }
@@ -581,6 +586,56 @@ export function MacroVoiceTracker({
     [replaceDay],
   )
 
+  const updateLibraryFood = useCallback(
+    (id: string, fields: MacroFoodEditFields) => {
+      onSaveFoods(
+        customFoodsRef.current.map((f) =>
+          f.id === id
+            ? {
+                ...f,
+                emoji: fields.emoji || '🍱',
+                name: fields.name,
+                baseAmount: fields.amount,
+                calories: fields.calories,
+                protein: fields.protein,
+              }
+            : f,
+        ),
+      )
+    },
+    [onSaveFoods],
+  )
+
+  const removeLibraryFood = useCallback(
+    (id: string) => {
+      setEditingLibraryFoodId((cur) => (cur === id ? null : cur))
+      onSaveFoods(customFoodsRef.current.filter((f) => f.id !== id))
+    },
+    [onSaveFoods],
+  )
+
+  const logLibraryFood = useCallback(
+    (libraryFoodId: string, fields: MacroFoodEditFields) => {
+      if (!fields.name.trim()) return
+      replaceDay((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          emoji: fields.emoji || '🍱',
+          name: fields.name,
+          amount: fields.amount,
+          calories: fields.calories,
+          protein: fields.protein,
+          libraryFoodId,
+          status: 'ready',
+          timestamp: Date.now(),
+        },
+      ])
+      setEditingLibraryFoodId(null)
+    },
+    [replaceDay],
+  )
+
   return (
     <div className="flex flex-col gap-4 pb-44">
       <StatusDashboard
@@ -602,8 +657,12 @@ export function MacroVoiceTracker({
               <FoodRow
                 key={item.id}
                 item={item}
+                customFoods={customFoods}
                 isEditing={editingItemId === item.id}
-                onStartEdit={() => setEditingItemId(item.id)}
+                onStartEdit={() => {
+                  setEditingLibraryFoodId(null)
+                  setEditingItemId(item.id)
+                }}
                 onEndEdit={() => setEditingItemId(null)}
                 onRemove={() => removeItem(item.id)}
                 onUpdate={(fields) => updateItem(item.id, fields)}
@@ -643,21 +702,22 @@ export function MacroVoiceTracker({
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">Library is empty</p>
           ) : (
             customFoods.map((food) => (
-              <button
+              <LibraryFoodRow
                 key={food.id}
-                type="button"
-                className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5 w-full text-left"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-lg">{food.emoji || '🍱'}</span>
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm text-white truncate">{food.name}</p>
-                    <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-white truncate">
-                      {food.baseAmount} • {food.calories} cal
-                    </p>
-                  </div>
-                </div>
-              </button>
+                food={food}
+                isEditing={editingLibraryFoodId === food.id}
+                onStartEdit={() => {
+                  setEditingItemId(null)
+                  setEditingLibraryFoodId(food.id)
+                }}
+                onEndEdit={() => setEditingLibraryFoodId(null)}
+                onSave={(fields) => {
+                  updateLibraryFood(food.id, fields)
+                  setEditingLibraryFoodId(null)
+                }}
+                onDelete={() => removeLibraryFood(food.id)}
+                onLog={(fields) => logLibraryFood(food.id, fields)}
+              />
             ))
           )}
         </div>
@@ -689,8 +749,66 @@ export function MacroVoiceTracker({
   )
 }
 
+function LibraryFoodRow({
+  food,
+  isEditing,
+  onStartEdit,
+  onEndEdit,
+  onSave,
+  onDelete,
+  onLog,
+}: {
+  food: MacroCustomFood
+  isEditing: boolean
+  onStartEdit: () => void
+  onEndEdit: () => void
+  onSave: (fields: MacroFoodEditFields) => void
+  onDelete: () => void
+  onLog: (fields: MacroFoodEditFields) => void
+}) {
+  const [editData, setEditData] = useState<MacroFoodEditFields>(() => libraryFoodToEditFields(food))
+
+  useEffect(() => {
+    if (!isEditing) setEditData(libraryFoodToEditFields(food))
+  }, [food, isEditing])
+
+  if (isEditing) {
+    return (
+      <MacroFoodEditCard
+        fieldId={`library-${food.id}`}
+        toolbar="library"
+        data={editData}
+        onChange={setEditData}
+        onReset={() => setEditData(libraryFoodToEditFields(food))}
+        onDelete={() => {
+          onDelete()
+          onEndEdit()
+        }}
+        onSave={() => {
+          onSave(editData)
+          onEndEdit()
+        }}
+        onLog={() => onLog(editData)}
+        saveDisabled={!editData.name.trim()}
+      />
+    )
+  }
+
+  return (
+    <MacroFoodViewCard
+      emoji={food.emoji}
+      name={food.name}
+      amount={food.baseAmount || ''}
+      calories={food.calories}
+      protein={food.protein}
+      onClick={onStartEdit}
+    />
+  )
+}
+
 function FoodRow({
   item,
+  customFoods,
   isEditing,
   onStartEdit,
   onEndEdit,
@@ -702,6 +820,7 @@ function FoodRow({
   onCancelTranscription,
 }: {
   item: MacroDayItem
+  customFoods: MacroCustomFood[]
   isEditing: boolean
   onStartEdit: () => void
   onEndEdit: () => void
@@ -714,11 +833,20 @@ function FoodRow({
 }) {
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item))
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
+  const [infoExpanded, setInfoExpanded] = useState(false)
 
   useEffect(() => {
-    if (!isEditing) setEditData(itemToEditFields(item))
+    if (!isEditing) {
+      setEditData(itemToEditFields(item))
+      setInfoExpanded(false)
+    }
     setTempRaw(item.rawText || '')
   }, [item, isEditing])
+
+  const endEdit = () => {
+    setInfoExpanded(false)
+    onEndEdit()
+  }
 
   if (item.status === 'transcribing') {
     return (
@@ -785,17 +913,22 @@ function FoodRow({
         data={editData}
         onChange={setEditData}
         autoFocusName
+        showAudit
+        infoExpanded={infoExpanded}
+        onInfoToggle={() => setInfoExpanded((v) => !v)}
+        audit={macroItemAuditTrail(item)}
+        auditCustomFoods={customFoods}
         onReset={() => {
-          onEndEdit()
+          endEdit()
           onReestimate()
         }}
         onDelete={() => {
           onRemove()
-          onEndEdit()
+          endEdit()
         }}
         onSave={() => {
           onUpdate(editData)
-          onEndEdit()
+          endEdit()
         }}
         saveDisabled={!editData.name.trim()}
       />
@@ -804,8 +937,8 @@ function FoodRow({
 
   return (
     <MacroFoodViewCard
-      emoji={item.emoji}
-      name={item.name}
+      emoji={macroItemDisplayEmoji(item)}
+      name={macroItemDisplayName(item)}
       amount={item.amount}
       calories={item.calories || 0}
       protein={item.protein || 0}

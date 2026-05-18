@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run dev:ensure-assets && npm run dev:clean-ports && concurrently -n web,api \"vite\" \"wrangler dev\"",
-    "dev:clean-ports": "lsof -nP -iTCP:8787 -sTCP:LISTEN -t 2>/dev/null | xargs kill -9 2>/dev/null || true",
+    "dev:clean-ports": "for p in 8787 9024 9025; do lsof -nP -iTCP:$p -sTCP:LISTEN -t 2>/dev/null | xargs kill -9 2>/dev/null || true; done",
     "dev:vite": "vite",
     "dev:all": "npm run dev",
     "dev:ensure-assets": "test -f dist/index.html || npm run build",
@@ -17,6 +17,7 @@
     "seed:sql": "node scripts/seed-d1.mjs",
     "seed:local": "node scripts/seed-d1.mjs && wrangler d1 execute checkmark-fitness --local --file=seed-generated.sql",
     "seed:remote": "node scripts/seed-d1.mjs && wrangler d1 execute checkmark-fitness --remote --file=seed-generated.sql",
+    "db:migrate": "wrangler d1 migrations apply checkmark-fitness --remote",
     "db:migrate:local": "wrangler d1 migrations apply checkmark-fitness --local",
     "db:migrate:remote": "wrangler d1 migrations apply checkmark-fitness --remote",
     "deploy": "npm run pages:deploy",

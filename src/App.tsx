@@ -12,8 +12,18 @@ import {
   Target,
 } from 'lucide-react'
 import { AppAccentTextButton } from './core/AppAccentTextButton'
-import { fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
-import { mergeMacroLogs } from './features/macro/macroLib'
+import { applyAppStatePatch, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
+import { normalizeMacroGoals } from './features/macro/macroCalculator'
+import { mergeMacroLogs, normalizeMacroLogsOnLoad } from './features/macro/macroLib'
+import {
+  cementHabitsSnapshots,
+  cementMacroSnapshots,
+  recordHabitsGoalChange,
+  recordMacroGoalChange,
+  resolveMacroDayTargets,
+  type HabitsGoalsBundleData,
+  type MacroGoalsBundleData,
+} from './lib/goalSnapshots'
 import { localDateISO } from './lib/localDate'
 import type {
   AppStateRow,
@@ -64,6 +74,59 @@ export default function App() {
     try {
       setError(null)
       const data = await fetchBootstrap()
+      const todayISO = localDateISO(new Date())
+      const firstDayOfWeek = data.habits.appSettings?.firstDayOfWeek ?? 0
+
+      const macroCurrent = normalizeMacroGoals(data.macro.goals)
+      let macroBundle: MacroGoalsBundleData = {
+        current: macroCurrent,
+        snapshotsByDay: data.macro.goalsSnapshotsByDay ?? {},
+        goalHistory: data.macro.goalsHistory ?? [],
+      }
+      const macroCement = cementMacroSnapshots(macroBundle, Object.keys(data.macro.logs || {}), todayISO)
+      if (macroCement.changed) macroBundle = macroCement.bundle
+
+      const habitsBundle: HabitsGoalsBundleData = {
+        current: data.habits.goals as HabitsGoals,
+        snapshotsByWeek: data.habits.goalsSnapshotsByWeek ?? {},
+        goalHistory: data.habits.goalsHistory ?? [],
+      }
+      const habitsCement = cementHabitsSnapshots(
+        habitsBundle,
+        Object.keys(data.habits.logs || {}),
+        new Date(),
+        firstDayOfWeek,
+        todayISO,
+      )
+      const cementedHabitsBundle = habitsCement.changed ? habitsCement.bundle : habitsBundle
+
+      const logs = normalizeMacroLogsOnLoad(data.macro.logs || {})
+      const logsChanged = logs !== data.macro.logs
+      if (logsChanged || macroCement.changed || habitsCement.changed) {
+        data.macro.logs = logs
+        data.macro.goals = macroBundle.current
+        data.macro.goalsSnapshotsByDay = macroBundle.snapshotsByDay
+        data.macro.goalsHistory = macroBundle.goalHistory
+        data.habits.goals = cementedHabitsBundle.current
+        data.habits.goalsSnapshotsByWeek = cementedHabitsBundle.snapshotsByWeek
+        data.habits.goalsHistory = cementedHabitsBundle.goalHistory
+        void Promise.all([
+          putMacro({
+            goals: macroBundle.current,
+            goalsSnapshotsByDay: macroBundle.snapshotsByDay,
+            goalsHistory: macroBundle.goalHistory,
+            customFoods: data.macro.customFoods || [],
+            logs,
+          }),
+          putHabits({
+            goals: cementedHabitsBundle.current,
+            goalsSnapshotsByWeek: cementedHabitsBundle.snapshotsByWeek,
+            goalsHistory: cementedHabitsBundle.goalHistory,
+            logs: data.habits.logs,
+            appSettings: data.habits.appSettings,
+          }),
+        ]).catch(() => {})
+      }
       setBoot(data)
     } catch (e) {
       const base = e instanceof Error ? e.message : 'Failed to load'
@@ -71,9 +134,10 @@ export default function App() {
         base === 'Internal Server Error' ||
         base === 'Failed to fetch' ||
         base.includes('NetworkError') ||
-        base.includes('ECONNREFUSED')
+        base.includes('ECONNREFUSED') ||
+        base.includes('no such table')
       const hint = apiDown
-        ? ' Run `npm run dev` in the project folder — it starts both the web app (9024) and the API worker (8787).'
+        ? ' Stop any old dev servers, then run `npm run dev` in the project folder (web on 9024, API on 8787).'
         : ''
       setError(base + hint)
     }
@@ -92,12 +156,40 @@ export default function App() {
 
   const selectedDateStr = appState?.selected_date || new Date().toISOString().slice(0, 10)
   const currentDate = useMemo(() => parseISODateOnly(selectedDateStr), [selectedDateStr])
+  const todayDateStr = localDateISO(new Date())
 
   const habitsGoals = boot?.habits.goals as HabitsGoals
   const habitsLogs = boot?.habits.logs || {}
   const habitsSettings = boot?.habits.appSettings || { firstDayOfWeek: 0 }
 
-  const macroGoals = boot?.macro.goals || { calorieGoal: 2000, proteinPctGoal: 30 }
+  const habitsGoalsBundle = useMemo<HabitsGoalsBundleData>(
+    () => ({
+      current: habitsGoals,
+      snapshotsByWeek: boot?.habits.goalsSnapshotsByWeek ?? {},
+      goalHistory: boot?.habits.goalsHistory ?? [],
+    }),
+    [habitsGoals, boot?.habits.goalsSnapshotsByWeek, boot?.habits.goalsHistory],
+  )
+
+  const macroGoals = useMemo(
+    () => normalizeMacroGoals(boot?.macro.goals),
+    [boot?.macro.goals],
+  )
+
+  const macroGoalsBundle = useMemo<MacroGoalsBundleData>(
+    () => ({
+      current: macroGoals,
+      snapshotsByDay: boot?.macro.goalsSnapshotsByDay ?? {},
+      goalHistory: boot?.macro.goalsHistory ?? [],
+    }),
+    [macroGoals, boot?.macro.goalsSnapshotsByDay, boot?.macro.goalsHistory],
+  )
+
+  const macroGoalsForDate = useMemo(() => {
+    const targets = resolveMacroDayTargets(selectedDateStr, macroGoalsBundle, todayDateStr)
+    return { ...macroGoals, ...targets }
+  }, [macroGoals, macroGoalsBundle, selectedDateStr, todayDateStr])
+
   const macroLogs = boot?.macro.logs || {}
   const macroFoods = boot?.macro.customFoods || []
 
@@ -128,70 +220,89 @@ export default function App() {
   }, [])
 
   const persistAppState = useCallback(
-    async (patch: Parameters<typeof patchAppState>[0]) => {
-      const res = await patchAppState(patch)
-      mergeAppState(res.appState)
+    (patch: Parameters<typeof patchAppState>[0]) => {
+      let rollback: AppStateRow | null = null
+      setBoot((prev) => {
+        if (!prev?.appState) return prev
+        rollback = prev.appState
+        return { ...prev, appState: applyAppStatePatch(prev.appState, patch) }
+      })
+      void patchAppState(patch)
+        .then((res) => mergeAppState(res.appState))
+        .catch(() => {
+          if (rollback) mergeAppState(rollback)
+        })
     },
     [mergeAppState],
   )
 
   const changeDate = useCallback(
-    async (delta: number) => {
+    (delta: number) => {
       const next = new Date(currentDate)
       next.setDate(next.getDate() + delta)
-      await persistAppState({ selected_date: localDateISO(next) })
+      persistAppState({ selected_date: localDateISO(next) })
     },
     [currentDate, persistAppState],
   )
 
-  const todayDateStr = localDateISO(new Date())
   const isTodaySelected = selectedDateStr === todayDateStr
 
-  const goToToday = useCallback(async () => {
-    await persistAppState({ selected_date: todayDateStr })
+  const goToToday = useCallback(() => {
+    persistAppState({ selected_date: todayDateStr })
   }, [persistAppState, todayDateStr])
 
   const setTab = useCallback(
-    async (tab: BottomTab) => {
-      await persistAppState({ selected_tab: tab })
+    (tab: BottomTab) => {
+      persistAppState({ selected_tab: tab })
     },
     [persistAppState],
   )
 
-  /** Bottom nav: in settings mode, switches which feature’s settings are shown; otherwise switches tracker tab. */
+  const openSettings = useCallback(() => {
+    persistAppState({ settings_open: true, settings_section: selectedTab as unknown as SettingsSection })
+  }, [persistAppState, selectedTab])
+
+  const closeSettings = useCallback(() => {
+    persistAppState({ settings_open: false })
+  }, [persistAppState])
+
+  /** Bottom nav: in settings, same icon closes settings; another icon switches settings section; otherwise switches tracker tab. */
   const selectBottomTab = useCallback(
-    async (tab: BottomTab) => {
+    (tab: BottomTab) => {
       if (settingsOpen) {
-        await persistAppState({
-          selected_tab: tab,
-          settings_section: tab as SettingsSection,
-          settings_open: true,
-        })
+        if (tab === settingsSection) {
+          closeSettings()
+        } else {
+          persistAppState({
+            selected_tab: tab,
+            settings_section: tab as SettingsSection,
+            settings_open: true,
+          })
+        }
       } else if (tab === 'lift') {
-        await persistAppState({ selected_tab: tab, lift_sub_route: 'workout' })
+        persistAppState({ selected_tab: tab, lift_sub_route: 'workout' })
       } else {
-        await setTab(tab)
+        setTab(tab)
       }
     },
-    [persistAppState, setTab, settingsOpen],
+    [closeSettings, persistAppState, setTab, settingsOpen, settingsSection],
   )
 
   const navActiveTab: BottomTab = settingsOpen ? (settingsSection as BottomTab) : selectedTab
 
-  const openSettings = useCallback(async () => {
-    await persistAppState({ settings_open: true, settings_section: selectedTab as unknown as SettingsSection })
-  }, [persistAppState, selectedTab])
-
-  const closeSettings = useCallback(async () => {
-    await persistAppState({ settings_open: false })
-  }, [persistAppState])
-
   const setLiftDayIndex = useCallback(
-    async (idx: number) => {
-      await persistAppState({ lift_current_day_index: idx })
+    (idx: number) => {
+      persistAppState({ lift_current_day_index: idx })
     },
     [persistAppState],
   )
+
+  useEffect(() => {
+    if (!boot) return
+    void import('./features/habits/HabitsScreen')
+    void import('./features/macro/MacroScreen')
+    void import('./features/lift/LiftScreen')
+  }, [boot])
 
   useEffect(() => {
     if (sortedLiftDays.length === 0) return
@@ -203,20 +314,44 @@ export default function App() {
   const saveHabitsBundle = useCallback(
     async (next: { goals?: HabitsGoals; logs?: Record<string, DayLog>; appSettings?: { firstDayOfWeek: number } }) => {
       if (!boot) return
-      const goals = next.goals ?? habitsGoals
-      const logs = next.logs ?? habitsLogs
       const appSettings = next.appSettings ?? habitsSettings
-      await putHabits({ goals, logs, appSettings })
+      const logs = next.logs ?? habitsLogs
+      let bundle = habitsGoalsBundle
+      if (next.goals) {
+        bundle = recordHabitsGoalChange(bundle, next.goals, appSettings.firstDayOfWeek, todayDateStr)
+        const cemented = cementHabitsSnapshots(
+          bundle,
+          Object.keys(logs),
+          currentDate,
+          appSettings.firstDayOfWeek,
+          todayDateStr,
+        )
+        if (cemented.changed) bundle = cemented.bundle
+      }
+      await putHabits({
+        goals: bundle.current,
+        goalsSnapshotsByWeek: bundle.snapshotsByWeek,
+        goalsHistory: bundle.goalHistory,
+        logs,
+        appSettings,
+      })
       setBoot((prev) =>
         prev
           ? {
               ...prev,
-              habits: { goals, logs, appSettings, updatedAt: Date.now() },
+              habits: {
+                goals: bundle.current,
+                goalsSnapshotsByWeek: bundle.snapshotsByWeek,
+                goalsHistory: bundle.goalHistory,
+                logs,
+                appSettings,
+                updatedAt: Date.now(),
+              },
             }
           : prev,
       )
     },
-    [boot, habitsGoals, habitsLogs, habitsSettings],
+    [boot, habitsGoalsBundle, habitsLogs, habitsSettings, currentDate, todayDateStr],
   )
 
   const macroSaveSeq = useRef(Promise.resolve())
@@ -231,21 +366,47 @@ export default function App() {
         .then(async () => {
           let snapshot: {
             goals: typeof macroGoals
+            goalsSnapshotsByDay: MacroGoalsBundleData['snapshotsByDay']
+            goalsHistory: MacroGoalsBundleData['goalHistory']
             logs: Record<string, MacroDayItem[]>
             customFoods: MacroCustomFood[]
           } | null = null
 
           setBoot((prev) => {
             if (!prev) return prev
-            const goals = next.goals ?? prev.macro.goals
-            const logs = next.logs
-              ? mergeMacroLogs(prev.macro.logs, next.logs)
-              : prev.macro.logs
+            let bundle: MacroGoalsBundleData = {
+              current: normalizeMacroGoals(prev.macro.goals),
+              snapshotsByDay: prev.macro.goalsSnapshotsByDay ?? {},
+              goalHistory: prev.macro.goalsHistory ?? [],
+            }
+            if (next.goals) {
+              bundle = recordMacroGoalChange(bundle, next.goals, todayDateStr)
+              const cemented = cementMacroSnapshots(
+                bundle,
+                Object.keys(prev.macro.logs || {}),
+                todayDateStr,
+              )
+              if (cemented.changed) bundle = cemented.bundle
+            }
+            const logs = next.logs ? mergeMacroLogs(prev.macro.logs, next.logs) : prev.macro.logs
             const customFoods = next.customFoods ?? prev.macro.customFoods
-            snapshot = { goals, logs, customFoods }
+            snapshot = {
+              goals: bundle.current,
+              goalsSnapshotsByDay: bundle.snapshotsByDay,
+              goalsHistory: bundle.goalHistory,
+              logs,
+              customFoods,
+            }
             return {
               ...prev,
-              macro: { goals, customFoods, logs, updatedAt: Date.now() },
+              macro: {
+                goals: bundle.current,
+                goalsSnapshotsByDay: bundle.snapshotsByDay,
+                goalsHistory: bundle.goalHistory,
+                customFoods,
+                logs,
+                updatedAt: Date.now(),
+              },
             }
           })
 
@@ -257,7 +418,7 @@ export default function App() {
         })
       return macroSaveSeq.current
     },
-    [],
+    [todayDateStr],
   )
 
   const saveLiftBundle = useCallback(
@@ -447,6 +608,7 @@ export default function App() {
                 <HabitsScreen
                   currentDate={currentDate}
                   goals={habitsGoals}
+                  goalsBundle={habitsGoalsBundle}
                   logs={habitsLogs}
                   appSettings={habitsSettings}
                   view="settings"
@@ -488,6 +650,7 @@ export default function App() {
                 <HabitsScreen
                   currentDate={currentDate}
                   goals={habitsGoals}
+                  goalsBundle={habitsGoalsBundle}
                   logs={habitsLogs}
                   appSettings={habitsSettings}
                   view="tracker"
@@ -501,7 +664,7 @@ export default function App() {
               <Suspense fallback={<TabFallback />}>
                 <MacroScreen
                   currentDate={currentDate}
-                  goals={macroGoals}
+                  goals={macroGoalsForDate}
                   logs={macroLogs}
                   customFoods={macroFoods}
                   view="tracker"
