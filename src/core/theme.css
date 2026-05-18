@@ -26,6 +26,8 @@
   --color-border-strong: #525252;
   --color-accent: #34d399;
   --color-accent-hover: #6ee7b7;
+  /** Darker strand for DNA-style loaders (mirrors blue-600 vs cyan-400 contrast). */
+  --color-accent-deep: #059669;
   --color-accent-muted: rgba(52, 211, 153, 0.12);
   --color-danger: #f87171;
   --color-text-muted: #a3a3a3;
@@ -112,5 +114,64 @@ html.lift-workout-swapping #app-main {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
+  }
+}
+
+/* Main tab pager — photo-gallery horizontal swipe between Goals / Diet / Lift */
+.tab-pager-viewport {
+  touch-action: pan-y;
+  --tab-pager-gap: 1.5rem;
+}
+
+.tab-pager-track {
+  will-change: transform;
+}
+
+/* Hidden probe + spacers — width resolves rem/% correctly in pixels for snap math */
+.tab-pager-gap-measure,
+.tab-pager-gap {
+  flex: 0 0 var(--tab-pager-gap);
+  width: var(--tab-pager-gap);
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.tab-pager-gap-measure {
+  position: absolute;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tab-pager-track--animating {
+  transition: transform 320ms var(--lift-workout-anim-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-pager-track--animating {
+    transition: none;
+  }
+}
+
+/* App loading — DNA double-strand wave (matches Loading Animations DNAHelix) */
+@keyframes dna-wave {
+  0%,
+  100% {
+    transform: translateY(-15px) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(15px) scale(0.5);
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes dna-wave {
+    0%,
+    100% {
+      transform: none;
+      opacity: 1;
+    }
   }
 }

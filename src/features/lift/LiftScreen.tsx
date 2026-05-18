@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, FileText, Plus, Trash2, X } from 'lucide-react'
+import { ChevronDown, FileText, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AppAccentTextButton } from '../../core/AppAccentTextButton'
+import { localDateISO } from '../../lib/localDate'
 import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
 import {
@@ -95,14 +96,250 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+type LiftLogDayGroup = {
+  dayName: string
+  dateStr: string
+  entries: LiftHistoryEntry[]
+}
+
+function historyEntryToDateInput(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : localDateISO(d)
+}
+
+function applyDateInputToEntry(iso: string, dateInput: string): string {
+  const old = new Date(iso)
+  const [y, m, day] = dateInput.split('-').map((x) => parseInt(x, 10))
+  if (!y || !m || !day) return iso
+  const merged = new Date(y, m - 1, day, old.getHours(), old.getMinutes(), old.getSeconds(), old.getMilliseconds())
+  return merged.toISOString()
+}
+
+function LiftLogDayCard({
+  group,
+  payload,
+  onPersist,
+  showDayName = true,
+}: {
+  group: LiftLogDayGroup
+  payload: LiftPayload
+  onPersist?: (next: LiftPayload) => void | Promise<void>
+  /** When false (workout tab preview), only the date is shown in the cap. */
+  showDayName?: boolean
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [draftDate, setDraftDate] = useState('')
+  const [draftById, setDraftById] = useState<Record<string, LiftHistoryEntry>>({})
+
+  const openEdit = () => {
+    const first = group.entries[0]
+    setDraftDate(first ? historyEntryToDateInput(first.date) : localDateISO(new Date()))
+    setDraftById(Object.fromEntries(group.entries.map((e) => [e.id, { ...e }])))
+    setIsEditing(true)
+  }
+
+  const cancelEdit = () => {
+    setIsEditing(false)
+    setDraftById({})
+  }
+
+  const saveEdit = () => {
+    if (!onPersist || !draftDate) {
+      setIsEditing(false)
+      return
+    }
+    const ids = new Set(group.entries.map((e) => e.id))
+    void onPersist({
+      ...payload,
+      history: (payload.history || []).map((h) => {
+        if (!ids.has(h.id)) return h
+        const draft = draftById[h.id]
+        if (!draft) return h
+        return {
+          ...h,
+          date: applyDateInputToEntry(h.date, draftDate),
+          workoutName: draft.workoutName,
+          weight: draft.weight,
+          oldWeight: draft.oldWeight,
+          newWeight: draft.newWeight,
+          statusName: draft.statusName,
+        }
+      }),
+    })
+    setIsEditing(false)
+  }
+
+  const statuses = payload.statuses || []
+
+  return (
+    <div className="box-border w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 shadow-sm">
+      <div className="relative flex w-full min-w-0 items-center justify-between gap-3 border-b border-neutral-800 bg-neutral-800 py-3 pl-4 pr-12 text-neutral-200">
+        <span className="min-w-0 flex-1 truncate text-left text-base font-bold leading-snug">
+          {group.dateStr}
+        </span>
+        {showDayName ? (
+          <span className="max-w-[40%] shrink-0 truncate text-right text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+            {group.dayName}
+          </span>
+        ) : null}
+        {onPersist && !isEditing ? (
+          <button
+            type="button"
+            onClick={openEdit}
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-white"
+            aria-label={`Edit log for ${group.dateStr}`}
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="min-w-0 space-y-4 p-4">
+        {isEditing ? (
+          <>
+            <div>
+              <FieldLabel>Date</FieldLabel>
+              <input
+                type="date"
+                value={draftDate}
+                onChange={(e) => setDraftDate(e.target.value)}
+                className="w-full rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400"
+              />
+            </div>
+            {group.entries.map((entry) => {
+              const draft = draftById[entry.id] ?? entry
+              const unit = payload.weightUnit ?? 'lbs'
+              return (
+                <div key={entry.id} className="min-w-0 space-y-3 rounded-lg border border-neutral-800 bg-black/40 p-3">
+                  <div className="min-w-0">
+                    <FieldLabel>Exercise</FieldLabel>
+                    <input
+                      type="text"
+                      value={draft.workoutName ?? ''}
+                      onChange={(e) =>
+                        setDraftById((prev) => ({
+                          ...prev,
+                          [entry.id]: { ...draft, workoutName: e.target.value },
+                        }))
+                      }
+                      className="w-full max-w-full rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <div className="grid min-w-0 grid-cols-2 gap-3">
+                    <div className="min-w-0">
+                      <FieldLabel>Weight ({unit})</FieldLabel>
+                      <input
+                        type="number"
+                        step="any"
+                        value={draft.weight ?? draft.oldWeight ?? ''}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value)
+                          setDraftById((prev) => ({
+                            ...prev,
+                            [entry.id]: {
+                              ...draft,
+                              weight: Number.isFinite(v) ? v : undefined,
+                              oldWeight: Number.isFinite(v) ? v : draft.oldWeight,
+                            },
+                          }))
+                        }}
+                        className="w-full max-w-full rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <FieldLabel>Next ({unit})</FieldLabel>
+                      <input
+                        type="number"
+                        step="any"
+                        value={draft.newWeight ?? ''}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value)
+                          setDraftById((prev) => ({
+                            ...prev,
+                            [entry.id]: {
+                              ...draft,
+                              newWeight: Number.isFinite(v) ? v : undefined,
+                            },
+                          }))
+                        }}
+                        className="w-full max-w-full rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400"
+                      />
+                    </div>
+                  </div>
+                  {statuses.length > 0 ? (
+                    <div>
+                      <FieldLabel>Status</FieldLabel>
+                      <div className="relative rounded-lg border border-neutral-700 bg-black">
+                        <select
+                          className="w-full cursor-pointer appearance-none bg-transparent p-3 text-sm font-bold text-white outline-none"
+                          value={draft.statusName ?? ''}
+                          onChange={(e) =>
+                            setDraftById((prev) => ({
+                              ...prev,
+                              [entry.id]: { ...draft, statusName: e.target.value },
+                            }))
+                          }
+                        >
+                          <option value="" className="bg-neutral-900">
+                            —
+                          </option>
+                          {statuses.map((s) => (
+                            <option key={s.id} value={s.name} className="bg-neutral-900">
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="flex flex-1 items-center justify-center rounded-lg border border-neutral-700 px-4 py-3 text-xs font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!onPersist || !draftDate}
+                onClick={saveEdit}
+                className="flex flex-1 items-center justify-center rounded-lg bg-emerald-400 px-4 py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-emerald-300 disabled:opacity-40"
+              >
+                Save
+              </button>
+            </div>
+          </>
+        ) : (
+          group.entries.map((entry) => (
+            <LiftHistoryEntryCard
+              key={entry.id}
+              entry={entry}
+              payload={payload}
+              onPersist={onPersist}
+              nested
+            />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 function LiftHistoryEntryCard({
   entry,
   payload,
   onPersist,
+  nested = false,
 }: {
   entry: LiftHistoryEntry
   payload: LiftPayload
   onPersist?: (next: LiftPayload) => void | Promise<void>
+  nested?: boolean
 }) {
   const [selectResetKey, setSelectResetKey] = useState(0)
   const w = payload.workouts.find((wk) => wk.id === entry.workoutId)
@@ -136,9 +373,15 @@ function LiftHistoryEntryCard({
     w && targetNext !== undefined ? getOptimalPlates(targetNext, w.barWeight, plates).actualWeight : targetNext
 
   return (
-    <div className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-sm">
-      <h4 className="mb-3 text-lg font-bold text-white">{entry.workoutName || 'Workout'}</h4>
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
+    <div
+      className={
+        nested
+          ? 'w-full min-w-0 max-w-full border-t border-neutral-800 pt-4 first:border-t-0 first:pt-0'
+          : 'relative box-border w-full min-w-0 max-w-full rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-sm'
+      }
+    >
+      <h4 className="mb-3 min-w-0 truncate text-lg font-bold text-white">{entry.workoutName || 'Workout'}</h4>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
         <div className="flex min-w-0 flex-wrap gap-x-3 text-sm font-medium text-neutral-400">
           <span>
             {displayWeight} {unit}
@@ -265,14 +508,14 @@ function WorkoutDayTransition({
 
   if (isSwapping) {
     return (
-      <div className="lift-workout-transition-root">
+      <div className="lift-workout-transition-root w-full min-w-0 max-w-full">
         <div
-          className="lift-workout-layer lift-workout-layer-exit-right space-y-5 pb-4"
+          className="lift-workout-layer lift-workout-layer-exit-right w-full min-w-0 space-y-5 pb-4"
           aria-hidden
         >
           {children(fromIndex)}
         </div>
-        <div className="lift-workout-layer lift-workout-layer-enter-from-left space-y-5 pb-4">
+        <div className="lift-workout-layer lift-workout-layer-enter-from-left w-full min-w-0 space-y-5 pb-4">
           {children(dayIndex)}
         </div>
       </div>
@@ -280,8 +523,8 @@ function WorkoutDayTransition({
   }
 
   return (
-    <div className="lift-workout-transition-root">
-      <div className="space-y-5 pb-4">{children(shownIndex)}</div>
+    <div className="lift-workout-transition-root w-full min-w-0 max-w-full">
+      <div className="w-full min-w-0 space-y-5 pb-4">{children(shownIndex)}</div>
     </div>
   )
 }
@@ -578,19 +821,9 @@ export function LiftScreen({
       )
     }
     return (
-      <div className="space-y-5">
+      <div className="w-full min-w-0 space-y-5">
         {logGroups.map((group, idx) => (
-          <div key={idx}>
-            <div className="mb-4 flex items-baseline justify-between">
-              <h2 className="text-xl font-bold text-neutral-300">{group.dateStr}</h2>
-              <span className="text-sm font-bold uppercase tracking-widest text-neutral-300">{group.dayName}</span>
-            </div>
-            <div className="space-y-4">
-              {group.entries.map((entry) => (
-                <LiftHistoryEntryCard key={entry.id} entry={entry} payload={payload} onPersist={onPersist} />
-              ))}
-            </div>
-          </div>
+          <LiftLogDayCard key={idx} group={group} payload={payload} onPersist={onPersist} />
         ))}
       </div>
     )
@@ -870,22 +1103,21 @@ export function LiftScreen({
       )}
 
       {onSeeAllLog && (
-        <div className="mt-12 border-t border-neutral-800 pt-8">
+        <div className="mt-12 w-full min-w-0 border-t border-neutral-800 pt-8">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-lg font-black uppercase tracking-tight text-white">Log</h2>
             <AppAccentTextButton onClick={onSeeAllLog}>See all</AppAccentTextButton>
           </div>
           {activeDayLogGroups.length > 0 ? (
-            <div className="space-y-5">
+            <div className="w-full min-w-0 space-y-5">
               {activeDayLogGroups.map((group, idx) => (
-                <div key={idx}>
-                  <h3 className="mb-4 text-xl font-bold text-neutral-300">{group.dateStr}</h3>
-                  <div className="space-y-4">
-                    {group.entries.map((entry) => (
-                      <LiftHistoryEntryCard key={entry.id} entry={entry} payload={payload} onPersist={onPersist} />
-                    ))}
-                  </div>
-                </div>
+                <LiftLogDayCard
+                  key={idx}
+                  group={group}
+                  payload={payload}
+                  onPersist={onPersist}
+                  showDayName={false}
+                />
               ))}
             </div>
           ) : (

@@ -268,7 +268,6 @@ export function MacroFoodEditCard({
   onSave,
   onLog,
   saveDisabled = false,
-  autoFocusName = false,
   showAudit = false,
   infoExpanded = false,
   onInfoToggle,
@@ -284,14 +283,13 @@ export function MacroFoodEditCard({
   onSave: () => void
   onLog?: () => void
   saveDisabled?: boolean
-  autoFocusName?: boolean
   showAudit?: boolean
   infoExpanded?: boolean
   onInfoToggle?: () => void
   audit?: MacroFoodAuditTrail
   auditCustomFoods?: MacroCustomFood[]
-  /** `library`: trash + log + save only. `day`: re-estimate, trash, info, save. */
-  toolbar?: 'day' | 'library'
+  /** `library`: trash + log + save. `library-add`: full-width Save + Save & Log. `day`: re-estimate, trash, info, save. */
+  toolbar?: 'day' | 'library' | 'library-add'
 }) {
   const proteinInputId = `macro-protein-${fieldId}`
 
@@ -306,7 +304,6 @@ export function MacroFoodEditCard({
           aria-label="Emoji"
         />
         <input
-          autoFocus={autoFocusName}
           value={data.name}
           onChange={(e) => onChange({ ...data, name: e.target.value })}
           className="flex-1 bg-white/5 rounded-xl px-3 font-bold text-sm text-white outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all min-w-0"
@@ -343,6 +340,32 @@ export function MacroFoodEditCard({
         </div>
       </div>
 
+      {toolbar === 'library-add' ? (
+        <div className="flex gap-2 px-4 py-3 bg-white/[0.04]">
+          <button
+            type="button"
+            disabled={saveDisabled}
+            onClick={(e) => {
+              e.stopPropagation()
+              onSave()
+            }}
+            className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 text-white/80 hover:bg-white/15 disabled:opacity-40 transition-colors"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            disabled={saveDisabled || !onLog}
+            onClick={(e) => {
+              e.stopPropagation()
+              onLog?.()
+            }}
+            className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-40 shadow-lg active:scale-95 transition-all"
+          >
+            Save & Log
+          </button>
+        </div>
+      ) : (
       <div className="flex justify-between items-center px-4 py-2 bg-white/[0.04]">
         <div className="flex gap-2">
           {toolbar === 'day' && (
@@ -417,6 +440,7 @@ export function MacroFoodEditCard({
           </button>
         </div>
       </div>
+      )}
       {showAudit && infoExpanded && audit && (
         <MacroFoodAuditPanel audit={audit} customFoods={auditCustomFoods} />
       )}

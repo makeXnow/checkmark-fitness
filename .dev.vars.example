@@ -5,6 +5,9 @@ OPENAI_API_KEY=
 # FatSecret Platform API (https://platform.fatsecret.com)
 FATSECRET_CLIENT_ID=
 FATSECRET_CLIENT_SECRET=
+# If search works locally but not on the deployed Worker: FatSecret "IP Restrictions" must
+# allow Cloudflare egress IPs (Workers use Cloudflare IPs, not your home IP). Premier keys can
+# use 0.0.0.0/0; otherwise whitelist the Worker IP from a failed search error message.
 
 # Production: the Worker needs keys as Wrangler *secrets* (dashboard plaintext often does not apply).
 # One-time, from this folder (never commit .dev.vars):

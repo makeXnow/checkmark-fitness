@@ -22,6 +22,21 @@ type EnvFatSecret = {
 
 let tokenCache: { token: string; expiresAt: number } | null = null
 
+/** FatSecret returns HTTP 200 with { error: { code, message } } for IP whitelist failures, etc. */
+function fatSecretApiErrorMessage(body: string): string | null {
+  try {
+    const data = JSON.parse(body) as { error?: { code?: number; message?: string } }
+    const err = data.error
+    if (!err?.message) return null
+    if (err.code === 21) {
+      return `FatSecret IP not allowed (${err.message}). In platform.fatsecret.com → your API key → IP Restrictions, allow Cloudflare Worker egress (e.g. 0.0.0.0/0 on Premier) or remove restrictions.`
+    }
+    return `FatSecret API error ${err.code ?? ''}: ${err.message}`.trim()
+  } catch {
+    return null
+  }
+}
+
 function asArray<T>(v: T | T[] | undefined | null): T[] {
   if (v == null) return []
   return Array.isArray(v) ? v : [v]
@@ -174,7 +189,15 @@ export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Pr
     }),
   })
   if (legacyRes.ok) {
-    const legacyData = await legacyRes.json()
+    const legacyText = await legacyRes.text()
+    const legacyErr = fatSecretApiErrorMessage(legacyText)
+    if (legacyErr) throw new Error(legacyErr)
+    let legacyData: unknown
+    try {
+      legacyData = JSON.parse(legacyText)
+    } catch {
+      legacyData = null
+    }
     const legacyFoods = parseFatSecretSearchJson(legacyData)
     if (legacyFoods.length > 0) {
       return legacyFoods.map((f) => ({ ...f, servings: f.servings.slice(0, 4) }))
@@ -191,7 +214,15 @@ export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Pr
     headers: { Authorization: `Bearer ${token}` },
   })
   if (v1Res.ok) {
-    const data = await v1Res.json()
+    const v1Text = await v1Res.text()
+    const v1Err = fatSecretApiErrorMessage(v1Text)
+    if (v1Err) throw new Error(v1Err)
+    let data: unknown
+    try {
+      data = JSON.parse(v1Text)
+    } catch {
+      data = null
+    }
     const foods = parseFatSecretSearchJson(data)
     if (foods.length > 0) {
       return foods.map((f) => ({ ...f, servings: f.servings.slice(0, 4) }))

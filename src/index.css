@@ -24,6 +24,16 @@ body {
   background: #000000;
 }
 
+/* Hide scrollbars; scrolling still works (touch, trackpad, keyboard). */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 /* iOS Safari zooms focused inputs below 16px — keep pinch-zoom enabled for accessibility */
 @media (hover: none) and (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='range']):not([type='color']),

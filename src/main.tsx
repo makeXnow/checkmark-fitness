@@ -2,6 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { initPortraitOrientationLock } from './lib/lockOrientation'
+
+initPortraitOrientationLock()
 
 /**
  * If you add React Router to this app, wrap it like this:

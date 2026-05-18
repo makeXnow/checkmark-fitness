@@ -6,6 +6,7 @@ import type { HabitsGoals, DayLog } from '../../types/domain'
 import {
   HABIT_COLOR_SWATCH_OPTIONS,
   habitAccentFillHex,
+  habitAccentTextClass,
   habitDoneCardClasses,
   habitEmptyDotBorderClass,
 } from './habitTailwindColors'
@@ -403,11 +404,6 @@ export function computePastWeeks(
   return weeks
 }
 
-function habitIconTextClass(colorClass: string): string {
-  if (colorClass.startsWith('bg-')) return colorClass.replace(/^bg-/, 'text-')
-  return 'text-neutral-400'
-}
-
 function MiniGoalSummary({
   config,
   count,
@@ -427,7 +423,7 @@ function MiniGoalSummary({
 
   const fillClass = config.color
   const borderClass = habitOutlineBorderClass(config.color)
-  const iconClass = habitIconTextClass(config.color)
+  const iconClass = habitAccentTextClass(config.color)
 
   const renderCircle = (index: number) => {
     const isOptional = index >= config.min

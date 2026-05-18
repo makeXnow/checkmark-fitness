@@ -743,6 +743,12 @@ export function MacroVoiceTracker({
             onSaveFoods([...customFoods, { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }])
             setDbModalOpen(false)
           }}
+          onSaveAndLog={(entry) => {
+            const food: MacroCustomFood = { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }
+            onSaveFoods([...customFoods, food])
+            logLibraryFood(food.id, libraryFoodToEditFields(food))
+            setDbModalOpen(false)
+          }}
         />
       )}
     </div>
@@ -912,7 +918,6 @@ function FoodRow({
         fieldId={item.id}
         data={editData}
         onChange={setEditData}
-        autoFocusName
         showAudit
         infoExpanded={infoExpanded}
         onInfoToggle={() => setInfoExpanded((v) => !v)}
@@ -1085,9 +1090,11 @@ const EMPTY_FOOD_ENTRY: Omit<MacroCustomFood, 'id' | 'createdAt'> = {
 function DatabaseModal({
   onClose,
   onSave,
+  onSaveAndLog,
 }: {
   onClose: () => void
   onSave: (entry: Omit<MacroCustomFood, 'id' | 'createdAt'>) => void
+  onSaveAndLog: (entry: Omit<MacroCustomFood, 'id' | 'createdAt'>) => void
 }) {
   const [frontImage, setFrontImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
   const [nutritionImage, setNutritionImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
@@ -1152,6 +1159,13 @@ function DatabaseModal({
     }
   }, [frontImage])
 
+  const buildEntry = (): Omit<MacroCustomFood, 'id' | 'createdAt'> => ({
+    ...entry,
+    emoji: entry.emoji || '🍱',
+    fat: 0,
+    carbs: 0,
+  })
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: { data: string; mimeType: string; preview: string } | null) => void) => {
     const f = e.target.files?.[0]
     e.target.value = ''
@@ -1195,6 +1209,7 @@ function DatabaseModal({
         </div>
         <MacroFoodEditCard
           fieldId="library-add"
+          toolbar="library-add"
           data={{
             emoji: entry.emoji || '🍱',
             name: entry.name,
@@ -1214,16 +1229,10 @@ function DatabaseModal({
               carbs: 0,
             })
           }
-          onReset={() => setEntry(EMPTY_FOOD_ENTRY)}
-          onDelete={onClose}
-          onSave={() =>
-            onSave({
-              ...entry,
-              emoji: entry.emoji || '🍱',
-              fat: 0,
-              carbs: 0,
-            })
-          }
+          onReset={() => {}}
+          onDelete={() => {}}
+          onSave={() => onSave(buildEntry())}
+          onLog={() => onSaveAndLog(buildEntry())}
           saveDisabled={!entry.name.trim()}
         />
       </div>

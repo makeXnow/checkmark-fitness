@@ -12,6 +12,8 @@ import {
   Target,
 } from 'lucide-react'
 import { AppAccentTextButton } from './core/AppAccentTextButton'
+import { AppLoadingAnimation } from './core/AppLoadingAnimation'
+import { TabPager } from './core/TabPager'
 import { applyAppStatePatch, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
 import { normalizeMacroGoals } from './features/macro/macroCalculator'
 import { mergeMacroLogs, normalizeMacroLogsOnLoad } from './features/macro/macroLib'
@@ -44,8 +46,8 @@ const LiftScreen = lazy(() => import('./features/lift/LiftScreen').then((m) => (
 
 function TabFallback() {
   return (
-    <div className="flex-1 flex items-center justify-center py-24">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
+    <div className="flex flex-1 items-center justify-center py-24">
+      <AppLoadingAnimation />
     </div>
   )
 }
@@ -290,6 +292,28 @@ export default function App() {
 
   const navActiveTab: BottomTab = settingsOpen ? (settingsSection as BottomTab) : selectedTab
 
+  const swipeTrackerTab = useCallback(
+    (tab: BottomTab) => {
+      if (tab === 'lift') {
+        persistAppState({ selected_tab: tab, lift_sub_route: 'workout' })
+      } else {
+        setTab(tab)
+      }
+    },
+    [persistAppState, setTab],
+  )
+
+  const swipeSettingsTab = useCallback(
+    (tab: BottomTab) => {
+      persistAppState({
+        selected_tab: tab,
+        settings_section: tab as SettingsSection,
+        settings_open: true,
+      })
+    },
+    [persistAppState],
+  )
+
   const setLiftDayIndex = useCallback(
     (idx: number) => {
       persistAppState({ lift_current_day_index: idx })
@@ -471,8 +495,8 @@ export default function App() {
 
   if (!boot || !appState) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <AppLoadingAnimation />
       </div>
     )
   }
@@ -599,95 +623,104 @@ export default function App() {
 
       <main
         id="app-main"
-        className="flex-1 w-full max-w-[var(--app-max-width)] mx-auto px-[var(--app-pad-x)] flex flex-col pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]"
+        className="flex min-h-0 flex-1 w-full max-w-[var(--app-max-width)] mx-auto flex-col px-[var(--app-pad-x)] pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]"
       >
         {settingsOpen ? (
-          <div className="flex-1 flex flex-col space-y-6 animate-in fade-in duration-300">
-            {settingsSection === 'habits' && (
-              <Suspense fallback={<TabFallback />}>
-                <HabitsScreen
-                  currentDate={currentDate}
-                  goals={habitsGoals}
-                  goalsBundle={habitsGoalsBundle}
-                  logs={habitsLogs}
-                  appSettings={habitsSettings}
-                  view="settings"
-                  onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
-                  onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
-                  onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
-                />
-              </Suspense>
-            )}
-            {settingsSection === 'macro' && (
-              <Suspense fallback={<TabFallback />}>
-                <MacroScreen
-                  currentDate={currentDate}
-                  goals={macroGoals}
-                  logs={macroLogs}
-                  customFoods={macroFoods}
-                  view="settings"
-                  onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
-                />
-              </Suspense>
-            )}
-            {settingsSection === 'lift' && (
-              <Suspense fallback={<TabFallback />}>
-                <LiftScreen
-                  payload={liftPayload}
-                  subRoute={liftSubRoute}
-                  currentDayIndex={safeLiftDayIndex}
-                  onDayIndexChange={(i) => void setLiftDayIndex(i)}
-                  view="settings"
-                  onPersist={(next) => void saveLiftBundle(next)}
-                />
-              </Suspense>
-            )}
-          </div>
+          <TabPager
+            activeTab={settingsSection as BottomTab}
+            onTabChange={swipeSettingsTab}
+            className="animate-in fade-in duration-300"
+            pages={{
+              habits: (
+                <Suspense fallback={<TabFallback />}>
+                  <HabitsScreen
+                    currentDate={currentDate}
+                    goals={habitsGoals}
+                    goalsBundle={habitsGoalsBundle}
+                    logs={habitsLogs}
+                    appSettings={habitsSettings}
+                    view="settings"
+                    onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
+                    onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
+                    onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
+                  />
+                </Suspense>
+              ),
+              macro: (
+                <Suspense fallback={<TabFallback />}>
+                  <MacroScreen
+                    currentDate={currentDate}
+                    goals={macroGoals}
+                    logs={macroLogs}
+                    customFoods={macroFoods}
+                    view="settings"
+                    onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
+                  />
+                </Suspense>
+              ),
+              lift: (
+                <Suspense fallback={<TabFallback />}>
+                  <LiftScreen
+                    payload={liftPayload}
+                    subRoute={liftSubRoute}
+                    currentDayIndex={safeLiftDayIndex}
+                    onDayIndexChange={(i) => void setLiftDayIndex(i)}
+                    view="settings"
+                    onPersist={(next) => void saveLiftBundle(next)}
+                  />
+                </Suspense>
+              ),
+            }}
+          />
         ) : (
-          <>
-            {selectedTab === 'habits' && (
-              <Suspense fallback={<TabFallback />}>
-                <HabitsScreen
-                  currentDate={currentDate}
-                  goals={habitsGoals}
-                  goalsBundle={habitsGoalsBundle}
-                  logs={habitsLogs}
-                  appSettings={habitsSettings}
-                  view="tracker"
-                  onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
-                  onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
-                  onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
-                />
-              </Suspense>
-            )}
-            {selectedTab === 'macro' && (
-              <Suspense fallback={<TabFallback />}>
-                <MacroScreen
-                  currentDate={currentDate}
-                  goals={macroGoalsForDate}
-                  logs={macroLogs}
-                  customFoods={macroFoods}
-                  view="tracker"
-                  onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
-                  onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
-                  onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}
-                />
-              </Suspense>
-            )}
-            {selectedTab === 'lift' && (
-              <Suspense fallback={<TabFallback />}>
-                <LiftScreen
-                  payload={liftPayload}
-                  subRoute={liftSubRoute}
-                  currentDayIndex={safeLiftDayIndex}
-                  onDayIndexChange={(i) => void setLiftDayIndex(i)}
-                  view="tracker"
-                  onPersist={(next) => void saveLiftBundle(next)}
-                  onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
-                />
-              </Suspense>
-            )}
-          </>
+          <TabPager
+            activeTab={selectedTab}
+            onTabChange={swipeTrackerTab}
+            pages={{
+              habits: (
+                <Suspense fallback={<TabFallback />}>
+                  <HabitsScreen
+                    currentDate={currentDate}
+                    goals={habitsGoals}
+                    goalsBundle={habitsGoalsBundle}
+                    logs={habitsLogs}
+                    appSettings={habitsSettings}
+                    view="tracker"
+                    onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
+                    onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
+                    onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
+                  />
+                </Suspense>
+              ),
+              macro: (
+                <Suspense fallback={<TabFallback />}>
+                  <MacroScreen
+                    currentDate={currentDate}
+                    goals={macroGoalsForDate}
+                    logs={macroLogs}
+                    customFoods={macroFoods}
+                    view="tracker"
+                    onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
+                    onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
+                    onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}
+                  />
+                </Suspense>
+              ),
+              lift: (
+                <Suspense fallback={<TabFallback />}>
+                  <LiftScreen
+                    payload={liftPayload}
+                    subRoute={liftSubRoute}
+                    currentDayIndex={safeLiftDayIndex}
+                    onDayIndexChange={(i) => void setLiftDayIndex(i)}
+                    view="tracker"
+                    onPersist={(next) => void saveLiftBundle(next)}
+                    onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
+                  />
+                </Suspense>
+              ),
+            }}
+          />
         )}
       </main>
 
