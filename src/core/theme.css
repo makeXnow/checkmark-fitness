@@ -119,8 +119,13 @@ html.lift-workout-swapping #app-main {
 
 /* Main tab pager — photo-gallery horizontal swipe between Goals / Diet / Lift */
 .tab-pager-viewport {
-  touch-action: pan-y;
   --tab-pager-gap: 1.5rem;
+}
+
+/* Each tab scrolls vertically; pan-y keeps touch scrolling smooth on iOS */
+.tab-pager-page {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab-pager-track {

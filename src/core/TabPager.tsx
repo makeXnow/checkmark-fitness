@@ -138,8 +138,7 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
         lastX: e.clientX,
         lastT: performance.now(),
       }
-      setIsDragging(true)
-      viewportRef.current?.setPointerCapture(e.pointerId)
+      // Do not capture on touch start — capture blocks native scroll on the tab page (mobile).
     },
     [],
   )
@@ -155,14 +154,12 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
       if (!state.locked) {
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
         if (Math.abs(dy) > Math.abs(dx)) {
-          state.locked = 'v'
-          setIsDragging(false)
-          setDragOffset(0)
           dragState.current = null
-          viewportRef.current?.releasePointerCapture(e.pointerId)
           return
         }
         state.locked = 'h'
+        setIsDragging(true)
+        viewportRef.current?.setPointerCapture(e.pointerId)
       }
 
       if (state.locked !== 'h') return
@@ -180,7 +177,9 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
       const state = dragState.current
       if (!state || state.pointerId !== e.pointerId) return
 
-      viewportRef.current?.releasePointerCapture(e.pointerId)
+      if (state.locked === 'h') {
+        viewportRef.current?.releasePointerCapture(e.pointerId)
+      }
 
       if (state.locked === 'h') {
         const dt = Math.max(performance.now() - state.lastT, 1)
@@ -225,7 +224,7 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
               className={`tab-pager-page flex min-h-0 max-w-full min-w-0 flex-shrink-0 flex-col overscroll-y-contain ${
                 tab !== activeTab && !isDragging
                   ? 'pointer-events-none invisible h-0 overflow-hidden'
-                  : 'overflow-y-auto'
+                  : 'h-full overflow-y-auto'
               }`}
               aria-hidden={tab !== activeTab && !isDragging}
             >
