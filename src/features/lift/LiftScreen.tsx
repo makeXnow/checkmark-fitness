@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, FileText, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AppAccentTextButton } from '../../core/AppAccentTextButton'
 import { localDateISO } from '../../lib/localDate'
@@ -93,6 +94,99 @@ function LiftStatusSelector({
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-neutral-400">{children}</label>
+  )
+}
+
+function LiftWeightModal({
+  workoutName,
+  initialWeight,
+  weightUnit,
+  onClose,
+  onSave,
+}: {
+  workoutName: string
+  initialWeight: number
+  weightUnit: LiftWeightUnit
+  onClose: () => void
+  onSave: (weight: number) => void
+}) {
+  const [value, setValue] = useState(String(initialWeight))
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  const handleSave = () => {
+    const trimmed = value.trim()
+    if (trimmed === '' || Number.isNaN(parseFloat(trimmed))) return
+    onSave(Math.max(0, parseFloat(trimmed)))
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lift-weight-modal-title"
+        className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Working weight</p>
+            <h2 id="lift-weight-modal-title" className="text-lg font-black text-white line-clamp-2">
+              {workoutName}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="mb-5">
+          <FieldLabel>Weight ({weightUnit})</FieldLabel>
+          <input
+            ref={inputRef}
+            type="number"
+            step="any"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave()
+              else if (e.key === 'Escape') onClose()
+            }}
+            className="w-full rounded-xl border border-neutral-700 bg-black/40 px-4 py-3 text-center text-2xl font-black text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-neutral-700 px-4 py-3 text-sm font-bold text-neutral-300 transition-colors hover:bg-neutral-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex-1 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-emerald-300"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -559,8 +653,7 @@ export function LiftScreen({
   const [workoutStatusById, setWorkoutStatusById] = useState<Record<string, string>>({})
   const [newPlateInput, setNewPlateInput] = useState('')
   const [openNotesByWorkoutId, setOpenNotesByWorkoutId] = useState<Record<string, boolean>>({})
-  const [editingWeightWorkoutId, setEditingWeightWorkoutId] = useState<string | null>(null)
-  const [tempMainWeight, setTempMainWeight] = useState('')
+  const [weightModalWorkoutId, setWeightModalWorkoutId] = useState<string | null>(null)
 
   useEffect(() => {
     setWorkoutStatusById({})
@@ -571,6 +664,44 @@ export function LiftScreen({
       if (onPersist) void onPersist(next)
     },
     [onPersist],
+  )
+
+  const weightModalWorkout = useMemo(
+    () => (weightModalWorkoutId ? payload.workouts.find((w) => w.id === weightModalWorkoutId) : undefined),
+    [payload.workouts, weightModalWorkoutId],
+  )
+
+  const saveManualWeight = useCallback(
+    (workoutId: string, newWeight: number) => {
+      const workout = payload.workouts.find((w) => w.id === workoutId)
+      if (!workout) {
+        setWeightModalWorkoutId(null)
+        return
+      }
+      const oldWeight = workout.mainWeight
+      if (newWeight === oldWeight) {
+        setWeightModalWorkoutId(null)
+        return
+      }
+      const nextHistory = [...(payload.history || [])]
+      nextHistory.push({
+        id: crypto.randomUUID(),
+        workoutId: workout.id,
+        workoutName: workout.name,
+        date: new Date().toISOString(),
+        weight: newWeight,
+        oldWeight,
+        newWeight,
+        statusName: 'Manual',
+      })
+      persist({
+        ...payload,
+        history: nextHistory,
+        workouts: payload.workouts.map((w) => (w.id === workoutId ? { ...w, mainWeight: newWeight } : w)),
+      })
+      setWeightModalWorkoutId(null)
+    },
+    [payload, persist],
   )
 
   const todaysWorkouts = useMemo(
@@ -839,6 +970,7 @@ export function LiftScreen({
   }
 
   return (
+    <>
     <WorkoutDayTransition dayIndex={currentDayIndex}>
       {(activeIndex) => {
         const activeDay = sortedDays[activeIndex]
@@ -886,7 +1018,16 @@ export function LiftScreen({
         const isNotesOpen = Boolean(openNotesByWorkoutId[workout.id])
 
         return (
-          <div key={workout.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md">
+          <div
+            key={workout.id}
+            data-no-swipe={onPersist ? true : undefined}
+            className={`rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md ${
+              onPersist ? 'cursor-pointer' : ''
+            }`}
+            onClick={() => {
+              if (onPersist) setWeightModalWorkoutId(workout.id)
+            }}
+          >
             <div className="mb-4 flex items-start justify-between gap-2">
               <h3 className="min-w-0 flex-1 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
                 {workout.name}
@@ -914,7 +1055,10 @@ export function LiftScreen({
             </div>
 
             {isNotesOpen && onPersist ? (
-              <div className="mb-4 flex items-start gap-3 rounded-xl border border-neutral-800 bg-black/40 p-3">
+              <div
+                className="mb-4 flex items-start gap-3 rounded-xl border border-neutral-800 bg-black/40 p-3"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <FileText className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 <AutoResizeTextarea
                   value={workout.notes || ''}
@@ -936,85 +1080,20 @@ export function LiftScreen({
               {groupedSets.map((set, idx) => {
                 const setRangeLabel =
                   set.startNum === set.endNum ? `${set.startNum}` : `${set.startNum}-${set.endNum}`
-                const isEditingWeight = editingWeightWorkoutId === workout.id && !set.isWarmup
                 return (
                   <div
                     key={`${workout.id}-${idx}`}
-                    role={!set.isWarmup && onPersist ? 'button' : undefined}
-                    tabIndex={!set.isWarmup && onPersist ? 0 : undefined}
-                    onClick={() => {
-                      if (!set.isWarmup && onPersist && !isEditingWeight) {
-                        setEditingWeightWorkoutId(workout.id)
-                        setTempMainWeight(String(workout.mainWeight))
-                      }
+                    onClick={(e) => {
+                      if (set.isWarmup) e.stopPropagation()
                     }}
-                    onKeyDown={(e) => {
-                      if (!set.isWarmup && onPersist && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault()
-                        setEditingWeightWorkoutId(workout.id)
-                        setTempMainWeight(String(workout.mainWeight))
-                      }
-                    }}
-                    className={`mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200 ${
-                      !set.isWarmup && onPersist ? 'cursor-pointer' : ''
-                    } ${isEditingWeight ? 'ring-4 ring-emerald-300/50' : ''}`}
+                    className="mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200"
                   >
                     <div
                       className={`${
                         set.isWarmup ? 'bg-emerald-100' : 'bg-emerald-300'
                       } relative flex min-h-[72px] items-center justify-center sm:min-h-[85px]`}
                     >
-                      {isEditingWeight ? (
-                        <div
-                          className="absolute inset-0 flex items-center px-4"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <input
-                            autoFocus
-                            type="number"
-                            step="any"
-                            inputMode="decimal"
-                            value={tempMainWeight}
-                            placeholder={String(workout.mainWeight)}
-                            onChange={(e) => setTempMainWeight(e.target.value)}
-                            onBlur={() => {
-                              if (tempMainWeight.trim() === '' || Number.isNaN(parseFloat(tempMainWeight))) {
-                                setEditingWeightWorkoutId(null)
-                              } else {
-                                persist({
-                                  ...payload,
-                                  workouts: payload.workouts.map((w) =>
-                                    w.id === workout.id
-                                      ? { ...w, mainWeight: parseFloat(tempMainWeight) }
-                                      : w,
-                                  ),
-                                })
-                                setEditingWeightWorkoutId(null)
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                ;(e.target as HTMLInputElement).blur()
-                              } else if (e.key === 'Escape') {
-                                setEditingWeightWorkoutId(null)
-                              }
-                            }}
-                            className="w-full bg-transparent text-center text-[40px] font-black text-black outline-none [appearance:textfield] placeholder:text-black/20 sm:text-[48px] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          />
-                          <button
-                            type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              setEditingWeightWorkoutId(null)
-                            }}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-2 text-black opacity-50 transition-all hover:bg-black/10 hover:opacity-100"
-                            title="Cancel"
-                          >
-                            <X className="h-8 w-8" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center justify-center px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-center px-4 py-3">
                           {set.plates.length > 0 ? (
                             set.plates.map((p, i) => (
                               <span
@@ -1034,8 +1113,7 @@ export function LiftScreen({
                               Bar only
                             </span>
                           )}
-                        </div>
-                      )}
+                      </div>
                     </div>
                     <div
                       className={`${
@@ -1069,20 +1147,22 @@ export function LiftScreen({
                 </span>
               </p>
               {statuses.length > 0 ? (
-                <LiftStatusSelector
-                  className="h-10 w-auto min-w-0 max-w-[min(100%,12rem)] shrink-0"
-                  isNegative={isNeg}
-                  value={sid}
-                  onChange={(e) =>
-                    setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
-                  }
-                >
-                  {statuses.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
-                      {s.name}
-                    </option>
-                  ))}
-                </LiftStatusSelector>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <LiftStatusSelector
+                    className="h-10 w-auto min-w-0 max-w-[min(100%,12rem)] shrink-0"
+                    isNegative={isNeg}
+                    value={sid}
+                    onChange={(e) =>
+                      setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
+                    }
+                  >
+                    {statuses.map((s) => (
+                      <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
+                        {s.name}
+                      </option>
+                    ))}
+                  </LiftStatusSelector>
+                </div>
               ) : (
                 <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
                   Add statuses in settings
@@ -1125,9 +1205,22 @@ export function LiftScreen({
           )}
         </div>
       )}
+
           </>
         )
       }}
     </WorkoutDayTransition>
+
+    {weightModalWorkout && onPersist ? (
+      <LiftWeightModal
+        key={weightModalWorkout.id}
+        workoutName={weightModalWorkout.name}
+        initialWeight={weightModalWorkout.mainWeight}
+        weightUnit={weightUnit}
+        onClose={() => setWeightModalWorkoutId(null)}
+        onSave={(newWeight) => saveManualWeight(weightModalWorkout.id, newWeight)}
+      />
+    ) : null}
+    </>
   )
 }
