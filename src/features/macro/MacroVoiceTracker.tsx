@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
 import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
 import {
@@ -112,6 +113,7 @@ export function MacroVoiceTracker({
   goals,
   logs,
   customFoods,
+  showDock,
   onSaveLogs,
   onSaveFoods,
 }: {
@@ -119,6 +121,7 @@ export function MacroVoiceTracker({
   goals: MacroGoals
   logs: Record<string, MacroDayItem[]>
   customFoods: MacroCustomFood[]
+  showDock: boolean
   onSaveLogs: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods: (foods: MacroCustomFood[]) => void
 }) {
@@ -723,18 +726,20 @@ export function MacroVoiceTracker({
         </div>
       </section>
 
-      <InteractionDock
-        inputRef={inputRef}
-        inputText={inputText}
-        setInputText={setInputText}
-        recording={recording}
-        volume={volume}
-        quickScan={quickScan}
-        setQuickScan={setQuickScan}
-        onMic={handleMicToggle}
-        onSend={handleSend}
-        onQuickFile={handleQuickFile}
-      />
+      {showDock ? (
+        <InteractionDock
+          inputRef={inputRef}
+          inputText={inputText}
+          setInputText={setInputText}
+          recording={recording}
+          volume={volume}
+          quickScan={quickScan}
+          setQuickScan={setQuickScan}
+          onMic={handleMicToggle}
+          onSend={handleSend}
+          onQuickFile={handleQuickFile}
+        />
+      ) : null}
 
       {dbModalOpen && (
         <DatabaseModal
@@ -981,7 +986,7 @@ function InteractionDock({
   /** Mic when idle; send (arrow) when there is text, quick-scan is ready, or actively recording — tap send to stop mic and transcribe. */
   const showSend = Boolean(inputText.trim() || isQuickReady || recording)
 
-  return (
+  const dock = (
     <div className="fixed bottom-[calc(var(--app-nav-offset)+0.5rem)] left-0 right-0 z-20 pointer-events-none">
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none" />
       <div className="max-w-md mx-auto flex flex-col gap-3 p-6 relative pointer-events-auto">
@@ -1075,6 +1080,9 @@ function InteractionDock({
       </div>
     </div>
   )
+
+  const portalRoot = document.getElementById('app-root')
+  return portalRoot ? createPortal(dock, portalRoot) : dock
 }
 
 const EMPTY_FOOD_ENTRY: Omit<MacroCustomFood, 'id' | 'createdAt'> = {

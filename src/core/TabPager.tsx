@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import { scrollAppMainToTop } from '../lib/scrollAppMain'
 import type { BottomTab } from '../types/domain'
 
 export const TAB_ORDER: readonly BottomTab[] = ['habits', 'macro', 'lift'] as const
@@ -30,6 +31,8 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
   const viewportRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const gapMeasureRef = useRef<HTMLDivElement>(null)
+  const pageRefs = useRef<Partial<Record<BottomTab, HTMLDivElement | null>>>({})
+  const prevTabRef = useRef(activeTab)
   const [pageWidth, setPageWidth] = useState(0)
   const [pageGap, setPageGap] = useState(0)
   const [dragOffset, setDragOffset] = useState(0)
@@ -72,6 +75,16 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
   useEffect(() => {
     if (!isDragging) setDragOffset(0)
   }, [activeTab, isDragging])
+
+  /** Leaving a tab resets its scroll so swiping back always starts at the top. */
+  useEffect(() => {
+    const left = prevTabRef.current
+    if (left !== activeTab) {
+      pageRefs.current[left]?.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+      scrollAppMainToTop()
+      prevTabRef.current = activeTab
+    }
+  }, [activeTab])
 
   const rubberBand = useCallback(
     (offset: number, index: number) => {
@@ -187,7 +200,7 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
   return (
     <div
       ref={viewportRef}
-      className={`tab-pager-viewport flex min-h-0 flex-1 flex-col overflow-hidden ${className ?? ''}`}
+      className={`tab-pager-viewport flex min-h-0 w-full flex-1 flex-col overflow-hidden ${className ?? ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finishPointer}
@@ -205,9 +218,14 @@ export function TabPager({ activeTab, onTabChange, pages, className }: TabPagerP
         {TAB_ORDER.map((tab, index) => (
           <Fragment key={tab}>
             <div
+              ref={(el) => {
+                pageRefs.current[tab] = el
+              }}
               style={pageWidth > 0 ? { width: pageWidth, flex: `0 0 ${pageWidth}px` } : undefined}
-              className={`tab-pager-page flex min-h-0 max-w-full min-w-0 flex-shrink-0 flex-col ${
-                tab !== activeTab && !isDragging ? 'invisible pointer-events-none' : ''
+              className={`tab-pager-page flex min-h-0 max-w-full min-w-0 flex-shrink-0 flex-col overscroll-y-contain ${
+                tab !== activeTab && !isDragging
+                  ? 'pointer-events-none invisible h-0 overflow-hidden'
+                  : 'overflow-y-auto'
               }`}
               aria-hidden={tab !== activeTab && !isDragging}
             >

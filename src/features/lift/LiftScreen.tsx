@@ -1020,7 +1020,6 @@ export function LiftScreen({
         return (
           <div
             key={workout.id}
-            data-no-swipe={onPersist ? true : undefined}
             className={`rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md ${
               onPersist ? 'cursor-pointer' : ''
             }`}

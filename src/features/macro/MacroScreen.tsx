@@ -11,6 +11,7 @@ export function MacroScreen({
   onSaveLogs,
   onSaveFoods,
   view,
+  showDock = false,
 }: {
   currentDate: Date
   goals: MacroGoals
@@ -20,6 +21,8 @@ export function MacroScreen({
   onSaveLogs?: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods?: (foods: MacroCustomFood[]) => void
   view: 'tracker' | 'settings'
+  /** When false, the food input dock is hidden (e.g. another bottom tab is active). */
+  showDock?: boolean
 }) {
   const dateKey = currentDate.toISOString().split('T')[0]
 
@@ -31,6 +34,7 @@ export function MacroScreen({
           goals={goals}
           logs={logs}
           customFoods={customFoods}
+          showDock={showDock}
           onSaveLogs={onSaveLogs}
           onSaveFoods={onSaveFoods}
         />

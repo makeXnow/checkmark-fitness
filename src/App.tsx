@@ -27,6 +27,7 @@ import {
   type MacroGoalsBundleData,
 } from './lib/goalSnapshots'
 import { localDateISO } from './lib/localDate'
+import { scrollAppMainToTop } from './lib/scrollAppMain'
 import type {
   AppStateRow,
   BootstrapResponse,
@@ -479,8 +480,12 @@ export default function App() {
 
   useEffect(() => {
     if (selectedTab !== 'lift' || liftSubRoute !== 'log') return
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    scrollAppMainToTop()
   }, [selectedTab, liftSubRoute])
+
+  useEffect(() => {
+    scrollAppMainToTop()
+  }, [settingsOpen])
 
   if (error) {
     return (
@@ -504,7 +509,7 @@ export default function App() {
   return (
     <div
       id="app-root"
-      className="min-h-screen bg-black font-sans antialiased text-white selection:bg-emerald-400/30 overflow-x-hidden flex flex-col relative"
+      className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-black font-sans antialiased text-white selection:bg-emerald-400/30 relative"
     >
       <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-[calc(env(safe-area-inset-top,0px)+var(--app-header-pad-top))] pb-[var(--app-header-pad-bottom)]">
         <div className="mx-auto grid min-h-[var(--app-header-row-height)] w-full max-w-[var(--app-max-width)] grid-cols-[1fr_auto_1fr] items-center gap-2 px-[var(--app-pad-x)]">
@@ -623,7 +628,7 @@ export default function App() {
 
       <main
         id="app-main"
-        className="flex min-h-0 flex-1 w-full max-w-[var(--app-max-width)] mx-auto flex-col px-[var(--app-pad-x)] pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]"
+        className="mx-auto flex min-h-0 w-full max-w-[var(--app-max-width)] flex-1 flex-col overflow-hidden px-[var(--app-pad-x)] pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]"
       >
         {settingsOpen ? (
           <TabPager
@@ -700,6 +705,7 @@ export default function App() {
                     logs={macroLogs}
                     customFoods={macroFoods}
                     view="tracker"
+                    showDock={selectedTab === 'macro'}
                     onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
                     onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
                     onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}
