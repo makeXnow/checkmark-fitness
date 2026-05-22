@@ -1,4 +1,10 @@
-import type { AppStateRow, BootstrapResponse, FatSecretFoodRef, MacroEstimateSnapshot } from '../types/domain'
+import type {
+  AppStateRow,
+  BootstrapResponse,
+  FatSecretFoodRef,
+  FatSecretRoute,
+  MacroEstimateSnapshot,
+} from '../types/domain'
 import { apiFetch } from './apiPaths'
 
 function htmlResponseHint(text: string): string | undefined {
@@ -167,15 +173,15 @@ export async function aiJson(body: {
   return data.result
 }
 
-export async function fatSecretSearch(query: string): Promise<FatSecretFoodRef[]> {
+export async function fatSecretSearch(query: string): Promise<{ foods: FatSecretFoodRef[]; route?: FatSecretRoute }> {
   const res = await apiFetch('/api/fatsecret/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),
   })
-  const data = await parseJson<{ foods?: FatSecretFoodRef[]; error?: string }>(res)
+  const data = await parseJson<{ foods?: FatSecretFoodRef[]; route?: FatSecretRoute; error?: string }>(res)
   if (data.error) throw new Error(data.error)
-  return data.foods ?? []
+  return { foods: data.foods ?? [], route: data.route }
 }
 
 export type MacroEstimateApiResult = {
@@ -185,12 +191,14 @@ export type MacroEstimateApiResult = {
   servingMultiplier?: number
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
+  fatSecretRoute?: FatSecretRoute
   macroEstimateSnapshot?: MacroEstimateSnapshot
 }
 
 export class MacroEstimateError extends Error {
   fatSecretResults?: FatSecretFoodRef[]
   fatSecretSource?: MacroEstimateApiResult['fatSecretSource']
+  fatSecretRoute?: FatSecretRoute
 }
 
 export async function macroEstimateItem(body: {
@@ -199,6 +207,7 @@ export async function macroEstimateItem(body: {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
+  fatSecretRoute?: FatSecretRoute
   skipFatSecretFetch?: boolean
   customFoods?: { id: string; name: string; emoji?: string; baseAmount?: string; calories: number; protein: number }[]
   extraCtx?: string
@@ -220,6 +229,7 @@ export async function macroEstimateItem(body: {
     if (data.fatSecretResults?.length) {
       err.fatSecretResults = data.fatSecretResults
       err.fatSecretSource = data.fatSecretSource
+      err.fatSecretRoute = data.fatSecretRoute
     }
     throw err
   }

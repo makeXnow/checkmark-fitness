@@ -10,8 +10,8 @@ database_name = "checkmark-fitness"
 # Replace with output of: wrangler d1 create checkmark-fitness
 database_id = "cdd2d369-c17f-48a3-8082-111956880730"
 migrations_dir = "migrations"
-# Local `wrangler dev` uses the same remote D1 as production (not .wrangler/state).
-remote = true
+# Local dev uses a D1 database under .wrangler/state (no Cloudflare login required).
+# Production deploy still uses the remote D1 above. Apply remote schema with: npm run db:migrate:remote
 
 [assets]
 directory = "./dist"

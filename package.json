@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev:ensure-assets && npm run dev:clean-ports && concurrently -n web,api \"vite\" \"wrangler dev\"",
+    "dev": "npm run dev:ensure-assets && npm run dev:clean-ports && npm run db:migrate:local && concurrently -n web,api \"vite\" \"wrangler dev --local\"",
     "dev:clean-ports": "for p in 8787 9024 9025; do lsof -nP -iTCP:$p -sTCP:LISTEN -t 2>/dev/null | xargs kill -9 2>/dev/null || true; done",
     "dev:vite": "vite",
     "dev:all": "npm run dev",
@@ -12,7 +12,7 @@
     "build": "tsc && vite build",
     "build:prod": "tsc && vite build --mode production",
     "preview": "vite preview",
-    "dev:worker": "npm run dev:ensure-assets && wrangler dev",
+    "dev:worker": "npm run dev:ensure-assets && npm run db:migrate:local && wrangler dev --local",
     "migrate:lift": "node scripts/migrate-liftcalc.mjs",
     "seed:sql": "node scripts/seed-d1.mjs",
     "seed:local": "node scripts/seed-d1.mjs && wrangler d1 execute checkmark-fitness --local --file=seed-generated.sql",

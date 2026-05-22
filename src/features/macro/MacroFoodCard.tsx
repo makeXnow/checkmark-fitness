@@ -1,12 +1,20 @@
 import type { ReactNode } from 'react'
 import { Check, Info, Loader2, RefreshCw, Trash2 } from 'lucide-react'
-import type { FatSecretFoodRef, MacroCustomFood, MacroEstimateSnapshot, MacroParseSnapshot } from '../../types/domain'
+import type {
+  FatSecretFoodRef,
+  FatSecretRoute,
+  MacroCustomFood,
+  MacroEstimateSnapshot,
+  MacroParseSnapshot,
+} from '../../types/domain'
+import { FatSecretRouteChip } from './fatSecretRouteChip'
 import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName } from './macroLib'
 
 export type MacroFoodAuditTrail = {
   userInput?: string
   classification?: MacroParseSnapshot
   fatSecretResults?: FatSecretFoodRef[]
+  fatSecretRoute?: FatSecretRoute
   macroEstimate?: MacroEstimateSnapshot
 }
 
@@ -20,6 +28,7 @@ export function macroItemAuditTrail(item: {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
+  fatSecretRoute?: FatSecretRoute
   macroEstimateSnapshot?: MacroEstimateSnapshot
 }): MacroFoodAuditTrail {
   const classification =
@@ -38,6 +47,7 @@ export function macroItemAuditTrail(item: {
     userInput: item.userInput ?? item.rawText,
     classification,
     fatSecretResults: item.fatSecretResults,
+    fatSecretRoute: item.fatSecretRoute,
     macroEstimate: item.macroEstimateSnapshot,
   }
 }
@@ -151,7 +161,16 @@ export function MacroFoodAuditPanel({
         {audit.classification ? <ClassificationBody snap={audit.classification} /> : undefined}
       </AuditStepCard>
       <AuditStepCard label="FatSecret results">
-        {audit.fatSecretResults?.length ? <FatSecretResultsBody foods={audit.fatSecretResults} /> : undefined}
+        {audit.fatSecretResults?.length ? (
+          <div className="space-y-2">
+            {audit.fatSecretRoute ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <FatSecretRouteChip route={audit.fatSecretRoute} />
+              </div>
+            ) : null}
+            <FatSecretResultsBody foods={audit.fatSecretResults} />
+          </div>
+        ) : undefined}
       </AuditStepCard>
       <AuditStepCard label="Macro estimate">
         {audit.macroEstimate ? (

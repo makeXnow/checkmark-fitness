@@ -234,6 +234,7 @@ export function MacroVoiceTracker({
           notes: item.notes,
           fatSecretSearch: item.fatSecretSearch,
           fatSecretResults: item.fatSecretResults,
+          fatSecretRoute: item.fatSecretRoute,
           skipFatSecretFetch: options?.skipFatSecretFetch,
           customFoods: customFoodsRef.current,
           extraCtx,
@@ -248,6 +249,7 @@ export function MacroVoiceTracker({
               libraryFoodId: result.libraryFoodId,
               servingMultiplier: result.servingMultiplier,
               fatSecretResults: result.fatSecretResults,
+              fatSecretRoute: result.fatSecretRoute ?? i.fatSecretRoute,
               macroEstimateSnapshot: result.macroEstimateSnapshot ?? i.macroEstimateSnapshot,
               status: 'ready',
             }
@@ -255,6 +257,7 @@ export function MacroVoiceTracker({
         )
       } catch (e) {
         const fs = e instanceof MacroEstimateError ? e.fatSecretResults : undefined
+        const route = e instanceof MacroEstimateError ? e.fatSecretRoute : undefined
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
@@ -262,14 +265,14 @@ export function MacroVoiceTracker({
               return {
                 ...i,
                 status: 'pending' as const,
-                ...(fs?.length ? { fatSecretResults: fs } : {}),
+                ...(fs?.length ? { fatSecretResults: fs, fatSecretRoute: route } : {}),
               }
             }
             return {
               ...i,
               status: 'editing_raw' as const,
               rawText: [item.name, item.amount].filter(Boolean).join(' '),
-              ...(fs?.length ? { fatSecretResults: fs } : {}),
+              ...(fs?.length ? { fatSecretResults: fs, fatSecretRoute: route } : {}),
             }
           }),
         )

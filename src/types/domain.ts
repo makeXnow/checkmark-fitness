@@ -79,6 +79,9 @@ export type FatSecretFoodRef = {
   servings: FatSecretServingRef[]
 }
 
+/** How a FatSecret search reached the API (for audit chips). */
+export type FatSecretRoute = 'computer' | 'cloud' | 'relay'
+
 export type MacroGoalMode = 'fast-cut' | 'slow-cut' | 'maintain' | 'bulk'
 
 export interface MacroGoals {
@@ -158,6 +161,8 @@ export interface MacroDayItem {
   fatSecretSearch?: string
   /** Cached FatSecret search snapshot; reused on macro refresh (no re-search). */
   fatSecretResults?: FatSecretFoodRef[]
+  /** Where the cached/search results came from (computer / cloud / home relay). */
+  fatSecretRoute?: FatSecretRoute
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

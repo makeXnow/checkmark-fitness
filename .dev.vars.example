@@ -5,12 +5,19 @@ OPENAI_API_KEY=
 # FatSecret Platform API (https://platform.fatsecret.com)
 FATSECRET_CLIENT_ID=
 FATSECRET_CLIENT_SECRET=
-# If search works locally but not on the deployed Worker: FatSecret "IP Restrictions" must
-# allow Cloudflare egress IPs (Workers use Cloudflare IPs, not your home IP). Premier keys can
-# use 0.0.0.0/0; otherwise whitelist the Worker IP from a failed search error message.
+# Local dev uses your home IP — set so audit chips show "Your computer".
+FATSECRET_LOCAL_EGRESS=1
 
-# Production: the Worker needs keys as Wrangler *secrets* (dashboard plaintext often does not apply).
-# One-time, from this folder (never commit .dev.vars):
+# Home relay (optional): when deployed Worker is IP-blocked, it calls your machine.
+# 1. Run `npm run dev` (API on 8787).
+# 2. Expose it: `cloudflared tunnel --url http://127.0.0.1:8787` (copy the https URL, no trailing slash).
+# 3. Put the same relay secret in .dev.vars and production Worker secrets.
+FATSECRET_RELAY_URL=
+FATSECRET_RELAY_SECRET=
+
+# Production Worker secrets (never commit .dev.vars):
 #   npx wrangler secret put OPENAI_API_KEY
 #   npx wrangler secret put FATSECRET_CLIENT_ID
 #   npx wrangler secret put FATSECRET_CLIENT_SECRET
+#   npx wrangler secret put FATSECRET_RELAY_URL
+#   npx wrangler secret put FATSECRET_RELAY_SECRET

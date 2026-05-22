@@ -138,9 +138,11 @@ export default function App() {
         base === 'Failed to fetch' ||
         base.includes('NetworkError') ||
         base.includes('ECONNREFUSED') ||
-        base.includes('no such table')
+        base.includes('no such table') ||
+        base.includes('auth token') ||
+        base.includes('remote proxy')
       const hint = apiDown
-        ? ' Stop any old dev servers, then run `npm run dev` in the project folder (web on 9024, API on 8787).'
+        ? ' Stop other dev servers, then from this project run `npm run dev` (Vite on 9024, API on 8787 with local D1).'
         : ''
       setError(base + hint)
     }

@@ -1,6 +1,10 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { fatSecretSearchFoods } from './fatsecret'
+import {
+  fatSecretSearchFoods,
+  fatSecretSearchFoodsForRelay,
+  verifyFatSecretRelayAuth,
+} from './fatsecret'
 import {
   type HabitsGoalsStored,
   parseHabitsGoalsStored,
@@ -19,6 +23,9 @@ export interface Env {
   OPENAI_API_KEY?: string
   FATSECRET_CLIENT_ID?: string
   FATSECRET_CLIENT_SECRET?: string
+  FATSECRET_LOCAL_EGRESS?: string
+  FATSECRET_RELAY_URL?: string
+  FATSECRET_RELAY_SECRET?: string
 }
 
 const DEVICE_DEFAULT = 'default'
@@ -524,13 +531,17 @@ api.post('/api/macro/estimate', async (c) => {
     return c.json(result)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Macro estimate failed'
-    const partial = e && typeof e === 'object' && 'fatSecretResults' in e ? (e as { fatSecretResults?: unknown; fatSecretSource?: string }) : null
+    const partial =
+      e && typeof e === 'object' && 'fatSecretResults' in e
+        ? (e as { fatSecretResults?: unknown; fatSecretSource?: string; fatSecretRoute?: string })
+        : null
     if (partial?.fatSecretResults) {
       return c.json(
         {
           error: msg,
           fatSecretResults: partial.fatSecretResults,
           fatSecretSource: partial.fatSecretSource ?? 'none',
+          fatSecretRoute: partial.fatSecretRoute,
         },
         502,
       )
@@ -548,10 +559,30 @@ api.post('/api/fatsecret/search', async (c) => {
     return c.json({ error: 'FatSecret credentials missing' }, 500)
   }
   try {
-    const foods = await fatSecretSearchFoods(c.env, query)
-    return c.json({ foods })
+    const { foods, route } = await fatSecretSearchFoods(c.env, query)
+    return c.json({ foods, route })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'FatSecret search failed'
+    return c.json({ error: msg }, 502)
+  }
+})
+
+/** Home relay: deployed Worker calls this when FatSecret blocks Cloudflare IPs. */
+api.post('/api/internal/fatsecret/search', async (c) => {
+  if (!verifyFatSecretRelayAuth(c.req.header('Authorization'), c.env.FATSECRET_RELAY_SECRET)) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  const body = (await c.req.json()) as { query?: string }
+  const query = body.query?.trim()
+  if (!query) return c.json({ error: 'query required' }, 400)
+  if (!c.env.FATSECRET_CLIENT_ID || !c.env.FATSECRET_CLIENT_SECRET) {
+    return c.json({ error: 'FatSecret credentials missing' }, 500)
+  }
+  try {
+    const { foods, route } = await fatSecretSearchFoodsForRelay(c.env, query)
+    return c.json({ foods, route })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'FatSecret relay search failed'
     return c.json({ error: msg }, 502)
   }
 })
