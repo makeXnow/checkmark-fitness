@@ -5,6 +5,8 @@ import { AppAccentTextButton } from '../../core/AppAccentTextButton'
 import { localDateISO } from '../../lib/localDate'
 import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
+import { useLiftOpenSession } from './useLiftOpenSession'
+import { buildSubmitWorkoutDayPayload } from './submitWorkoutDay'
 import {
   buildGroupedSets,
   formatLogDate,
@@ -15,7 +17,6 @@ import {
   getProgressDelta,
   groupHistory,
   isNonPositiveProgressionMultiplier,
-  nextDayIndexFromHistory,
   parseStatusMultiplier,
 } from './plates'
 
@@ -629,17 +630,23 @@ export function LiftScreen({
   currentDayIndex,
   onDayIndexChange,
   view,
+  trackOpenSession = false,
   onPersist,
   onSeeAllLog,
+  onWorkoutSubmitted,
 }: {
   payload: LiftPayload
   subRoute: LiftSubRoute
   currentDayIndex: number
   onDayIndexChange: (idx: number) => void
   view: 'tracker' | 'settings'
+  /** When false, open-session tracking is paused (e.g. another tab is visible). */
+  trackOpenSession?: boolean
   onPersist?: (next: LiftPayload) => void | Promise<void>
   /** Shown on workout view above the day log preview; navigates to full log. */
   onSeeAllLog?: () => void
+  /** Called after a successful workout-day submit (for assumption cleanup). */
+  onWorkoutSubmitted?: (dayId: string, localDate: string) => void
 }) {
   const sortedDays = useMemo(
     () => [...payload.days].sort((a, b) => (a.order || 0) - (b.order || 0)),
@@ -649,6 +656,8 @@ export function LiftScreen({
   const statuses = payload.statuses || []
   const weightUnit = payload.weightUnit ?? 'lbs'
   const plateUnit = payload.plateUnit ?? 'lbs'
+
+  useLiftOpenSession(trackOpenSession && Boolean(onPersist), currentDay?.id, subRoute, view)
 
   const [workoutStatusById, setWorkoutStatusById] = useState<Record<string, string>>({})
   const [newPlateInput, setNewPlateInput] = useState('')
@@ -726,36 +735,19 @@ export function LiftScreen({
 
   const submitWorkoutDay = useCallback(() => {
     if (!onPersist || !currentDay) return
-    const nextHistory = [...(payload.history || [])]
-    const twIds = new Set(todaysWorkouts.map((x) => x.id))
-    const nextWorkouts = payload.workouts.map((w) => {
-      if (!twIds.has(w.id)) return w
-      const sid = effectiveStatusId(w.id)
-      const status = statuses.find((s) => s.id === sid) ?? statuses[0]
-      const mult = parseStatusMultiplier(status?.multiplier)
-      const inc = w.increment || 0
-      const newWeight = Math.max(0, w.mainWeight + inc * mult)
-      nextHistory.push({
-        id: crypto.randomUUID(),
-        workoutId: w.id,
-        workoutName: w.name,
-        date: new Date().toISOString(),
-        weight: w.mainWeight,
-        oldWeight: w.mainWeight,
-        newWeight,
-        statusName: status?.name ?? '',
-      })
-      return { ...w, mainWeight: newWeight }
+    const statusByWorkoutId: Record<string, string> = {}
+    for (const w of todaysWorkouts) {
+      statusByWorkoutId[w.id] = effectiveStatusId(w.id)
+    }
+    const { nextPayload, nextDayIndex } = buildSubmitWorkoutDayPayload(payload, currentDay.id, {
+      statusByWorkoutId,
+      advanceDayIndex: true,
     })
-    const combinedHistory = nextHistory
-    void onPersist({
-      ...payload,
-      history: combinedHistory,
-      workouts: nextWorkouts,
-    })
+    void onPersist(nextPayload)
     setWorkoutStatusById({})
-    onDayIndexChange(nextDayIndexFromHistory(payload.days, nextWorkouts, combinedHistory))
-  }, [currentDay, effectiveStatusId, onDayIndexChange, onPersist, payload, statuses, todaysWorkouts])
+    if (nextDayIndex !== undefined) onDayIndexChange(nextDayIndex)
+    onWorkoutSubmitted?.(currentDay.id, localDateISO(new Date()))
+  }, [currentDay, effectiveStatusId, onDayIndexChange, onPersist, onWorkoutSubmitted, payload, todaysWorkouts])
 
   if (view === 'settings') {
     return (
@@ -803,32 +795,32 @@ export function LiftScreen({
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Plate rack</h3>
           <div className="mb-4">
-            <FieldLabel>Optimized plate order</FieldLabel>
-            <p className="mb-2 text-xs text-neutral-500">
-              Minimize plate changes across warmups and working sets within each exercise.
-            </p>
-            <div className="flex rounded-lg border border-neutral-800 bg-black p-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Optimize Order</span>
               <button
                 type="button"
+                role="switch"
+                aria-checked={Boolean(payload.optimizedPlateOrder)}
+                aria-label="Optimize plate order"
                 disabled={!onPersist}
-                onClick={() => persist({ ...payload, optimizedPlateOrder: false })}
-                className={`flex-1 rounded-md py-2.5 text-center text-[10px] font-black uppercase transition-colors ${
-                  !payload.optimizedPlateOrder ? 'bg-emerald-400 text-black' : 'text-neutral-500'
-                } disabled:opacity-40`}
+                onClick={() =>
+                  persist({ ...payload, optimizedPlateOrder: !payload.optimizedPlateOrder })
+                }
+                className={`inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full border-0 p-0.5 transition-colors disabled:opacity-40 ${
+                  payload.optimizedPlateOrder ? 'bg-emerald-400' : 'bg-neutral-700'
+                }`}
               >
-                Off
-              </button>
-              <button
-                type="button"
-                disabled={!onPersist}
-                onClick={() => persist({ ...payload, optimizedPlateOrder: true })}
-                className={`flex-1 rounded-md py-2.5 text-center text-[10px] font-black uppercase transition-colors ${
-                  payload.optimizedPlateOrder ? 'bg-emerald-400 text-black' : 'text-neutral-500'
-                } disabled:opacity-40`}
-              >
-                On
+                <span
+                  aria-hidden
+                  className={`block size-6 shrink-0 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                    payload.optimizedPlateOrder ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
               </button>
             </div>
+            <p className="mt-1 text-xs text-neutral-500">
+              Minimize plate changes across warmups and working sets within each exercise.
+            </p>
           </div>
           <div className="mb-4 flex gap-2">
             <input

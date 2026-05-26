@@ -26,16 +26,23 @@ Priority (first match wins):
 1. If Notes contain explicit calories and/or protein the user stated, use those (libraryIndex null, fatSecretIndex null, return calories and protein).
 2. If FOOD LIBRARY match: libraryIndex (1-based) + multiplier. Do not guess calories/protein.
 3. If FATSECRET RESULTS match: fatSecretIndex (1-based food), servingIndex (1-based serving for that food), multiplier. Do not guess calories/protein.
-4. Otherwise: libraryIndex null, fatSecretIndex null, return your best calories and protein estimate.
+4. Otherwise: libraryIndex null, fatSecretIndex null, return calories, protein, servingType, and multiplier.
 
 LIBRARY / FATSECRET RULES:
 - Only match when the item is essentially the same product — not a shared ingredient (e.g. "orange chicken" ≠ library "chicken").
-- multiplier = how many of the chosen base serving the user's portion represents (2 for two cookies, 1.25 for a large handful vs "1 oz").
+
+SERVING TYPE (servingType):
+- Short unit label for ONE base portion (e.g. "can", "cup", "slice", "tbsp", "serving", "1 pouch").
+- Pick the most appropriate unit from nutrition facts, FatSecret, notes, or context.
+- Required for direct AI estimates (path 4). Omit for library/FatSecret matches — the app derives it.
+
+MULTIPLIER:
+- How many of the chosen base serving the user's portion represents (2 for two cookies, 0.8 for four-fifths of a can, 1.25 for a large handful vs "1 oz").
 
 JSON only. Examples:
 { "libraryIndex": 3, "multiplier": 2 }
 { "fatSecretIndex": 2, "servingIndex": 1, "multiplier": 1 }
-{ "libraryIndex": null, "fatSecretIndex": null, "calories": 180, "protein": 6 }`,
+{ "libraryIndex": null, "fatSecretIndex": null, "calories": 180, "protein": 6, "servingType": "can", "multiplier": 1 }`,
   ANALYZE_FRONT: `Analyze this food packaging front label.
   NAMING RULES:
   1. Extract a concise product name (ideal < 15 characters, max 25).

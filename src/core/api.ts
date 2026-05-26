@@ -145,6 +145,42 @@ export async function putLift(payload: unknown): Promise<void> {
   if (!res.ok) throw new Error(await res.text())
 }
 
+export async function openLiftSession(body: { dayId: string; localDate: string }): Promise<void> {
+  const res = await apiFetch('/api/lift/session/open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function closeLiftSession(body: { dayId: string; localDate: string }): Promise<void> {
+  const res = await apiFetch('/api/lift/session/close', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function dismissLiftAssumption(body: { dayId: string; localDate: string }): Promise<void> {
+  const res = await apiFetch('/api/lift/assumption/dismiss', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function clearLiftAssumption(body: { dayId: string; localDate: string }): Promise<void> {
+  const res = await apiFetch('/api/lift/assumption/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
 export async function transcribeAudio(file: File, model?: string): Promise<string> {
   const fd = new FormData()
   fd.append('file', file)
@@ -188,7 +224,10 @@ export type MacroEstimateApiResult = {
   calories: number
   protein: number
   libraryFoodId?: string
+  servingType?: string
   servingMultiplier?: number
+  baseCalories?: number
+  baseProtein?: number
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
   fatSecretRoute?: FatSecretRoute

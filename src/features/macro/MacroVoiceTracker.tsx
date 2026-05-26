@@ -18,10 +18,13 @@ import { createPortal } from 'react-dom'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
 import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
 import {
+  formatServingDisplay,
   macroItemDisplayEmoji,
   macroItemDisplayName,
+  macroItemServingFields,
   mergeMacroLogs,
   parsedItemToDayItem,
+  scaleFatSecretServing,
   type ParsedFoodItem,
 } from './macroLib'
 import {
@@ -245,7 +248,14 @@ export function MacroVoiceTracker({
               calories: result.calories,
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
+              servingType: result.servingType,
               servingMultiplier: result.servingMultiplier,
+              baseCalories: result.baseCalories,
+              baseProtein: result.baseProtein,
+              amount:
+                result.servingType != null
+                  ? formatServingDisplay(result.servingMultiplier ?? 1, result.servingType)
+                  : i.amount,
               fatSecretResults: result.fatSecretResults,
               fatSecretRoute: result.fatSecretRoute ?? i.fatSecretRoute,
               macroEstimateSnapshot: result.macroEstimateSnapshot ?? i.macroEstimateSnapshot,
@@ -302,7 +312,10 @@ export function MacroVoiceTracker({
                 calories: 0,
                 protein: 0,
                 libraryFoodId: undefined,
+                servingType: undefined,
                 servingMultiplier: undefined,
+                baseCalories: undefined,
+                baseProtein: undefined,
               }
             : i,
         ),
@@ -569,22 +582,32 @@ export function MacroVoiceTracker({
   const updateItem = useCallback(
     (id: string, fields: MacroFoodEditFields) => {
       replaceDay((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                emoji: fields.emoji || '🍱',
-                name: fields.name,
-                amount: fields.amount,
-                calories: fields.calories,
-                protein: fields.protein,
-                notes: undefined,
-                libraryFoodId: undefined,
-                servingMultiplier: undefined,
-                status: 'ready',
-              }
-            : i,
-        ),
+        prev.map((i) => {
+          if (i.id !== id) return i
+          const mult =
+            typeof fields.servingMultiplier === 'number' && fields.servingMultiplier > 0
+              ? fields.servingMultiplier
+              : (i.servingMultiplier ?? 1)
+          const servingType = fields.servingType ?? i.servingType ?? 'serving'
+          let calories = fields.calories
+          let protein = fields.protein
+          if (i.baseCalories != null && i.baseProtein != null && fields.servingMultiplier != null) {
+            const scaled = scaleFatSecretServing({ calories: i.baseCalories, protein: i.baseProtein }, mult)
+            calories = scaled.calories
+            protein = scaled.protein
+          }
+          return {
+            ...i,
+            emoji: fields.emoji || '🍱',
+            name: fields.name,
+            amount: formatServingDisplay(mult, servingType),
+            servingType,
+            servingMultiplier: mult,
+            calories,
+            protein,
+            status: 'ready',
+          }
+        }),
       )
     },
     [replaceDay],
@@ -621,13 +644,18 @@ export function MacroVoiceTracker({
   const logLibraryFood = useCallback(
     (libraryFoodId: string, fields: MacroFoodEditFields) => {
       if (!fields.name.trim()) return
+      const servingType = fields.amount.trim() || '1 serving'
       replaceDay((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           emoji: fields.emoji || '🍱',
           name: fields.name,
-          amount: fields.amount,
+          amount: formatServingDisplay(1, servingType),
+          servingType,
+          servingMultiplier: 1,
+          baseCalories: fields.calories,
+          baseProtein: fields.protein,
           calories: fields.calories,
           protein: fields.protein,
           libraryFoodId,
@@ -641,9 +669,8 @@ export function MacroVoiceTracker({
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-macro-diet-page>
-      {/* scrollable list — flex-1 so it takes all space above the dock */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain pb-4">
+    <div className="grid h-full min-h-0 grid-rows-[1fr_auto]" data-macro-diet-page>
+      <div className="macro-diet-scroll flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-y-contain">
       <StatusDashboard
         consumed={totals.cal}
         goal={goals.calorieGoal}
@@ -689,7 +716,7 @@ export function MacroVoiceTracker({
         )}
       </section>
 
-      <section className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] [overflow:clip]">
+      <section className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="relative z-10 flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
           <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
             <NotebookText size={16} className="text-emerald-400" /> Food Library
@@ -703,7 +730,7 @@ export function MacroVoiceTracker({
             <Plus size={16} strokeWidth={2.5} />
           </button>
         </div>
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-4 pb-6">
           {customFoods.length === 0 ? (
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">Library is empty</p>
           ) : (
@@ -728,6 +755,7 @@ export function MacroVoiceTracker({
           )}
         </div>
       </section>
+      <div className="h-2 shrink-0" aria-hidden />
       </div>{/* end scrollable list */}
 
       <InteractionDock
@@ -792,6 +820,7 @@ function LibraryFoodRow({
       <MacroFoodEditCard
         fieldId={`library-${food.id}`}
         toolbar="library"
+        amountMode="text"
         data={editData}
         onChange={setEditData}
         onReset={() => setEditData(libraryFoodToEditFields(food))}
@@ -921,12 +950,26 @@ function FoodRow({
       </div>
     )
   }
+  const handleEditChange = (fields: MacroFoodEditFields) => {
+    if (
+      item.baseCalories != null &&
+      item.baseProtein != null &&
+      fields.servingMultiplier != null &&
+      fields.servingMultiplier !== editData.servingMultiplier
+    ) {
+      const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
+      const scaled = scaleFatSecretServing({ calories: item.baseCalories, protein: item.baseProtein }, mult)
+      fields = { ...fields, calories: scaled.calories, protein: scaled.protein }
+    }
+    setEditData(fields)
+  }
+
   if (isEditing) {
     return (
       <MacroFoodEditCard
         fieldId={item.id}
         data={editData}
-        onChange={setEditData}
+        onChange={handleEditChange}
         showAudit
         infoExpanded={infoExpanded}
         onInfoToggle={() => setInfoExpanded((v) => !v)}
@@ -953,7 +996,7 @@ function FoodRow({
     <MacroFoodViewCard
       emoji={macroItemDisplayEmoji(item)}
       name={macroItemDisplayName(item)}
-      amount={item.amount}
+      amount={macroItemServingFields(item).amount}
       calories={item.calories || 0}
       protein={item.protein || 0}
       pending={item.status === 'pending'}
@@ -993,7 +1036,7 @@ function InteractionDock({
   return (
     <div className="relative z-20 shrink-0 pointer-events-none pb-[calc(var(--app-nav-offset)+0.5rem)]">
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-full h-10 bg-gradient-to-t from-black via-black/95 to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-full h-6 bg-gradient-to-t from-black/80 to-transparent"
         aria-hidden
       />
       <div className="relative flex w-full flex-col gap-3 pt-2 pointer-events-auto">
@@ -1227,6 +1270,7 @@ function DatabaseModal({
         <MacroFoodEditCard
           fieldId="library-add"
           toolbar="library-add"
+          amountMode="text"
           data={{
             emoji: entry.emoji || '🍱',
             name: entry.name,

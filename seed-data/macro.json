@@ -120,10 +120,14 @@
         "status": "ready",
         "calories": 510,
         "protein": 38,
-        "fat": 24
+        "fat": 24,
+        "servingType": "sandwich",
+        "servingMultiplier": 1,
+        "baseCalories": 510,
+        "baseProtein": 38
       },
       {
-        "amount": "1",
+        "amount": "1 serving",
         "carbs": 22,
         "status": "ready",
         "timestamp": 1778128354000,
@@ -132,7 +136,11 @@
         "id": "05ee50ad-a6bb-498f-a7e6-94923e165b2d",
         "fat": 5,
         "protein": 9,
-        "calories": 170
+        "calories": 170,
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 170,
+        "baseProtein": 9
       },
       {
         "calories": 105,
@@ -143,8 +151,12 @@
         "emoji": "🍘",
         "timestamp": 1778128354000,
         "status": "ready",
-        "amount": "3",
-        "carbs": 22.5
+        "amount": "3 serving",
+        "carbs": 22.5,
+        "servingType": "serving",
+        "servingMultiplier": 3,
+        "baseCalories": 35,
+        "baseProtein": 0.7
       },
       {
         "calories": 200,
@@ -156,19 +168,27 @@
         "timestamp": 1778128354000,
         "status": "ready",
         "carbs": 16,
-        "amount": "1"
+        "amount": "1 serving",
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 200,
+        "baseProtein": 20
       },
       {
         "status": "ready",
         "carbs": 14,
-        "amount": "2oz",
+        "amount": "2 oz",
         "emoji": "🥩",
         "id": "10f8c49d-602c-44af-ad6c-fdbb5998cd84",
         "name": "Peppered Beef Jerky",
         "timestamp": 1778128420047,
         "fat": 3,
         "calories": 160,
-        "protein": 18
+        "protein": 18,
+        "servingType": "oz",
+        "servingMultiplier": 2,
+        "baseCalories": 80,
+        "baseProtein": 9
       },
       {
         "protein": 33,
@@ -180,7 +200,11 @@
         "name": "Canned Chicken",
         "carbs": 0,
         "amount": "1 can",
-        "status": "ready"
+        "status": "ready",
+        "servingType": "can",
+        "servingMultiplier": 1,
+        "baseCalories": 165,
+        "baseProtein": 33
       },
       {
         "calories": 102.5,
@@ -192,7 +216,11 @@
         "emoji": "🍚",
         "amount": "0.5 cup",
         "carbs": 22.5,
-        "status": "ready"
+        "status": "ready",
+        "servingType": "cup",
+        "servingMultiplier": 0.5,
+        "baseCalories": 205,
+        "baseProtein": 4.3
       },
       {
         "protein": 10.2,
@@ -203,8 +231,12 @@
         "id": "05d81df7-23e9-455a-99db-e79a998593ca",
         "name": "Lentils",
         "carbs": 22.8,
-        "amount": "4oz",
-        "status": "ready"
+        "amount": "4 oz",
+        "status": "ready",
+        "servingType": "oz",
+        "servingMultiplier": 4,
+        "baseCalories": 33,
+        "baseProtein": 2.6
       }
     ],
     "2026-05-17": [
@@ -227,7 +259,11 @@
           "fatSecretIndex": null,
           "calories": 300,
           "protein": 15
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 300,
+        "baseProtein": 15
       },
       {
         "id": "8aa432c7-4f51-42c7-bf9a-45dc992cd077",
@@ -248,7 +284,11 @@
           "fatSecretIndex": null,
           "calories": 180,
           "protein": 20
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 180,
+        "baseProtein": 20
       },
       {
         "id": "31c021a1-8245-460e-96db-3071dca78857",
@@ -269,18 +309,26 @@
           "fatSecretIndex": null,
           "calories": 300,
           "protein": 10
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 300,
+        "baseProtein": 10
       },
       {
         "id": "70ba5375-2c66-4b83-a749-b755a9eac3b9",
         "emoji": "🥩",
         "name": "Peppered Beef Jerky",
-        "amount": "1 oz (28g)",
+        "amount": "1 1 oz (28g)",
         "calories": 80,
         "protein": 9,
         "libraryFoodId": "61d3b1e5-f7bf-4fe9-92d3-9641060c028e",
         "status": "ready",
-        "timestamp": 1779066495467
+        "timestamp": 1779066495467,
+        "servingType": "1 oz (28g)",
+        "servingMultiplier": 1,
+        "baseCalories": 80,
+        "baseProtein": 9
       }
     ],
     "2026-05-18": [
@@ -288,7 +336,7 @@
         "id": "e19d60ae-54c0-430b-95e8-0ecb232d3965",
         "emoji": "🍫",
         "name": "Lemon Bar",
-        "amount": "1",
+        "amount": "1 serving",
         "fatSecretSearch": "Lemon Built Bar",
         "parseSnapshot": {
           "emoji": "🍫",
@@ -309,7 +357,11 @@
           "fatSecretIndex": null,
           "calories": 180,
           "protein": 4
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 180,
+        "baseProtein": 4
       }
     ],
     "2026-05-19": [
@@ -317,7 +369,7 @@
         "id": "a96b21ad-7bd7-473f-848a-322c5cac9371",
         "emoji": "🍗",
         "name": "Canned Chicken",
-        "amount": "1 can",
+        "amount": "1 5 oz",
         "fatSecretSearch": "canned chicken",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -459,13 +511,16 @@
           "servingIndex": 1,
           "multiplier": 1
         },
-        "servingMultiplier": 1
+        "servingMultiplier": 1,
+        "servingType": "5 oz",
+        "baseCalories": 110,
+        "baseProtein": 22
       },
       {
         "id": "17422ef7-216c-4e98-a477-5c6025f858e7",
         "emoji": "🥫",
         "name": "Mayonnaise",
-        "amount": "1 tablespoon",
+        "amount": "1 1 tbsp",
         "fatSecretSearch": "mayonnaise",
         "parseSnapshot": {
           "emoji": "🥫",
@@ -606,13 +661,16 @@
           "servingIndex": 1,
           "multiplier": 1
         },
-        "servingMultiplier": 1
+        "servingMultiplier": 1,
+        "servingType": "1 tbsp",
+        "baseCalories": 90,
+        "baseProtein": 0
       },
       {
         "id": "cd7b7afa-ddd3-4cc4-a62b-653d305d9233",
         "emoji": "🍋",
         "name": "Built Bar",
-        "amount": "1",
+        "amount": "1 1 bar",
         "notes": "lemon meringue flavor",
         "fatSecretSearch": "Built Bar lemon meringue",
         "parseSnapshot": {
@@ -752,13 +810,16 @@
           "servingIndex": 1,
           "multiplier": 1
         },
-        "servingMultiplier": 1
+        "servingMultiplier": 1,
+        "servingType": "1 bar",
+        "baseCalories": 140,
+        "baseProtein": 17
       },
       {
         "id": "e0a42871-9b27-412a-a462-320b02cd3da9",
         "emoji": "🍞",
         "name": "Sourdough Bread",
-        "amount": "1 slice",
+        "amount": "1 1 slice",
         "fatSecretSearch": "sourdough bread",
         "parseSnapshot": {
           "emoji": "🍞",
@@ -899,13 +960,16 @@
           "servingIndex": 1,
           "multiplier": 1
         },
-        "servingMultiplier": 1
+        "servingMultiplier": 1,
+        "servingType": "1 slice",
+        "baseCalories": 100,
+        "baseProtein": 3
       },
       {
         "id": "58023493-4b03-4f9d-a33e-a39d498c99b5",
         "emoji": "🍘",
         "name": "Rice Cracker",
-        "amount": "1",
+        "amount": "1 1 serving",
         "fatSecretSearch": "rice cracker",
         "parseSnapshot": {
           "emoji": "🍘",
@@ -1046,13 +1110,16 @@
           "servingIndex": 1,
           "multiplier": 1
         },
-        "servingMultiplier": 1
+        "servingMultiplier": 1,
+        "servingType": "1 serving",
+        "baseCalories": 80,
+        "baseProtein": 2.2
       },
       {
         "id": "157f87a0-c130-4824-888c-def66e77e47a",
         "emoji": "🍗",
         "name": "Chicken",
-        "amount": "6 ounces",
+        "amount": "1.5 101g",
         "fatSecretSearch": "chicken cooked",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -1186,13 +1253,16 @@
           "servingIndex": 1,
           "multiplier": 1.5
         },
-        "servingMultiplier": 1.5
+        "servingMultiplier": 1.5,
+        "servingType": "101g",
+        "baseCalories": 197,
+        "baseProtein": 29.8
       },
       {
         "id": "b187227a-9cb1-4eb6-9a7f-1540f36f1760",
         "emoji": "🥔",
         "name": "Mashed Potatoes",
-        "amount": "4 ounces",
+        "amount": "0.4 100g",
         "fatSecretSearch": "mashed potatoes",
         "parseSnapshot": {
           "emoji": "🥔",
@@ -1330,13 +1400,16 @@
           "servingIndex": 1,
           "multiplier": 0.4
         },
-        "servingMultiplier": 0.4
+        "servingMultiplier": 0.4,
+        "servingType": "100g",
+        "baseCalories": 100,
+        "baseProtein": 1.8
       },
       {
         "id": "26c85abe-c9d5-4bc8-83fd-47aab2a718ad",
         "emoji": "🍚",
         "name": "Rice",
-        "amount": "4 ounces",
+        "amount": "1.14 100g",
         "fatSecretSearch": "rice cooked",
         "parseSnapshot": {
           "emoji": "🍚",
@@ -1472,7 +1545,10 @@
           "servingIndex": 1,
           "multiplier": 1.136
         },
-        "servingMultiplier": 1.136
+        "servingMultiplier": 1.136,
+        "servingType": "100g",
+        "baseCalories": 130,
+        "baseProtein": 2.69
       }
     ],
     "2026-05-20": [
@@ -1501,7 +1577,11 @@
           "fatSecretIndex": null,
           "calories": 276,
           "protein": 52
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 6,
+        "baseCalories": 46,
+        "baseProtein": 8.7
       },
       {
         "id": "966271f9-8f62-4351-b14e-30572152de9e",
@@ -1528,7 +1608,11 @@
           "fatSecretIndex": null,
           "calories": 120,
           "protein": 3
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 4,
+        "baseCalories": 30,
+        "baseProtein": 0.8
       },
       {
         "id": "d40f3e0e-dbc6-4334-9bfb-b08991639f40",
@@ -1555,7 +1639,11 @@
           "fatSecretIndex": null,
           "calories": 20,
           "protein": 0.5
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 2,
+        "baseCalories": 10,
+        "baseProtein": 0.3
       },
       {
         "id": "5d147b2c-c642-443a-abb5-6a56cc8ab917",
@@ -1582,7 +1670,11 @@
           "fatSecretIndex": null,
           "calories": 60,
           "protein": 2
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 2,
+        "baseCalories": 30,
+        "baseProtein": 1
       },
       {
         "id": "dcba586e-ecbf-40ea-89d8-38196ca0cf85",
@@ -1609,7 +1701,11 @@
           "fatSecretIndex": null,
           "calories": 10,
           "protein": 1
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 2,
+        "baseCalories": 5,
+        "baseProtein": 0.5
       },
       {
         "id": "bc967878-6dcb-40cc-8b9a-62311611616e",
@@ -1636,13 +1732,17 @@
           "fatSecretIndex": null,
           "calories": 80,
           "protein": 4
-        }
+        },
+        "servingType": "bar",
+        "servingMultiplier": 1,
+        "baseCalories": 80,
+        "baseProtein": 4
       },
       {
         "id": "42732aa2-94ec-447f-9d5b-a875de94aa4a",
         "emoji": "🍞",
         "name": "Whole Wheat",
-        "amount": "2 slices",
+        "amount": "2 1 slice (26g)",
         "fatSecretSearch": "whole wheat bread",
         "parseSnapshot": {
           "emoji": "🍞",
@@ -1663,7 +1763,10 @@
           "multiplier": 2
         },
         "libraryFoodId": "125b555e-c4cc-43cb-9a5b-95a896b367e9",
-        "servingMultiplier": 2
+        "servingMultiplier": 2,
+        "servingType": "1 slice (26g)",
+        "baseCalories": 60,
+        "baseProtein": 3
       },
       {
         "id": "a5b797fb-b545-482e-a67e-5880fb23172a",
@@ -1690,7 +1793,11 @@
           "fatSecretIndex": null,
           "calories": 60,
           "protein": 12
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 2,
+        "baseCalories": 30,
+        "baseProtein": 6
       },
       {
         "id": "77c30022-f363-434a-971f-a3a9d63e6171",
@@ -1717,7 +1824,11 @@
           "fatSecretIndex": null,
           "calories": 140,
           "protein": 12
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 2,
+        "baseCalories": 70,
+        "baseProtein": 6
       },
       {
         "id": "ea162b90-ec46-4f70-b1ad-ddf54a9c7730",
@@ -1744,7 +1855,11 @@
           "fatSecretIndex": null,
           "calories": 40,
           "protein": 0.5
-        }
+        },
+        "servingType": "ounce",
+        "servingMultiplier": 1,
+        "baseCalories": 40,
+        "baseProtein": 0.5
       },
       {
         "id": "22dc86bc-4ac7-4a8a-a555-bab8edbc0fa0",
@@ -1771,7 +1886,11 @@
           "fatSecretIndex": null,
           "calories": 30,
           "protein": 1
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 3,
+        "baseCalories": 10,
+        "baseProtein": 0.3
       },
       {
         "id": "019649c2-7c57-41ac-b534-438ba9fa18f4",
@@ -1798,13 +1917,17 @@
           "fatSecretIndex": null,
           "calories": 80,
           "protein": 20
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 80,
+        "baseProtein": 20
       },
       {
         "id": "6e92c390-c222-4b38-bdd6-6299ddc58b5f",
         "emoji": "🍗",
         "name": "Buffalo Wings",
-        "amount": "8",
+        "amount": "8 serving",
         "fatSecretSearch": "Buffalo Wild Wings boneless wings",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -1825,13 +1948,17 @@
           "fatSecretIndex": null,
           "calories": 640,
           "protein": 48
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 8,
+        "baseCalories": 80,
+        "baseProtein": 6
       },
       {
         "id": "b325aef8-43e3-4acf-b039-b3b3be4bc51b",
         "emoji": "🍏",
         "name": "Apple",
-        "amount": "1",
+        "amount": "1 serving",
         "fatSecretSearch": "apple",
         "parseSnapshot": {
           "emoji": "🍏",
@@ -1852,7 +1979,11 @@
           "fatSecretIndex": null,
           "calories": 95,
           "protein": 0.5
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 95,
+        "baseProtein": 0.5
       }
     ],
     "2026-05-21": [
@@ -1881,7 +2012,11 @@
           "fatSecretIndex": null,
           "calories": 480,
           "protein": 12
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 4,
+        "baseCalories": 120,
+        "baseProtein": 3
       },
       {
         "id": "3afc5b46-d921-4b13-8e9b-fead17b9861f",
@@ -1908,7 +2043,11 @@
           "fatSecretIndex": null,
           "calories": 350,
           "protein": 60
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 7,
+        "baseCalories": 50,
+        "baseProtein": 8.6
       },
       {
         "id": "0402d0ec-4482-44cf-a880-a9f5cebde299",
@@ -1935,7 +2074,11 @@
           "fatSecretIndex": null,
           "calories": 105,
           "protein": 2
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 3,
+        "baseCalories": 35,
+        "baseProtein": 0.7
       },
       {
         "id": "461717c5-bc08-42ae-bee5-81ed239e9213",
@@ -1962,13 +2105,17 @@
           "fatSecretIndex": null,
           "calories": 30,
           "protein": 1
-        }
+        },
+        "servingType": "ounces",
+        "servingMultiplier": 3,
+        "baseCalories": 10,
+        "baseProtein": 0.3
       },
       {
         "id": "a38b18b1-5ced-409e-8f9a-798ef3302780",
         "emoji": "🥤",
         "name": "Protein Powder",
-        "amount": "1 scoop",
+        "amount": "1 1 Scoop (24g)",
         "fatSecretSearch": "protein powder",
         "parseSnapshot": {
           "emoji": "🥤",
@@ -1989,7 +2136,10 @@
           "multiplier": 1
         },
         "libraryFoodId": "d3d1f9dd-2164-41bd-991e-7a01e6c6e2f9",
-        "servingMultiplier": 1
+        "servingMultiplier": 1,
+        "servingType": "1 Scoop (24g)",
+        "baseCalories": 80,
+        "baseProtein": 20
       },
       {
         "id": "c84a1d28-62ef-40cb-82d8-6841a43c2708",
@@ -2016,7 +2166,11 @@
           "fatSecretIndex": null,
           "calories": 315,
           "protein": 12
-        }
+        },
+        "servingType": "servings",
+        "servingMultiplier": 1.5,
+        "baseCalories": 210,
+        "baseProtein": 8
       },
       {
         "id": "1321411f-b1e1-43cc-a4ca-dbe73875215b",
@@ -2043,7 +2197,11 @@
           "fatSecretIndex": null,
           "calories": 70,
           "protein": 2
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 70,
+        "baseProtein": 2
       },
       {
         "id": "f90302f9-aeae-4898-a0f1-6814c7c0340c",
@@ -2070,13 +2228,17 @@
           "fatSecretIndex": null,
           "calories": 120,
           "protein": 0
-        }
+        },
+        "servingType": "tablespoon",
+        "servingMultiplier": 1,
+        "baseCalories": 120,
+        "baseProtein": 0
       },
       {
         "id": "d3a64d0d-501d-4566-a791-f7ecb04ad13d",
         "emoji": "🍗",
         "name": "Chicken Breast",
-        "amount": "1/3 can",
+        "amount": "1 1/3 can",
         "fatSecretSearch": "canned chicken breast",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -2097,7 +2259,11 @@
           "fatSecretIndex": null,
           "calories": 23,
           "protein": 4.33
-        }
+        },
+        "servingType": "1/3 can",
+        "servingMultiplier": 1,
+        "baseCalories": 23,
+        "baseProtein": 4.3
       }
     ],
     "2026-05-22": [
@@ -2105,7 +2271,7 @@
         "id": "54c703a8-f9b8-4d13-90ef-be79407d1042",
         "emoji": "🥪",
         "name": "Roast Beef",
-        "amount": "1.2",
+        "amount": "1.2 serving",
         "notes": "without cheese",
         "fatSecretSearch": "Arby's regular roast beef sandwich",
         "parseSnapshot": {
@@ -2128,13 +2294,17 @@
           "fatSecretIndex": null,
           "calories": 240,
           "protein": 30
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1.2,
+        "baseCalories": 200,
+        "baseProtein": 25
       },
       {
         "id": "8e1c2935-5378-4904-a718-cad8879b1ccb",
         "emoji": "🍪",
         "name": "Loaded Oreo",
-        "amount": "1",
+        "amount": "1 serving",
         "fatSecretSearch": "Loaded Oreo",
         "parseSnapshot": {
           "emoji": "🍪",
@@ -2155,7 +2325,11 @@
           "fatSecretIndex": null,
           "calories": 250,
           "protein": 3
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 250,
+        "baseProtein": 3
       },
       {
         "id": "92897188-89c0-44aa-a108-3e11abb36056",
@@ -2182,7 +2356,11 @@
           "fatSecretIndex": null,
           "calories": 120,
           "protein": 11
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 120,
+        "baseProtein": 11
       },
       {
         "id": "15d5aa6f-9299-48ed-aa2b-a4e6283cd014",
@@ -2209,7 +2387,11 @@
           "fatSecretIndex": null,
           "calories": 150,
           "protein": 7
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 150,
+        "baseProtein": 7
       },
       {
         "id": "b93493c2-4ca1-4519-a4b6-c1b403c2ecaa",
@@ -2236,7 +2418,11 @@
           "fatSecretIndex": null,
           "calories": 300,
           "protein": 25
-        }
+        },
+        "servingType": "serving",
+        "servingMultiplier": 1,
+        "baseCalories": 300,
+        "baseProtein": 25
       }
     ]
   }

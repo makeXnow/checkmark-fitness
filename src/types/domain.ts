@@ -39,8 +39,17 @@ export interface DayLog {
   water?: number
 }
 
+export type LiftAssumptionPrompt = {
+  dayId: string
+  localDate: string
+  dayName: string
+}
+
 export interface BootstrapResponse {
   appState: AppStateRow
+  liftAssumption?: {
+    pendingPrompt: LiftAssumptionPrompt | null
+  }
   habits: {
     goals: HabitsGoals
     goalsSnapshotsByWeek?: Record<string, HabitsGoals>
@@ -130,6 +139,8 @@ export type MacroEstimateSnapshot = {
   fatSecretIndex?: number | null
   servingIndex?: number | null
   multiplier?: number
+  /** Short unit label for direct AI estimates (e.g. "can", "cup", "slice"). */
+  servingType?: string
   calories?: number
   protein?: number
 }
@@ -156,7 +167,14 @@ export interface MacroDayItem {
   macroEstimateSnapshot?: MacroEstimateSnapshot
   /** Set when macros were scaled from the food library. */
   libraryFoodId?: string
+  /** AI-assigned unit label for one base portion (e.g. "can", "1 cup", "slice"). */
+  servingType?: string
+  /** User-editable count multiplier applied to servingType base macros. */
   servingMultiplier?: number
+  /** Calories per one servingType unit; used to recalc when servingMultiplier changes. */
+  baseCalories?: number
+  /** Protein (g) per one servingType unit. */
+  baseProtein?: number
   /** FatSecret search query from parser; not shown in UI. */
   fatSecretSearch?: string
   /** Cached FatSecret search snapshot; reused on macro refresh (no re-search). */

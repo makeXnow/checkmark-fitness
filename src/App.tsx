@@ -14,7 +14,7 @@ import {
 import { AppAccentTextButton } from './core/AppAccentTextButton'
 import { AppLoadingAnimation } from './core/AppLoadingAnimation'
 import { TabPager } from './core/TabPager'
-import { applyAppStatePatch, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
+import { applyAppStatePatch, clearLiftAssumption, dismissLiftAssumption, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
 import { normalizeMacroGoals } from './features/macro/macroCalculator'
 import { mergeMacroLogs, normalizeMacroLogsOnLoad } from './features/macro/macroLib'
 import {
@@ -33,6 +33,7 @@ import type {
   BootstrapResponse,
   BottomTab,
   HabitsGoals,
+  LiftAssumptionPrompt,
   LiftPayload,
   LiftSubRoute,
   MacroCustomFood,
@@ -44,6 +45,9 @@ import type { DayLog } from './types/domain'
 const HabitsScreen = lazy(() => import('./features/habits/HabitsScreen').then((m) => ({ default: m.HabitsScreen })))
 const MacroScreen = lazy(() => import('./features/macro/MacroScreen').then((m) => ({ default: m.MacroScreen })))
 const LiftScreen = lazy(() => import('./features/lift/LiftScreen').then((m) => ({ default: m.LiftScreen })))
+const LiftAssumptionModal = lazy(() =>
+  import('./features/lift/LiftAssumptionModal').then((m) => ({ default: m.LiftAssumptionModal })),
+)
 
 function TabFallback() {
   return (
@@ -74,6 +78,8 @@ export default function App() {
   const bootRef = useRef<BootstrapResponse | null>(null)
   bootRef.current = boot
   const [error, setError] = useState<string | null>(null)
+  const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
+  const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
 
   const resyncFromServer = useCallback(async () => {
     try {
@@ -115,7 +121,7 @@ export default function App() {
       )
       const cementedHabitsBundle = habitsCement.changed ? habitsCement.bundle : habitsBundle
 
-      const logs = normalizeMacroLogsOnLoad(data.macro.logs || {})
+      const logs = normalizeMacroLogsOnLoad(data.macro.logs || {}, data.macro.customFoods || [])
       const logsChanged = logs !== data.macro.logs
       if (logsChanged || macroCement.changed || habitsCement.changed) {
         data.macro.logs = logs
@@ -144,6 +150,7 @@ export default function App() {
       }
       setBoot(data)
       bootRef.current = data
+      setLiftAssumptionPrompt(data.liftAssumption?.pendingPrompt ?? null)
     } catch (e) {
       const base = e instanceof Error ? e.message : 'Failed to load'
       const apiDown =
@@ -479,6 +486,45 @@ export default function App() {
     return liftSaveSeq.current
   }, [resyncFromServer])
 
+  const handleLiftWorkoutSubmitted = useCallback((dayId: string, localDate: string) => {
+    void clearLiftAssumption({ dayId, localDate }).catch(() => {})
+    setLiftAssumptionPrompt((prev) =>
+      prev && prev.dayId === dayId && prev.localDate === localDate ? null : prev,
+    )
+  }, [])
+
+  const dismissLiftAssumptionPrompt = useCallback(async () => {
+    const prompt = liftAssumptionPrompt
+    if (!prompt || liftAssumptionBusy) return
+    setLiftAssumptionBusy(true)
+    try {
+      await dismissLiftAssumption({ dayId: prompt.dayId, localDate: prompt.localDate })
+      setLiftAssumptionPrompt(null)
+    } finally {
+      setLiftAssumptionBusy(false)
+    }
+  }, [liftAssumptionBusy, liftAssumptionPrompt])
+
+  const submitLiftAssumptionPrompt = useCallback(async () => {
+    const prompt = liftAssumptionPrompt
+    const prev = bootRef.current
+    if (!prompt || !prev || liftAssumptionBusy) return
+    setLiftAssumptionBusy(true)
+    try {
+      const { buildSubmitWorkoutDayPayload } = await import('./features/lift/submitWorkoutDay')
+      const payload = prev.lift.payload as LiftPayload
+      const { nextPayload } = buildSubmitWorkoutDayPayload(payload, prompt.dayId, {
+        localDate: prompt.localDate,
+        advanceDayIndex: false,
+      })
+      await saveLiftBundle(nextPayload)
+      await clearLiftAssumption({ dayId: prompt.dayId, localDate: prompt.localDate })
+      setLiftAssumptionPrompt(null)
+    } finally {
+      setLiftAssumptionBusy(false)
+    }
+  }, [liftAssumptionBusy, liftAssumptionPrompt, saveLiftBundle])
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const headerTitle = settingsOpen
@@ -689,6 +735,7 @@ export default function App() {
                     onDayIndexChange={(i) => void setLiftDayIndex(i)}
                     view="settings"
                     onPersist={(next) => void saveLiftBundle(next)}
+                    onWorkoutSubmitted={handleLiftWorkoutSubmitted}
                   />
                 </Suspense>
               ),
@@ -736,8 +783,10 @@ export default function App() {
                     currentDayIndex={safeLiftDayIndex}
                     onDayIndexChange={(i) => void setLiftDayIndex(i)}
                     view="tracker"
+                    trackOpenSession={selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout'}
                     onPersist={(next) => void saveLiftBundle(next)}
                     onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
+                    onWorkoutSubmitted={handleLiftWorkoutSubmitted}
                   />
                 </Suspense>
               ),
@@ -867,6 +916,18 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {liftAssumptionPrompt ? (
+        <Suspense fallback={null}>
+          <LiftAssumptionModal
+            dayName={liftAssumptionPrompt.dayName}
+            localDate={liftAssumptionPrompt.localDate}
+            busy={liftAssumptionBusy}
+            onNo={() => void dismissLiftAssumptionPrompt()}
+            onSubmit={() => void submitLiftAssumptionPrompt()}
+          />
+        </Suspense>
+      ) : null}
     </div>
   )
 }

@@ -36,7 +36,10 @@ export type MacroEstimateApiResult = {
   calories: number
   protein: number
   libraryFoodId?: string
+  servingType?: string
   servingMultiplier?: number
+  baseCalories?: number
+  baseProtein?: number
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
   fatSecretRoute?: FatSecretRoute
@@ -89,7 +92,10 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
       calories: result.calories,
       protein: result.protein,
       libraryFoodId: result.libraryFoodId,
+      servingType: result.servingType,
       servingMultiplier: result.servingMultiplier,
+      baseCalories: result.baseCalories,
+      baseProtein: result.baseProtein,
       fatSecretResults,
       fatSecretSource,
       fatSecretRoute,

@@ -7,6 +7,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
+import { backfillMacroLogs } from './lib/backfillMacroServings.mjs'
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 
@@ -38,6 +40,7 @@ function normalizeHabits(h) {
 
 const habitsRaw = JSON.parse(readFileSync(join(root, 'seed-data/checkmark.json'), 'utf8'))
 const macroRaw = JSON.parse(readFileSync(join(root, 'seed-data/macro.json'), 'utf8'))
+macroRaw.logs = backfillMacroLogs(macroRaw.logs, macroRaw.customFoods || [])
 const liftRaw = JSON.parse(readFileSync(join(root, 'seed-data/lift.json'), 'utf8'))
 
 const habits = normalizeHabits(habitsRaw)

@@ -175,12 +175,41 @@ html.lift-workout-swapping #app-main {
   overflow-y: hidden;
 }
 
+.tab-pager-page:has([data-macro-diet-page]) .tab-pager-frame,
+.tab-pager-page:has([data-macro-diet-page]) .tab-pager-frame > * {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+[data-macro-diet-page] {
+  height: 100%;
+  min-height: 0;
+}
+
+.macro-diet-scroll {
+  padding-bottom: 0.5rem;
+  scroll-padding-bottom: 0.5rem;
+}
+
 .tab-pager-frame {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
+}
+
+/* Suspense boundaries must participate in flex so macro inner scroll gets a bounded height */
+.tab-pager-frame > * {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 .tab-pager-trailing {

@@ -16,6 +16,14 @@ import {
 } from './goalSnapshots'
 import { runMacroEstimate } from './macroEstimate'
 import { OPENAI_MODELS } from './openaiModels'
+import {
+  clearLiftAssumption,
+  closeLiftSession,
+  dismissLiftAssumption,
+  openLiftSession,
+  parseLiftAssumptionPayload,
+  resolveLiftAssumptionPrompt,
+} from './liftAssumption'
 
 export interface Env {
   DB: D1Database
@@ -88,6 +96,47 @@ function asLogsMap(v: unknown): Record<string, Record<string, unknown>> {
   return v as Record<string, Record<string, unknown>>
 }
 
+async function ensureLiftAssumption(db: D1Database, deviceId: string): Promise<void> {
+  const existing = await db
+    .prepare('SELECT device_id FROM lift_assumption WHERE device_id = ?')
+    .bind(deviceId)
+    .first()
+  if (existing) return
+
+  const now = Date.now()
+  await db
+    .prepare(`INSERT INTO lift_assumption (device_id, payload_json, updated_at) VALUES (?, ?, ?)`)
+    .bind(deviceId, JSON.stringify({ activeSession: null, dailyOpens: {}, pending: null }), now)
+    .run()
+}
+
+async function readLiftAssumptionPayload(db: D1Database, deviceId: string): Promise<ReturnType<typeof parseLiftAssumptionPayload>> {
+  await ensureLiftAssumption(db, deviceId)
+  const row = await db
+    .prepare('SELECT payload_json FROM lift_assumption WHERE device_id = ?')
+    .bind(deviceId)
+    .first<{ payload_json: string }>()
+  return parseLiftAssumptionPayload(row?.payload_json)
+}
+
+async function writeLiftAssumptionPayload(
+  db: D1Database,
+  deviceId: string,
+  payload: ReturnType<typeof parseLiftAssumptionPayload>,
+): Promise<void> {
+  const now = Date.now()
+  await db
+    .prepare(
+      `INSERT INTO lift_assumption (device_id, payload_json, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(device_id) DO UPDATE SET
+         payload_json = excluded.payload_json,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(deviceId, JSON.stringify(payload), now)
+    .run()
+}
+
 async function ensureDevice(db: D1Database, deviceId: string): Promise<void> {
   const existing = await db.prepare('SELECT device_id FROM app_state WHERE device_id = ?').bind(deviceId).first()
   if (existing) return
@@ -141,6 +190,8 @@ async function ensureDevice(db: D1Database, deviceId: string): Promise<void> {
       .prepare(`INSERT INTO lift_bundle (device_id, payload_json, updated_at) VALUES (?, ?, ?)`)
       .bind(deviceId, liftPayload, now),
   ])
+
+  await ensureLiftAssumption(db, deviceId)
 }
 
 const api = new Hono<{ Bindings: Env }>()
@@ -188,8 +239,13 @@ api.get('/api/bootstrap', async (c) => {
     const macroGoalsRaw = safeJsonParse<unknown>((macro?.goals_json as string) || '', {})
     const macroStored = parseMacroGoalsStored(macroGoalsRaw)
 
+    const liftPayloadParsed = safeJsonParse((lift?.payload_json as string) || '', {})
+    const assumptionPayload = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+    const pendingPrompt = resolveLiftAssumptionPrompt(assumptionPayload, liftPayloadParsed, Date.now())
+
     const body = {
       appState: state,
+      liftAssumption: { pendingPrompt },
       habits: {
         goals: habitsStored.current,
         goalsSnapshotsByWeek: habitsStored.snapshotsByWeek,
@@ -368,6 +424,62 @@ api.put('/api/lift', async (c) => {
     .bind(DEVICE_DEFAULT, JSON.stringify(body), now)
     .run()
 
+  return c.json({ ok: true })
+})
+
+async function readLiftSessionBody(c: { req: { json: () => Promise<unknown> } }): Promise<{ dayId: string; localDate: string } | null> {
+  const body = (await c.req.json()) as { dayId?: string; localDate?: string }
+  const dayId = body.dayId?.trim()
+  const localDate = body.localDate?.trim()
+  if (!dayId || !localDate || !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) return null
+  return { dayId, localDate }
+}
+
+api.post('/api/lift/session/open', async (c) => {
+  const db = c.env.DB
+  await ensureDevice(db, DEVICE_DEFAULT)
+  const parsed = await readLiftSessionBody(c)
+  if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
+
+  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const next = openLiftSession(current, parsed.dayId, parsed.localDate, Date.now())
+  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  return c.json({ ok: true })
+})
+
+api.post('/api/lift/session/close', async (c) => {
+  const db = c.env.DB
+  await ensureDevice(db, DEVICE_DEFAULT)
+  const parsed = await readLiftSessionBody(c)
+  if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
+
+  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const next = closeLiftSession(current, parsed.dayId, parsed.localDate, Date.now())
+  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  return c.json({ ok: true })
+})
+
+api.post('/api/lift/assumption/dismiss', async (c) => {
+  const db = c.env.DB
+  await ensureDevice(db, DEVICE_DEFAULT)
+  const parsed = await readLiftSessionBody(c)
+  if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
+
+  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const next = dismissLiftAssumption(current, parsed.dayId, parsed.localDate)
+  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  return c.json({ ok: true })
+})
+
+api.post('/api/lift/assumption/clear', async (c) => {
+  const db = c.env.DB
+  await ensureDevice(db, DEVICE_DEFAULT)
+  const parsed = await readLiftSessionBody(c)
+  if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
+
+  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const next = clearLiftAssumption(current, parsed.dayId, parsed.localDate)
+  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
   return c.json({ ok: true })
 })
 

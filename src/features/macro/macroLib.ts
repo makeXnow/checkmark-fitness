@@ -19,6 +19,7 @@ export type MacroEstimateResponse = {
   fatSecretIndex?: number | null
   servingIndex?: number | null
   multiplier?: number
+  servingType?: string
   calories?: number
   protein?: number
 }
@@ -27,7 +28,10 @@ export type MacroEstimateResult = {
   calories: number
   protein: number
   libraryFoodId?: string
+  servingType?: string
   servingMultiplier?: number
+  baseCalories?: number
+  baseProtein?: number
 }
 
 /** 1-based numbered list for the macro-estimate prompt. */
@@ -81,6 +85,58 @@ export function scaleFatSecretServing(
   }
 }
 
+export function formatMultiplier(m: number): string {
+  return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
+}
+
+/** Display string for a quantity + unit (e.g. "0.8 can", "2 cups"). */
+export function formatServingDisplay(multiplier: number, servingType: string): string {
+  const type = servingType.trim() || 'serving'
+  const m = formatMultiplier(Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1)
+  return `${m} ${type}`
+}
+
+/** Parse legacy free-text amount into quantity + unit. */
+export function parseLegacyServing(amount: string): { multiplier: number; servingType: string } {
+  const trimmed = amount.trim()
+  if (!trimmed) return { multiplier: 1, servingType: 'serving' }
+  const match = trimmed.match(/^([\d.]+)\s+(.*)$/)
+  if (match) {
+    const n = parseFloat(match[1]!)
+    if (Number.isFinite(n) && n > 0) return { multiplier: n, servingType: match[2]!.trim() || 'serving' }
+  }
+  const compact = trimmed.match(/^([\d.]+)(oz|g|lb|lbs|ml|l)$/i)
+  if (compact) {
+    const n = parseFloat(compact[1]!)
+    if (Number.isFinite(n) && n > 0) return { multiplier: n, servingType: compact[2]!.toLowerCase() }
+  }
+  const numOnly = parseFloat(trimmed)
+  if (Number.isFinite(numOnly) && String(numOnly) === trimmed) return { multiplier: numOnly, servingType: 'serving' }
+  return { multiplier: 1, servingType: trimmed }
+}
+
+/** Resolved serving fields for display and edit. */
+export function macroItemServingFields(item: {
+  amount?: string
+  servingType?: string
+  servingMultiplier?: number
+}): { servingType: string; servingMultiplier: number; amount: string } {
+  if (item.servingType?.trim()) {
+    const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
+    return {
+      servingType: item.servingType.trim(),
+      servingMultiplier: mult,
+      amount: formatServingDisplay(mult, item.servingType),
+    }
+  }
+  const legacy = parseLegacyServing(item.amount || '')
+  return {
+    servingType: legacy.servingType,
+    servingMultiplier: legacy.multiplier,
+    amount: item.amount?.trim() ? item.amount : formatServingDisplay(legacy.multiplier, legacy.servingType),
+  }
+}
+
 function parseIndex(raw: unknown): number | null {
   if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
   if (typeof raw === 'string' && raw.trim()) {
@@ -104,7 +160,10 @@ export function resolveMacroEstimate(
       calories: scaled.calories,
       protein: scaled.protein,
       libraryFoodId: food.id,
+      servingType: food.baseAmount || '1 serving',
       servingMultiplier: multiplier,
+      baseCalories: food.calories,
+      baseProtein: food.protein,
     }
   }
 
@@ -121,13 +180,24 @@ export function resolveMacroEstimate(
     return {
       calories: scaled.calories,
       protein: scaled.protein,
+      servingType: serving.description,
       servingMultiplier: multiplier,
+      baseCalories: serving.calories,
+      baseProtein: serving.protein,
     }
   }
 
+  const multiplier = typeof response.multiplier === 'number' && response.multiplier > 0 ? response.multiplier : 1
+  const calories = Math.round(response.calories ?? 0)
+  const protein = Math.round((response.protein ?? 0) * 10) / 10
+  const servingType = response.servingType?.trim() || 'serving'
   return {
-    calories: Math.round(response.calories ?? 0),
-    protein: Math.round((response.protein ?? 0) * 10) / 10,
+    calories,
+    protein,
+    servingType,
+    servingMultiplier: multiplier,
+    baseCalories: Math.round(calories / multiplier),
+    baseProtein: Math.round((protein / multiplier) * 10) / 10,
   }
 }
 
@@ -159,8 +229,8 @@ export function describeMacroEstimate(
       details: [
         { label: 'Library #', value: String(libIdx) },
         { label: 'Item', value: food.name },
-        { label: 'Base serving', value: food.baseAmount || '1 serving' },
-        { label: 'Multiplier', value: formatMultiplier(mult) },
+        { label: 'Serving type', value: food.baseAmount || '1 serving' },
+        { label: 'Quantity', value: formatMultiplier(mult) },
         { label: 'Base macros', value: `${food.calories} cal · ${food.protein}g protein` },
       ],
     }
@@ -181,8 +251,8 @@ export function describeMacroEstimate(
         { label: 'FatSecret #', value: String(fsIdx) },
         { label: 'Product', value: label },
         { label: 'Serving #', value: servIdx !== null ? String(servIdx) : 'default' },
-        { label: 'Serving size', value: serving.description },
-        { label: 'Multiplier', value: formatMultiplier(mult) },
+        { label: 'Serving type', value: serving.description },
+        { label: 'Quantity', value: formatMultiplier(mult) },
         { label: 'Per serving', value: `${serving.calories} cal · ${serving.protein}g protein` },
       ],
     }
@@ -194,7 +264,10 @@ export function describeMacroEstimate(
   if (libIdx !== null) details.push({ label: 'Library index', value: String(libIdx) })
   if (fsIdx !== null) details.push({ label: 'FatSecret index', value: String(fsIdx) })
   if (snap.multiplier != null && snap.multiplier !== 1) {
-    details.push({ label: 'Multiplier', value: formatMultiplier(mult) })
+    details.push({ label: 'Quantity', value: formatMultiplier(mult) })
+  }
+  if (snap.servingType?.trim()) {
+    details.push({ label: 'Serving type', value: snap.servingType.trim() })
   }
 
   return {
@@ -202,10 +275,6 @@ export function describeMacroEstimate(
     summary: `${cal} cal · ${pro}g protein`,
     details,
   }
-}
-
-function formatMultiplier(m: number): string {
-  return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
 }
 
 /** Display name from parser classification; falls back to current item name. */
@@ -281,16 +350,128 @@ export function mergeMacroDayLists(prev: MacroDayItem[], incoming: MacroDayItem[
 }
 
 /** Resume macro estimation for items saved before calories were calculated. */
-export function normalizeMacroLogsOnLoad(logs: Record<string, MacroDayItem[]>): Record<string, MacroDayItem[]> {
+export function backfillMacroItemServingFields(
+  item: MacroDayItem,
+  customFoods: MacroCustomFood[] = [],
+): MacroDayItem {
+  if (item.baseCalories != null && item.baseProtein != null && item.servingType?.trim()) {
+    const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
+    return {
+      ...item,
+      servingMultiplier: mult,
+      amount: formatServingDisplay(mult, item.servingType),
+    }
+  }
+
+  const foodsById = new Map(customFoods.map((f) => [f.id, f]))
+  if (item.libraryFoodId) {
+    const food = foodsById.get(item.libraryFoodId)
+    if (food) {
+      const legacy = parseLegacyServing(item.amount || '')
+      const mult =
+        typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
+          ? item.servingMultiplier
+          : legacy.multiplier
+      const servingType = food.baseAmount || '1 serving'
+      return {
+        ...item,
+        servingType,
+        servingMultiplier: mult,
+        baseCalories: food.calories,
+        baseProtein: food.protein,
+        amount: formatServingDisplay(mult, servingType),
+      }
+    }
+  }
+
+  const snap = item.macroEstimateSnapshot
+  const fsIdx = snap ? parseIndex(snap.fatSecretIndex) : null
+  if (snap && fsIdx != null && item.fatSecretResults?.length && fsIdx >= 1 && fsIdx <= item.fatSecretResults.length) {
+    const food = item.fatSecretResults[fsIdx - 1]!
+    const servIdx = parseIndex(snap.servingIndex)
+    const serving =
+      servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
+        ? food.servings[servIdx - 1]!
+        : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
+    const legacy = parseLegacyServing(item.amount || '')
+    const mult =
+      typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
+        ? item.servingMultiplier
+        : typeof snap.multiplier === 'number' && snap.multiplier > 0
+          ? snap.multiplier
+          : legacy.multiplier
+    const servingType = serving.description
+    return {
+      ...item,
+      servingType,
+      servingMultiplier: mult,
+      baseCalories: serving.calories,
+      baseProtein: serving.protein,
+      amount: formatServingDisplay(mult, servingType),
+    }
+  }
+
+  const legacy = parseLegacyServing(item.amount || '')
+  const mult =
+    typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
+      ? item.servingMultiplier
+      : typeof snap?.multiplier === 'number' && snap.multiplier > 0
+        ? snap.multiplier
+        : legacy.multiplier
+  const servingType = snap?.servingType?.trim() || legacy.servingType
+  const calories = item.calories ?? 0
+  const protein = item.protein ?? 0
+
+  if (calories > 0 || protein > 0) {
+    const baseCalories = mult > 0 ? Math.round(calories / mult) : calories
+    const baseProtein = mult > 0 ? Math.round((protein / mult) * 10) / 10 : protein
+    return {
+      ...item,
+      servingType,
+      servingMultiplier: mult,
+      baseCalories,
+      baseProtein,
+      amount: formatServingDisplay(mult, servingType),
+    }
+  }
+
+  return {
+    ...item,
+    servingType,
+    servingMultiplier: mult,
+    amount: formatServingDisplay(mult, servingType),
+  }
+}
+
+function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayItem): boolean {
+  return (
+    before.servingType !== after.servingType ||
+    before.servingMultiplier !== after.servingMultiplier ||
+    before.baseCalories !== after.baseCalories ||
+    before.baseProtein !== after.baseProtein ||
+    before.amount !== after.amount
+  )
+}
+
+export function normalizeMacroLogsOnLoad(
+  logs: Record<string, MacroDayItem[]>,
+  customFoods: MacroCustomFood[] = [],
+): Record<string, MacroDayItem[]> {
   let changed = false
   const out: Record<string, MacroDayItem[]> = {}
   for (const [date, items] of Object.entries(logs)) {
     const next = items.map((item) => {
+      let nextItem = item
       if (item.status === 'editing_raw' && item.name?.trim()) {
         changed = true
-        return { ...item, status: 'pending' as const }
+        nextItem = { ...item, status: 'pending' as const }
       }
-      return item
+      const backfilled = backfillMacroItemServingFields(nextItem, customFoods)
+      if (macroItemServingBackfillChanged(nextItem, backfilled)) {
+        changed = true
+        nextItem = backfilled
+      }
+      return nextItem
     })
     out[date] = next
   }

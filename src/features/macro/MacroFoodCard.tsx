@@ -8,7 +8,7 @@ import type {
   MacroParseSnapshot,
 } from '../../types/domain'
 import { FatSecretRouteChip } from './fatSecretRouteChip'
-import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName } from './macroLib'
+import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName, macroItemServingFields } from './macroLib'
 
 export type MacroFoodAuditTrail = {
   userInput?: string
@@ -188,7 +188,12 @@ export function MacroFoodAuditPanel({
 export type MacroFoodEditFields = {
   emoji: string
   name: string
+  /** Library base serving label (text mode only). */
   amount: string
+  /** AI-assigned unit label (quantity mode). */
+  servingType?: string
+  /** User-editable numeric multiplier (quantity mode). */
+  servingMultiplier?: number
   calories: number
   protein: number
 }
@@ -293,6 +298,7 @@ export function MacroFoodEditCard({
   audit,
   auditCustomFoods,
   toolbar = 'day',
+  amountMode = 'quantity',
 }: {
   fieldId: string
   data: MacroFoodEditFields
@@ -309,6 +315,8 @@ export function MacroFoodEditCard({
   auditCustomFoods?: MacroCustomFood[]
   /** `library`: trash + log + save. `library-add`: full-width Save + Save & Log. `day`: re-estimate, trash, info, save. */
   toolbar?: 'day' | 'library' | 'library-add'
+  /** `quantity`: numeric multiplier + read-only unit. `text`: free-text serving (library). */
+  amountMode?: 'quantity' | 'text'
 }) {
   const proteinInputId = `macro-protein-${fieldId}`
 
@@ -332,12 +340,37 @@ export function MacroFoodEditCard({
 
       <div className="p-3 bg-white/[0.02]">
         <div className="flex gap-2 w-full">
-          <MacroFieldInput
-            value={data.amount}
-            onChange={(v) => onChange({ ...data, amount: v })}
-            placeholder="Serv"
-            label="Serv"
-          />
+          {amountMode === 'quantity' ? (
+            <div className="flex-1 flex bg-white/5 rounded-xl overflow-hidden min-w-0">
+              <input
+                value={data.servingMultiplier === 0 ? '' : String(data.servingMultiplier ?? 1)}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  const n = raw === '' ? 0 : parseFloat(raw)
+                  onChange({ ...data, servingMultiplier: Number.isFinite(n) ? n : 0 })
+                }}
+                className={`${numberInputClass} pl-2 text-white`}
+                placeholder="1"
+                type="number"
+                step="any"
+                min="0"
+                aria-label="Serving quantity"
+              />
+              <span
+                className="text-[9px] font-black opacity-50 uppercase self-center pr-2.5 shrink-0 truncate max-w-[5rem]"
+                title={data.servingType || 'serving'}
+              >
+                {data.servingType || 'serving'}
+              </span>
+            </div>
+          ) : (
+            <MacroFieldInput
+              value={data.amount}
+              onChange={(v) => onChange({ ...data, amount: v })}
+              placeholder="Serv"
+              label="Serv"
+            />
+          )}
           <MacroFieldInput
             value={data.calories}
             onChange={(v) => onChange({ ...data, calories: parseFloat(v) || 0 })}
@@ -520,14 +553,19 @@ function itemToEditFields(item: {
   emoji?: string
   name: string
   amount: string
+  servingType?: string
+  servingMultiplier?: number
   calories?: number
   protein?: number
   parseSnapshot?: MacroParseSnapshot
 }): MacroFoodEditFields {
+  const serving = macroItemServingFields(item)
   return {
     emoji: macroItemDisplayEmoji(item),
     name: macroItemDisplayName(item),
-    amount: item.amount,
+    amount: serving.amount,
+    servingType: serving.servingType,
+    servingMultiplier: serving.servingMultiplier,
     calories: item.calories ?? 0,
     protein: item.protein ?? 0,
   }
