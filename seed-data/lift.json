@@ -178,6 +178,18 @@
       ]
     },
     {
+      "id": "w7",
+      "dayId": "d4",
+      "name": "Skull Crushers",
+      "mainWeight": 53,
+      "sets": 2,
+      "reps": 16,
+      "increment": 2.5,
+      "barWeight": 25,
+      "hasWarmup": false,
+      "warmupSets": []
+    },
+    {
       "id": "w8",
       "dayId": "d5",
       "name": "Squat",
