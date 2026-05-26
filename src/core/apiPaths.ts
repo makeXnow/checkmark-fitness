@@ -1,9 +1,23 @@
 import { getBasename } from '../lib/getBasename'
 
+/** Deployed Cloudflare Worker (must match wrangler.toml `name` + account workers.dev subdomain). */
+const DEPLOYED_WORKER_ORIGIN = 'https://mxn-checkmark-fitness.alexander-c3a.workers.dev'
+
 /** Cloudflare Worker that serves /api/* (must match wrangler.toml `name` + account workers.dev subdomain). */
 const WORKER_ORIGIN =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://mxn-checkmark-fitness.alexander-c3a.workers.dev'
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || DEPLOYED_WORKER_ORIGIN
+
+function isLocalDevHost(): boolean {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
+/** Opt in via VITE_USE_LOCAL_API=1 to hit wrangler dev on :8787 (Worker code changes only). */
+function useLocalWorkerApi(): boolean {
+  const flag = import.meta.env.VITE_USE_LOCAL_API as string | undefined
+  return flag === '1' || flag === 'true'
+}
 
 /**
  * On makexnow.com the router often proxies to static Pages; /api/* then returns index.html.
@@ -23,8 +37,8 @@ function useWorkerOriginInBrowser(): boolean {
 }
 
 /**
- * Optional absolute API origin (e.g. Worker URL) when the SPA and API are not same-origin.
- * Vite: set `VITE_API_URL` in `.env.production` or `.env.local`
+ * Resolve API URL. Local Vite dev defaults to the deployed Worker (live D1).
+ * Vite: `VITE_API_URL` in `.env.development` / `.env.production`; `VITE_USE_LOCAL_API=1` for local wrangler.
  */
 export function apiUrl(path: string): string {
   const apiPath = path.startsWith('/') ? path : `/${path}`
@@ -37,6 +51,15 @@ export function apiUrl(path: string): string {
     } catch {
       /* ignore */
     }
+  }
+
+  if (isLocalDevHost()) {
+    if (useLocalWorkerApi()) {
+      const base = getBasename()
+      if (base === '/') return apiPath
+      return `${base.replace(/\/$/, '')}${apiPath}`
+    }
+    return `${WORKER_ORIGIN}${apiPath}`
   }
 
   if (useWorkerOriginInBrowser()) {

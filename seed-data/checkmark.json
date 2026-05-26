@@ -8,13 +8,6 @@
       "label": "Water",
       "min": 6
     },
-    "lifting": {
-      "icon": "Dumbbell",
-      "label": "Lifting",
-      "min": 3,
-      "color": "bg-indigo-500",
-      "max": 5
-    },
     "cardio": {
       "color": "bg-rose-500",
       "max": 5,
@@ -28,19 +21,26 @@
       "min": 6,
       "color": "bg-emerald-500",
       "max": 7
+    },
+    "lift": {
+      "icon": "Dumbbell",
+      "label": "Lift",
+      "min": 3,
+      "color": "bg-indigo-500",
+      "max": 5
     }
   },
   "logs": {
     "2026-05-05": {
-      "lifting": true,
       "cardio": true,
       "water": 4,
-      "diet": true
+      "diet": true,
+      "lift": true
     },
     "2026-05-04": {
       "diet": true,
-      "lifting": true,
-      "cardio": true
+      "cardio": true,
+      "lift": true
     },
     "2026-05-07": {
       "water": 4,
@@ -48,12 +48,59 @@
     },
     "2026-05-06": {
       "water": 3,
-      "lifting": true,
       "cardio": true,
+      "diet": true,
+      "lift": true
+    },
+    "2026-05-17": {
+      "water": 1,
+      "diet": false,
+      "cardio": false,
+      "lift": false
+    },
+    "2026-05-11": {
+      "water": 4,
+      "diet": true,
+      "lift": true
+    },
+    "2026-05-12": {
+      "lift": true,
+      "cardio": true,
+      "diet": true,
+      "water": 4
+    },
+    "2026-05-13": {
+      "lift": true,
+      "cardio": true,
+      "water": 4,
       "diet": true
+    },
+    "2026-05-14": {
+      "lift": true,
+      "cardio": true,
+      "water": 4,
+      "diet": true
+    },
+    "2026-05-18": {
+      "cardio": false,
+      "water": 4
+    },
+    "2026-05-20": {
+      "water": 4,
+      "diet": true,
+      "cardio": true,
+      "lift": true
+    },
+    "2026-05-19": {
+      "water": 4,
+      "diet": true
+    },
+    "2026-05-21": {
+      "water": 1,
+      "cardio": true
     }
   },
   "appSettings": {
-    "firstDayOfWeek": 0
+    "firstDayOfWeek": 1
   }
 }

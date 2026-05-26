@@ -173,6 +173,8 @@ export interface LiftPayload {
   statuses: { id: string; name: string; multiplier: number | string }[]
   history: LiftHistoryEntry[]
   availablePlates: number[]
+  /** When true, plate order is optimized across warmups + working sets per exercise. */
+  optimizedPlateOrder?: boolean
   /** Display and labels; plate math still uses the same numeric rack until kg-specific logic is added. */
   weightUnit?: LiftWeightUnit
   plateUnit?: LiftWeightUnit

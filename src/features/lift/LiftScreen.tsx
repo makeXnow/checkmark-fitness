@@ -802,6 +802,34 @@ export function LiftScreen({
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Plate rack</h3>
+          <div className="mb-4">
+            <FieldLabel>Optimized plate order</FieldLabel>
+            <p className="mb-2 text-xs text-neutral-500">
+              Minimize plate changes across warmups and working sets within each exercise.
+            </p>
+            <div className="flex rounded-lg border border-neutral-800 bg-black p-1">
+              <button
+                type="button"
+                disabled={!onPersist}
+                onClick={() => persist({ ...payload, optimizedPlateOrder: false })}
+                className={`flex-1 rounded-md py-2.5 text-center text-[10px] font-black uppercase transition-colors ${
+                  !payload.optimizedPlateOrder ? 'bg-emerald-400 text-black' : 'text-neutral-500'
+                } disabled:opacity-40`}
+              >
+                Off
+              </button>
+              <button
+                type="button"
+                disabled={!onPersist}
+                onClick={() => persist({ ...payload, optimizedPlateOrder: true })}
+                className={`flex-1 rounded-md py-2.5 text-center text-[10px] font-black uppercase transition-colors ${
+                  payload.optimizedPlateOrder ? 'bg-emerald-400 text-black' : 'text-neutral-500'
+                } disabled:opacity-40`}
+              >
+                On
+              </button>
+            </div>
+          </div>
           <div className="mb-4 flex gap-2">
             <input
               type="number"
@@ -1004,6 +1032,7 @@ export function LiftScreen({
           workout,
           payload.availablePlates || [],
           runningSetNum,
+          payload.optimizedPlateOrder ?? false,
         )
         runningSetNum = nextSetNum
         const sid = effectiveStatusId(workout.id)

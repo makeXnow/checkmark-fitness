@@ -1,4 +1,4 @@
-/** Scroll the active tab page (and legacy #app-main if it ever scrolls). */
+/** Scroll the active tab page to the top. */
 export function scrollAppMainToTop(): void {
   document.getElementById('app-main')?.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   document

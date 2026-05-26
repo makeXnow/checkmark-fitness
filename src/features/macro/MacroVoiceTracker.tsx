@@ -113,7 +113,6 @@ export function MacroVoiceTracker({
   goals,
   logs,
   customFoods,
-  showDock,
   onSaveLogs,
   onSaveFoods,
 }: {
@@ -121,7 +120,6 @@ export function MacroVoiceTracker({
   goals: MacroGoals
   logs: Record<string, MacroDayItem[]>
   customFoods: MacroCustomFood[]
-  showDock: boolean
   onSaveLogs: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods: (foods: MacroCustomFood[]) => void
 }) {
@@ -643,7 +641,9 @@ export function MacroVoiceTracker({
   )
 
   return (
-    <div className="flex flex-col gap-4 pb-44">
+    <div className="flex min-h-0 flex-1 flex-col" data-macro-diet-page>
+      {/* scrollable list — flex-1 so it takes all space above the dock */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain pb-4">
       <StatusDashboard
         consumed={totals.cal}
         goal={goals.calorieGoal}
@@ -689,21 +689,21 @@ export function MacroVoiceTracker({
         )}
       </section>
 
-      <section className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
+      <section className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] [overflow:clip]">
+        <div className="relative z-10 flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
           <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
             <NotebookText size={16} className="text-emerald-400" /> Food Library
           </h2>
           <button
             type="button"
             onClick={() => setDbModalOpen(true)}
-            className="p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
+            className="relative z-10 p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
             aria-label="Add food"
           >
             <Plus size={16} strokeWidth={2.5} />
           </button>
         </div>
-        <div className="p-4 space-y-3 max-h-52 overflow-y-auto">
+        <div className="p-4 space-y-3">
           {customFoods.length === 0 ? (
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">Library is empty</p>
           ) : (
@@ -728,37 +728,38 @@ export function MacroVoiceTracker({
           )}
         </div>
       </section>
+      </div>{/* end scrollable list */}
 
-      {showDock ? (
-        <InteractionDock
-          inputRef={inputRef}
-          inputText={inputText}
-          setInputText={setInputText}
-          recording={recording}
-          volume={volume}
-          quickScan={quickScan}
-          setQuickScan={setQuickScan}
-          onMic={handleMicToggle}
-          onSend={handleSend}
-          onQuickFile={handleQuickFile}
-        />
+      <InteractionDock
+        inputRef={inputRef}
+        inputText={inputText}
+        setInputText={setInputText}
+        recording={recording}
+        volume={volume}
+        quickScan={quickScan}
+        setQuickScan={setQuickScan}
+        onMic={handleMicToggle}
+        onSend={handleSend}
+        onQuickFile={handleQuickFile}
+      />
+
+      {dbModalOpen ? (
+        <AppPortal>
+          <DatabaseModal
+            onClose={() => setDbModalOpen(false)}
+            onSave={(entry) => {
+              onSaveFoods([...customFoods, { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }])
+              setDbModalOpen(false)
+            }}
+            onSaveAndLog={(entry) => {
+              const food: MacroCustomFood = { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }
+              onSaveFoods([...customFoods, food])
+              logLibraryFood(food.id, libraryFoodToEditFields(food))
+              setDbModalOpen(false)
+            }}
+          />
+        </AppPortal>
       ) : null}
-
-      {dbModalOpen && (
-        <DatabaseModal
-          onClose={() => setDbModalOpen(false)}
-          onSave={(entry) => {
-            onSaveFoods([...customFoods, { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }])
-            setDbModalOpen(false)
-          }}
-          onSaveAndLog={(entry) => {
-            const food: MacroCustomFood = { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }
-            onSaveFoods([...customFoods, food])
-            logLibraryFood(food.id, libraryFoodToEditFields(food))
-            setDbModalOpen(false)
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -989,10 +990,13 @@ function InteractionDock({
   /** Mic when idle; send (arrow) when there is text, quick-scan is ready, or actively recording — tap send to stop mic and transcribe. */
   const showSend = Boolean(inputText.trim() || isQuickReady || recording)
 
-  const dock = (
-    <div className="fixed bottom-[calc(var(--app-nav-offset)+0.5rem)] left-0 right-0 z-20 pointer-events-none">
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none" />
-      <div className="max-w-md mx-auto flex flex-col gap-3 p-6 relative pointer-events-auto">
+  return (
+    <div className="relative z-20 shrink-0 pointer-events-none pb-[calc(var(--app-nav-offset)+0.5rem)]">
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-full h-10 bg-gradient-to-t from-black via-black/95 to-transparent"
+        aria-hidden
+      />
+      <div className="relative flex w-full flex-col gap-3 pt-2 pointer-events-auto">
         {quickScan.isOpen && (
           <div className="flex gap-3 bg-[var(--color-surface)] p-3 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-2xl">
             <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
@@ -1083,9 +1087,11 @@ function InteractionDock({
       </div>
     </div>
   )
+}
 
-  const portalRoot = document.getElementById('app-root')
-  return portalRoot ? createPortal(dock, portalRoot) : dock
+function AppPortal({ children }: { children: React.ReactNode }) {
+  const root = typeof document !== 'undefined' ? document.getElementById('app-root') : null
+  return root ? createPortal(children, root) : <>{children}</>
 }
 
 const EMPTY_FOOD_ENTRY: Omit<MacroCustomFood, 'id' | 'createdAt'> = {
@@ -1190,7 +1196,7 @@ function DatabaseModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center p-4 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-[70] flex flex-col items-center bg-black/90 p-4 backdrop-blur-md overflow-y-auto">
       <div className="w-full max-w-md mt-6 flex justify-between items-center mb-6 shrink-0">
         <h2 className="text-xl font-black text-emerald-400 flex items-center gap-2">
           <Plus size={24} /> Add Food

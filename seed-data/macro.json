@@ -1,7 +1,11 @@
 {
   "goals": {
-    "calorieGoal": 2000,
-    "proteinPctGoal": 30
+    "calorieGoal": 2050,
+    "proteinPctGoal": 35,
+    "weightLbs": 180,
+    "bodyFatPct": 18,
+    "activeHours": 5,
+    "goalMode": "fast-cut"
   },
   "customFoods": [
     {
@@ -14,6 +18,94 @@
       "emoji": "🥩",
       "id": "61d3b1e5-f7bf-4fe9-92d3-9641060c028e",
       "name": "Peppered Beef Jerky"
+    },
+    {
+      "id": "df8bf419-7298-4563-aa13-3c72d1c199e7",
+      "name": "Yasso Bars",
+      "emoji": "🍓",
+      "baseAmount": "1 Bar (62g)",
+      "calories": 80,
+      "protein": 4,
+      "fat": 0,
+      "carbs": 14,
+      "createdAt": 1779323664334
+    },
+    {
+      "id": "125b555e-c4cc-43cb-9a5b-95a896b367e9",
+      "name": "Whole Wheat Bread",
+      "emoji": "🍞",
+      "baseAmount": "1 slice (26g)",
+      "calories": 60,
+      "protein": 3,
+      "fat": 0.5,
+      "carbs": 12,
+      "createdAt": 1779324023561
+    },
+    {
+      "id": "d3d1f9dd-2164-41bd-991e-7a01e6c6e2f9",
+      "name": "Whey Isolate",
+      "emoji": "🍑",
+      "baseAmount": "1 Scoop (24g)",
+      "calories": 80,
+      "protein": 20,
+      "fat": 0,
+      "carbs": 0,
+      "createdAt": 1779333962907
+    },
+    {
+      "id": "3da10b93-c334-44f2-8323-4cb0af532115",
+      "name": "Goodles Pasta",
+      "emoji": "🍝",
+      "baseAmount": "2 oz dry (57g)",
+      "calories": 210,
+      "protein": 8,
+      "fat": 1,
+      "carbs": 41,
+      "createdAt": 1779431890550
+    },
+    {
+      "id": "86c4ec0a-02b0-4f54-8341-987891ccf6c9",
+      "name": "Chicken Breast",
+      "emoji": "🍗",
+      "baseAmount": "3 oz (84g)",
+      "calories": 70,
+      "protein": 13,
+      "fat": 1.5,
+      "carbs": 0,
+      "createdAt": 1779431919626
+    },
+    {
+      "id": "55da6bdb-d216-45cb-9af2-03aef61098b2",
+      "name": "Nutella Ice Cream",
+      "emoji": "🍦",
+      "baseAmount": "1 cone (65g)",
+      "calories": 250,
+      "protein": 3,
+      "fat": 14,
+      "carbs": 29,
+      "createdAt": 1779432193593
+    },
+    {
+      "id": "ffbabff2-03d6-4a69-b218-22b9e08c0314",
+      "name": "Oikos S'mores",
+      "emoji": "🍫",
+      "baseAmount": "1 Container (128g)",
+      "calories": 120,
+      "protein": 11,
+      "fat": 2,
+      "carbs": 14,
+      "createdAt": 1779494861251
+    },
+    {
+      "id": "66c67870-6ae0-476a-bc62-0682a6d3cbae",
+      "name": "Mint Choc Chip",
+      "emoji": "🍦",
+      "baseAmount": "2/3 cup (99g)",
+      "calories": 150,
+      "protein": 7,
+      "fat": 3,
+      "carbs": 24,
+      "createdAt": 1779511880008
     }
   ],
   "logs": {
@@ -113,6 +205,2038 @@
         "carbs": 22.8,
         "amount": "4oz",
         "status": "ready"
+      }
+    ],
+    "2026-05-17": [
+      {
+        "id": "804da1dd-ba65-4596-a2e1-f6f269d308c0",
+        "emoji": "🍊",
+        "name": "Orange Chicken",
+        "amount": "1 serving",
+        "fatSecretSearch": "Panda Express orange chicken",
+        "status": "ready",
+        "timestamp": 1779057216851,
+        "calories": 300,
+        "protein": 15,
+        "fat": 0,
+        "carbs": 0,
+        "rawText": "Orange Chicken 1 serving",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 300,
+          "protein": 15
+        }
+      },
+      {
+        "id": "8aa432c7-4f51-42c7-bf9a-45dc992cd077",
+        "emoji": "🍗",
+        "name": "String Bean Chicken",
+        "amount": "1 serving",
+        "fatSecretSearch": "Panda Express string bean chicken",
+        "status": "ready",
+        "timestamp": 1779057216851,
+        "calories": 180,
+        "protein": 20,
+        "fat": 0,
+        "carbs": 0,
+        "rawText": "String Bean Chicken 1 serving",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 180,
+          "protein": 20
+        }
+      },
+      {
+        "id": "31c021a1-8245-460e-96db-3071dca78857",
+        "emoji": "🍜",
+        "name": "Chow Mein",
+        "amount": "1 serving",
+        "fatSecretSearch": "Panda Express chow mein",
+        "status": "ready",
+        "timestamp": 1779057216851,
+        "calories": 300,
+        "protein": 10,
+        "fat": 0,
+        "carbs": 0,
+        "rawText": "Chow Mein 1 serving",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 300,
+          "protein": 10
+        }
+      },
+      {
+        "id": "70ba5375-2c66-4b83-a749-b755a9eac3b9",
+        "emoji": "🥩",
+        "name": "Peppered Beef Jerky",
+        "amount": "1 oz (28g)",
+        "calories": 80,
+        "protein": 9,
+        "libraryFoodId": "61d3b1e5-f7bf-4fe9-92d3-9641060c028e",
+        "status": "ready",
+        "timestamp": 1779066495467
+      }
+    ],
+    "2026-05-18": [
+      {
+        "id": "e19d60ae-54c0-430b-95e8-0ecb232d3965",
+        "emoji": "🍫",
+        "name": "Lemon Bar",
+        "amount": "1",
+        "fatSecretSearch": "Lemon Built Bar",
+        "parseSnapshot": {
+          "emoji": "🍫",
+          "name": "Lemon Bar",
+          "amount": "1",
+          "fatSecretSearch": "Lemon Built Bar"
+        },
+        "status": "ready",
+        "timestamp": 1779144944087,
+        "calories": 180,
+        "protein": 4,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Lemon built bar",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 180,
+          "protein": 4
+        }
+      }
+    ],
+    "2026-05-19": [
+      {
+        "id": "a96b21ad-7bd7-473f-848a-322c5cac9371",
+        "emoji": "🍗",
+        "name": "Canned Chicken",
+        "amount": "1 can",
+        "fatSecretSearch": "canned chicken",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Canned Chicken",
+          "amount": "1 can",
+          "fatSecretSearch": "canned chicken"
+        },
+        "status": "ready",
+        "timestamp": 1779174996717,
+        "calories": 110,
+        "protein": 22,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "I had a can of chicken and a tablespoon of mayonnaise and a lemon meringue Built Bar and a slice of sourdough bread.",
+        "fatSecretResults": [
+          {
+            "foodId": "3160612",
+            "name": "Canned Chicken",
+            "brandName": "Great Value",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "3160612-0",
+                "description": "3 oz drained",
+                "calories": 70,
+                "protein": 13,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "7958646",
+            "name": "Canned Chicken",
+            "brandName": "Kirkland Signature",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "7958646-0",
+                "description": "2 oz",
+                "calories": 60,
+                "protein": 13,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "103179694",
+            "name": "Canned Chicken Breast",
+            "brandName": "Member's Mark",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "103179694-0",
+                "description": "3 oz",
+                "calories": 90,
+                "protein": 19,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "76077303",
+            "name": "Canned Chicken Breast (142g)",
+            "brandName": "Hormel",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "76077303-0",
+                "description": "5 oz",
+                "calories": 110,
+                "protein": 22,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "100367801",
+            "name": "Canned Chicken Breast",
+            "brandName": "Wegmans",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "100367801-0",
+                "description": "1 serving",
+                "calories": 70,
+                "protein": 13,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4723234",
+            "name": "Canned Chunk Chicken Breast",
+            "brandName": "Great Value",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "4723234-0",
+                "description": "2 oz",
+                "calories": 45,
+                "protein": 9,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "28982",
+            "name": "Canned Chicken Breast in Water",
+            "brandName": "Tyson Foods",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "28982-0",
+                "description": "1/4 cup",
+                "calories": 60,
+                "protein": 13,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "17657557",
+            "name": "Canned Chicken Breast",
+            "brandName": "Kroger",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "17657557-0",
+                "description": "2 oz",
+                "calories": 70,
+                "protein": 12,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 4,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "servingMultiplier": 1
+      },
+      {
+        "id": "17422ef7-216c-4e98-a477-5c6025f858e7",
+        "emoji": "🥫",
+        "name": "Mayonnaise",
+        "amount": "1 tablespoon",
+        "fatSecretSearch": "mayonnaise",
+        "parseSnapshot": {
+          "emoji": "🥫",
+          "name": "Mayonnaise",
+          "amount": "1 tablespoon",
+          "fatSecretSearch": "mayonnaise"
+        },
+        "status": "ready",
+        "timestamp": 1779174996717,
+        "calories": 90,
+        "protein": 0,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "I had a can of chicken and a tablespoon of mayonnaise and a lemon meringue Built Bar and a slice of sourdough bread.",
+        "fatSecretResults": [
+          {
+            "foodId": "34194",
+            "name": "Mayonnaise",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34194-0",
+                "description": "100g",
+                "calories": 390,
+                "protein": 0.9,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "48933",
+            "name": "Real Mayonnaise",
+            "brandName": "Hellmann's",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "48933-0",
+                "description": "1 tbsp",
+                "calories": 90,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "59135",
+            "name": "Real Mayonnaise",
+            "brandName": "Best Foods",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "59135-0",
+                "description": "1 tbsp",
+                "calories": 90,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "66614",
+            "name": "Mayonnaise",
+            "brandName": "Duke's",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "66614-0",
+                "description": "1 tbsp",
+                "calories": 100,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4078050",
+            "name": "Mayo Real Mayonnaise",
+            "brandName": "Kraft",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "4078050-0",
+                "description": "1 tbsp",
+                "calories": 62,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "26316",
+            "name": "Light Mayonnaise",
+            "brandName": "Hellmann's",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "26316-0",
+                "description": "1 tbsp",
+                "calories": 35,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "261848",
+            "name": "Real Mayonnaise",
+            "brandName": "Great Value",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "261848-0",
+                "description": "1 tbsp",
+                "calories": 90,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "2277679",
+            "name": "Mayo with Olive Oil",
+            "brandName": "Kraft",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "2277679-0",
+                "description": "1 tbsp",
+                "calories": 45,
+                "protein": 0,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 2,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "servingMultiplier": 1
+      },
+      {
+        "id": "cd7b7afa-ddd3-4cc4-a62b-653d305d9233",
+        "emoji": "🍋",
+        "name": "Built Bar",
+        "amount": "1",
+        "notes": "lemon meringue flavor",
+        "fatSecretSearch": "Built Bar lemon meringue",
+        "parseSnapshot": {
+          "emoji": "🍋",
+          "name": "Built Bar",
+          "amount": "1",
+          "notes": "lemon meringue flavor",
+          "fatSecretSearch": "Built Bar lemon meringue"
+        },
+        "status": "ready",
+        "timestamp": 1779174996717,
+        "calories": 140,
+        "protein": 17,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "I had a can of chicken and a tablespoon of mayonnaise and a lemon meringue Built Bar and a slice of sourdough bread.",
+        "fatSecretResults": [
+          {
+            "foodId": "37653980",
+            "name": "Blueberry Lemon",
+            "brandName": "Built Bar",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "37653980-0",
+                "description": "1 bar",
+                "calories": 140,
+                "protein": 18,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "39617919",
+            "name": "Lemon Almond Cheesecake",
+            "brandName": "Built Bar",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "39617919-0",
+                "description": "1 bar",
+                "calories": 160,
+                "protein": 19,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "44906990",
+            "name": "Built GO",
+            "brandName": "Built Bar",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "44906990-0",
+                "description": "1 packet",
+                "calories": 100,
+                "protein": 15,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "3992",
+            "name": "Lemon Bar Cookie",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "3992-0",
+                "description": "622g",
+                "calories": 2676,
+                "protein": 31.3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "31472196",
+            "name": "Built Burner",
+            "brandName": "Built Bar",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "31472196-0",
+                "description": "1 bar",
+                "calories": 140,
+                "protein": 17,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4130",
+            "name": "Lemon Meringue Pie",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "4130-0",
+                "description": "100g",
+                "calories": 268,
+                "protein": 1.5,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4033",
+            "name": "Toffee Bar Cookie",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "4033-0",
+                "description": "100g",
+                "calories": 489,
+                "protein": 5.5,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "7505",
+            "name": "Planters Peanut Bar",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "7505-0",
+                "description": "100g",
+                "calories": 510,
+                "protein": 16.26,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 5,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "servingMultiplier": 1
+      },
+      {
+        "id": "e0a42871-9b27-412a-a462-320b02cd3da9",
+        "emoji": "🍞",
+        "name": "Sourdough Bread",
+        "amount": "1 slice",
+        "fatSecretSearch": "sourdough bread",
+        "parseSnapshot": {
+          "emoji": "🍞",
+          "name": "Sourdough Bread",
+          "amount": "1 slice",
+          "fatSecretSearch": "sourdough bread"
+        },
+        "status": "ready",
+        "timestamp": 1779174996717,
+        "calories": 100,
+        "protein": 3,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "I had a can of chicken and a tablespoon of mayonnaise and a lemon meringue Built Bar and a slice of sourdough bread.",
+        "fatSecretResults": [
+          {
+            "foodId": "3490",
+            "name": "Sour Dough Bread",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "3490-0",
+                "description": "100g",
+                "calories": 274,
+                "protein": 8.8,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4671638",
+            "name": "Sourdough Bread",
+            "brandName": "365",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "4671638-0",
+                "description": "1 slice",
+                "calories": 100,
+                "protein": 3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "1736398",
+            "name": "San Francisco Sourdough Bread",
+            "brandName": "Great Grains Bakery",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "1736398-0",
+                "description": "1 slice",
+                "calories": 150,
+                "protein": 5,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "6479026",
+            "name": "Sourdough Bread",
+            "brandName": "Great Value",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "6479026-0",
+                "description": "1 slice",
+                "calories": 120,
+                "protein": 4,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "193529",
+            "name": "Rustic Country Sourdough Bread",
+            "brandName": "Trader Joe's",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "193529-0",
+                "description": "1 slice",
+                "calories": 90,
+                "protein": 3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "83026",
+            "name": "Sourdough Deli Bread",
+            "brandName": "San Luis Sourdough",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "83026-0",
+                "description": "2 oz",
+                "calories": 110,
+                "protein": 4,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "57409",
+            "name": "Country White Sourdough Extra Large Loaf",
+            "brandName": "LaBrea Bakery",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "57409-0",
+                "description": "1 slice",
+                "calories": 140,
+                "protein": 5,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4327528",
+            "name": "Sliced Sourdough Bread",
+            "brandName": "Trader Joe's",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "4327528-0",
+                "description": "1 slice",
+                "calories": 110,
+                "protein": 4,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 2,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "servingMultiplier": 1
+      },
+      {
+        "id": "58023493-4b03-4f9d-a33e-a39d498c99b5",
+        "emoji": "🍘",
+        "name": "Rice Cracker",
+        "amount": "1",
+        "fatSecretSearch": "rice cracker",
+        "parseSnapshot": {
+          "emoji": "🍘",
+          "name": "Rice Cracker",
+          "amount": "1",
+          "fatSecretSearch": "rice cracker"
+        },
+        "status": "ready",
+        "timestamp": 1779175001701,
+        "calories": 80,
+        "protein": 2.2,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "I had a rice cracker.",
+        "fatSecretResults": [
+          {
+            "foodId": "1530866",
+            "name": "Rice Crackers",
+            "brandName": "No Name",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "1530866-0",
+                "description": "8 crackers",
+                "calories": 60,
+                "protein": 1,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4298",
+            "name": "Rice Crackers",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "4298-0",
+                "description": "100g",
+                "calories": 384,
+                "protein": 6.63,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "309128",
+            "name": "Japanese Rice Crackers",
+            "brandName": "Luv Yu",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "309128-0",
+                "description": "1 serving",
+                "calories": 80,
+                "protein": 2.2,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "130669",
+            "name": "Savory Thins Original Rice Crackers",
+            "brandName": "Trader Joe's",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "130669-0",
+                "description": "38 crackers",
+                "calories": 130,
+                "protein": 3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "346609",
+            "name": "Rice Crackers",
+            "brandName": "Mizuho",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "346609-0",
+                "description": "1/2 Cup",
+                "calories": 110,
+                "protein": 2,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "1806172",
+            "name": "Snow Rice Crackers",
+            "brandName": "Bin Bin",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "1806172-0",
+                "description": "2 packs",
+                "calories": 150,
+                "protein": 2,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4233539",
+            "name": "Almond Nut-Thins - Nut & Rice Cracker Snacks",
+            "brandName": "Blue Diamond",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "4233539-0",
+                "description": "19 crackers",
+                "calories": 130,
+                "protein": 3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "1704930",
+            "name": "Sesame Rice Crackers",
+            "brandName": "Fresh & Easy",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "1704930-0",
+                "description": "16 crackers",
+                "calories": 130,
+                "protein": 2,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 3,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "servingMultiplier": 1
+      },
+      {
+        "id": "157f87a0-c130-4824-888c-def66e77e47a",
+        "emoji": "🍗",
+        "name": "Chicken",
+        "amount": "6 ounces",
+        "fatSecretSearch": "chicken cooked",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Chicken",
+          "amount": "6 ounces",
+          "fatSecretSearch": "chicken cooked"
+        },
+        "status": "ready",
+        "timestamp": 1779175026322,
+        "calories": 296,
+        "protein": 44.7,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "6 ounces of chicken, 4 ounces of mashed potatoes.",
+        "fatSecretResults": [
+          {
+            "foodId": "34499",
+            "name": "Chicken Meat (Roasting, Roasted, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34499-0",
+                "description": "100g",
+                "calories": 167,
+                "protein": 25.01,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "1641",
+            "name": "Chicken Breast",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "1641-0",
+                "description": "101g",
+                "calories": 197,
+                "protein": 29.8,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "34450",
+            "name": "Chicken Breast Meat (Broilers or Fryers, Stewed, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34450-0",
+                "description": "100g",
+                "calories": 151,
+                "protein": 28.98,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "34511",
+            "name": "Chicken Meat (Stewing, Stewed, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34511-0",
+                "description": "100g",
+                "calories": 237,
+                "protein": 30.42,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "34468",
+            "name": "Chicken Leg Meat (Broilers or Fryers, Stewed, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34468-0",
+                "description": "100g",
+                "calories": 185,
+                "protein": 26.26,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "34523",
+            "name": "Chicken Giblets (Capons, Simmered, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34523-0",
+                "description": "100g",
+                "calories": 164,
+                "protein": 26.39,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "34517",
+            "name": "Chicken Dark Meat (Stewing, Stewed, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "34517-0",
+                "description": "100g",
+                "calories": 258,
+                "protein": 28.14,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "35296",
+            "name": "Chicken Bratwurst (Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "35296-0",
+                "description": "100g",
+                "calories": 176,
+                "protein": 19.44,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 2,
+          "servingIndex": 1,
+          "multiplier": 1.5
+        },
+        "servingMultiplier": 1.5
+      },
+      {
+        "id": "b187227a-9cb1-4eb6-9a7f-1540f36f1760",
+        "emoji": "🥔",
+        "name": "Mashed Potatoes",
+        "amount": "4 ounces",
+        "fatSecretSearch": "mashed potatoes",
+        "parseSnapshot": {
+          "emoji": "🥔",
+          "name": "Mashed Potatoes",
+          "amount": "4 ounces",
+          "fatSecretSearch": "mashed potatoes"
+        },
+        "status": "ready",
+        "timestamp": 1779175026322,
+        "calories": 40,
+        "protein": 0.7,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "6 ounces of chicken, 4 ounces of mashed potatoes.",
+        "fatSecretResults": [
+          {
+            "foodId": "5777",
+            "name": "Mashed Potato",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "5777-0",
+                "description": "100g",
+                "calories": 100,
+                "protein": 1.8,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "36956",
+            "name": "Mashed Potatoes (Whole Milk and Butter Added)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "36956-0",
+                "description": "100g",
+                "calories": 113,
+                "protein": 1.87,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "2905485",
+            "name": "Traditional Mashed Potatoes",
+            "brandName": "Simply Potatoes",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "2905485-0",
+                "description": "1/2 cup",
+                "calories": 130,
+                "protein": 3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "5778",
+            "name": "Mashed Potato made with Milk (from Fresh)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "5778-0",
+                "description": "764g",
+                "calories": 619,
+                "protein": 14.44,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "53094",
+            "name": "Buttery Homestyle Flavored Mashed Potatoes",
+            "brandName": "Idahoan Foods",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "53094-0",
+                "description": "1/2 cup prepared",
+                "calories": 110,
+                "protein": 2,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "557128",
+            "name": "Mashed Potatoes & Gravy",
+            "brandName": "Great Value",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "557128-0",
+                "description": "1 cup",
+                "calories": 280,
+                "protein": 4,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "49860",
+            "name": "Instant Mashed Potatoes",
+            "brandName": "Great Value",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "49860-0",
+                "description": "1/2 cup prepared",
+                "calories": 140,
+                "protein": 3,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "5779",
+            "name": "Mashed Potato made with Milk, Sour Cream and/or Cream Cheese (from Fresh)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "5779-0",
+                "description": "2197g",
+                "calories": 2746,
+                "protein": 54.92,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 1,
+          "servingIndex": 1,
+          "multiplier": 0.4
+        },
+        "servingMultiplier": 0.4
+      },
+      {
+        "id": "26c85abe-c9d5-4bc8-83fd-47aab2a718ad",
+        "emoji": "🍚",
+        "name": "Rice",
+        "amount": "4 ounces",
+        "fatSecretSearch": "rice cooked",
+        "parseSnapshot": {
+          "emoji": "🍚",
+          "name": "Rice",
+          "amount": "4 ounces",
+          "fatSecretSearch": "rice cooked"
+        },
+        "status": "ready",
+        "timestamp": 1779175030091,
+        "calories": 148,
+        "protein": 3.1,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Four ounces of rice.",
+        "fatSecretResults": [
+          {
+            "foodId": "39719",
+            "name": "White Rice (Long-Grain, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "39719-0",
+                "description": "100g",
+                "calories": 130,
+                "protein": 2.69,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4501",
+            "name": "White Rice",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "4501-0",
+                "description": "160g",
+                "calories": 206,
+                "protein": 4.24,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4502",
+            "name": "Cooked Rice",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "4502-0",
+                "description": "100g",
+                "calories": 135,
+                "protein": 2.64,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "17905017",
+            "name": "Jasmine Rice (Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "17905017-0",
+                "description": "292g",
+                "calories": 496,
+                "protein": 11.13,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "4528",
+            "name": "Rice (Fat Added in Cooking)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "4528-0",
+                "description": "164g",
+                "calories": 238,
+                "protein": 4.25,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "9858653",
+            "name": "Cooked White Rice",
+            "brandName": "CJ",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "9858653-0",
+                "description": "1 bowl",
+                "calories": 320,
+                "protein": 6,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "39813",
+            "name": "White Rice (Long-Grain, with Salt, Enriched, Cooked)",
+            "foodType": "Generic",
+            "servings": [
+              {
+                "servingId": "39813-0",
+                "description": "100g",
+                "calories": 130,
+                "protein": 2.69,
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "foodId": "38139323",
+            "name": "Cooked Rice & Teriyaki Tuna with Mayonnaise",
+            "brandName": "Ottogi",
+            "foodType": "Brand",
+            "servings": [
+              {
+                "servingId": "38139323-0",
+                "description": "1 pouch",
+                "calories": 426,
+                "protein": 11,
+                "isDefault": true
+              }
+            ]
+          }
+        ],
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 1,
+          "servingIndex": 1,
+          "multiplier": 1.136
+        },
+        "servingMultiplier": 1.136
+      }
+    ],
+    "2026-05-20": [
+      {
+        "id": "ceb64d3d-b5e6-4830-96d6-3d6df6d24528",
+        "emoji": "🍗",
+        "name": "Chicken Breast",
+        "amount": "6 ounces",
+        "fatSecretSearch": "chicken breast cooked",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Chicken Breast",
+          "amount": "6 ounces",
+          "fatSecretSearch": "chicken breast cooked"
+        },
+        "status": "ready",
+        "timestamp": 1779323617154,
+        "calories": 276,
+        "protein": 52,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Six ounces of chicken breast, four ounces of mashed potatoes, two ounces of carrots, two ounces of green beans, and two ounces of cauliflower.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 276,
+          "protein": 52
+        }
+      },
+      {
+        "id": "966271f9-8f62-4351-b14e-30572152de9e",
+        "emoji": "🥔",
+        "name": "Mashed Potatoes",
+        "amount": "4 ounces",
+        "fatSecretSearch": "mashed potatoes",
+        "parseSnapshot": {
+          "emoji": "🥔",
+          "name": "Mashed Potatoes",
+          "amount": "4 ounces",
+          "fatSecretSearch": "mashed potatoes"
+        },
+        "status": "ready",
+        "timestamp": 1779323617154,
+        "calories": 120,
+        "protein": 3,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Six ounces of chicken breast, four ounces of mashed potatoes, two ounces of carrots, two ounces of green beans, and two ounces of cauliflower.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 120,
+          "protein": 3
+        }
+      },
+      {
+        "id": "d40f3e0e-dbc6-4334-9bfb-b08991639f40",
+        "emoji": "🥕",
+        "name": "Carrots",
+        "amount": "2 ounces",
+        "fatSecretSearch": "carrots cooked",
+        "parseSnapshot": {
+          "emoji": "🥕",
+          "name": "Carrots",
+          "amount": "2 ounces",
+          "fatSecretSearch": "carrots cooked"
+        },
+        "status": "ready",
+        "timestamp": 1779323617154,
+        "calories": 20,
+        "protein": 0.5,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Six ounces of chicken breast, four ounces of mashed potatoes, two ounces of carrots, two ounces of green beans, and two ounces of cauliflower.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 20,
+          "protein": 0.5
+        }
+      },
+      {
+        "id": "5d147b2c-c642-443a-abb5-6a56cc8ab917",
+        "emoji": "🌱",
+        "name": "Green Beans",
+        "amount": "2 ounces",
+        "fatSecretSearch": "green beans cooked",
+        "parseSnapshot": {
+          "emoji": "🌱",
+          "name": "Green Beans",
+          "amount": "2 ounces",
+          "fatSecretSearch": "green beans cooked"
+        },
+        "status": "ready",
+        "timestamp": 1779323617154,
+        "calories": 60,
+        "protein": 2,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Six ounces of chicken breast, four ounces of mashed potatoes, two ounces of carrots, two ounces of green beans, and two ounces of cauliflower.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 60,
+          "protein": 2
+        }
+      },
+      {
+        "id": "dcba586e-ecbf-40ea-89d8-38196ca0cf85",
+        "emoji": "🥦",
+        "name": "Cauliflower",
+        "amount": "2 ounces",
+        "fatSecretSearch": "cauliflower cooked",
+        "parseSnapshot": {
+          "emoji": "🥦",
+          "name": "Cauliflower",
+          "amount": "2 ounces",
+          "fatSecretSearch": "cauliflower cooked"
+        },
+        "status": "ready",
+        "timestamp": 1779323617154,
+        "calories": 10,
+        "protein": 1,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Six ounces of chicken breast, four ounces of mashed potatoes, two ounces of carrots, two ounces of green beans, and two ounces of cauliflower.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 10,
+          "protein": 1
+        }
+      },
+      {
+        "id": "bc967878-6dcb-40cc-8b9a-62311611616e",
+        "emoji": "🍫",
+        "name": "Yasso Bar",
+        "amount": "1 bar",
+        "fatSecretSearch": "Yasso frozen yogurt bar",
+        "parseSnapshot": {
+          "emoji": "🍫",
+          "name": "Yasso Bar",
+          "amount": "1 bar",
+          "fatSecretSearch": "Yasso frozen yogurt bar"
+        },
+        "status": "ready",
+        "timestamp": 1779323664334,
+        "calories": 80,
+        "protein": 4,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Scanning: One bar",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 80,
+          "protein": 4
+        }
+      },
+      {
+        "id": "42732aa2-94ec-447f-9d5b-a875de94aa4a",
+        "emoji": "🍞",
+        "name": "Whole Wheat",
+        "amount": "2 slices",
+        "fatSecretSearch": "whole wheat bread",
+        "parseSnapshot": {
+          "emoji": "🍞",
+          "name": "Whole Wheat",
+          "amount": "2 slices",
+          "fatSecretSearch": "whole wheat bread"
+        },
+        "status": "ready",
+        "timestamp": 1779324082709,
+        "calories": 120,
+        "protein": 6,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "two slices of whole wheat.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": 3,
+          "multiplier": 2
+        },
+        "libraryFoodId": "125b555e-c4cc-43cb-9a5b-95a896b367e9",
+        "servingMultiplier": 2
+      },
+      {
+        "id": "a5b797fb-b545-482e-a67e-5880fb23172a",
+        "emoji": "🍗",
+        "name": "Turkey Breast",
+        "amount": "2 ounces",
+        "fatSecretSearch": "turkey breast",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Turkey Breast",
+          "amount": "2 ounces",
+          "fatSecretSearch": "turkey breast"
+        },
+        "status": "ready",
+        "timestamp": 1779324211795,
+        "calories": 60,
+        "protein": 12,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Two ounces of turkey breast and two ounces of sliced mozzarella.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 60,
+          "protein": 12
+        }
+      },
+      {
+        "id": "77c30022-f363-434a-971f-a3a9d63e6171",
+        "emoji": "🧀",
+        "name": "Mozzarella",
+        "amount": "2 ounces",
+        "fatSecretSearch": "sliced mozzarella",
+        "parseSnapshot": {
+          "emoji": "🧀",
+          "name": "Mozzarella",
+          "amount": "2 ounces",
+          "fatSecretSearch": "sliced mozzarella"
+        },
+        "status": "ready",
+        "timestamp": 1779324211796,
+        "calories": 140,
+        "protein": 12,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Two ounces of turkey breast and two ounces of sliced mozzarella.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 140,
+          "protein": 12
+        }
+      },
+      {
+        "id": "ea162b90-ec46-4f70-b1ad-ddf54a9c7730",
+        "emoji": "🫒",
+        "name": "Kalamata Olives",
+        "amount": "1 ounce",
+        "fatSecretSearch": "Kalamata olives",
+        "parseSnapshot": {
+          "emoji": "🫒",
+          "name": "Kalamata Olives",
+          "amount": "1 ounce",
+          "fatSecretSearch": "Kalamata olives"
+        },
+        "status": "ready",
+        "timestamp": 1779324304059,
+        "calories": 40,
+        "protein": 0.5,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "One ounce of Kalamata olives and three ounces of carrots.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 40,
+          "protein": 0.5
+        }
+      },
+      {
+        "id": "22dc86bc-4ac7-4a8a-a555-bab8edbc0fa0",
+        "emoji": "🥕",
+        "name": "Carrots",
+        "amount": "3 ounces",
+        "fatSecretSearch": "carrots",
+        "parseSnapshot": {
+          "emoji": "🥕",
+          "name": "Carrots",
+          "amount": "3 ounces",
+          "fatSecretSearch": "carrots"
+        },
+        "status": "ready",
+        "timestamp": 1779324304060,
+        "calories": 30,
+        "protein": 1,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "One ounce of Kalamata olives and three ounces of carrots.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 30,
+          "protein": 1
+        }
+      },
+      {
+        "id": "019649c2-7c57-41ac-b534-438ba9fa18f4",
+        "emoji": "🥛",
+        "name": "Whey Isolate",
+        "amount": "1 serving",
+        "fatSecretSearch": "Whey Isolate protein powder",
+        "parseSnapshot": {
+          "emoji": "🥛",
+          "name": "Whey Isolate",
+          "amount": "1 serving",
+          "fatSecretSearch": "Whey Isolate protein powder"
+        },
+        "status": "ready",
+        "timestamp": 1779333962907,
+        "calories": 80,
+        "protein": 20,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Scanning: 1 serving",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 80,
+          "protein": 20
+        }
+      },
+      {
+        "id": "6e92c390-c222-4b38-bdd6-6299ddc58b5f",
+        "emoji": "🍗",
+        "name": "Buffalo Wings",
+        "amount": "8",
+        "fatSecretSearch": "Buffalo Wild Wings boneless wings",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Buffalo Wings",
+          "amount": "8",
+          "fatSecretSearch": "Buffalo Wild Wings boneless wings"
+        },
+        "status": "ready",
+        "timestamp": 1779342846881,
+        "calories": 640,
+        "protein": 48,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Eight boneless buffalo wild wings.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 640,
+          "protein": 48
+        }
+      },
+      {
+        "id": "b325aef8-43e3-4acf-b039-b3b3be4bc51b",
+        "emoji": "🍏",
+        "name": "Apple",
+        "amount": "1",
+        "fatSecretSearch": "apple",
+        "parseSnapshot": {
+          "emoji": "🍏",
+          "name": "Apple",
+          "amount": "1",
+          "fatSecretSearch": "apple"
+        },
+        "status": "ready",
+        "timestamp": 1779343438765,
+        "calories": 95,
+        "protein": 0.5,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Apple",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 95,
+          "protein": 0.5
+        }
+      }
+    ],
+    "2026-05-21": [
+      {
+        "id": "540dace3-55b8-4111-b11a-87a92395ab37",
+        "emoji": "🍿",
+        "name": "Popcorn",
+        "amount": "4 ounces",
+        "fatSecretSearch": "popcorn",
+        "parseSnapshot": {
+          "emoji": "🍿",
+          "name": "Popcorn",
+          "amount": "4 ounces",
+          "fatSecretSearch": "popcorn"
+        },
+        "status": "ready",
+        "timestamp": 1779431852564,
+        "calories": 480,
+        "protein": 12,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "four ounces of popcorn, seven ounces of chicken, three ounces of green beans, three ounces of carrots.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 480,
+          "protein": 12
+        }
+      },
+      {
+        "id": "3afc5b46-d921-4b13-8e9b-fead17b9861f",
+        "emoji": "🍗",
+        "name": "Chicken",
+        "amount": "7 ounces",
+        "fatSecretSearch": "chicken",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Chicken",
+          "amount": "7 ounces",
+          "fatSecretSearch": "chicken"
+        },
+        "status": "ready",
+        "timestamp": 1779431852564,
+        "calories": 350,
+        "protein": 60,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "four ounces of popcorn, seven ounces of chicken, three ounces of green beans, three ounces of carrots.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 350,
+          "protein": 60
+        }
+      },
+      {
+        "id": "0402d0ec-4482-44cf-a880-a9f5cebde299",
+        "emoji": "🥦",
+        "name": "Green Beans",
+        "amount": "3 ounces",
+        "fatSecretSearch": "green beans",
+        "parseSnapshot": {
+          "emoji": "🥦",
+          "name": "Green Beans",
+          "amount": "3 ounces",
+          "fatSecretSearch": "green beans"
+        },
+        "status": "ready",
+        "timestamp": 1779431852564,
+        "calories": 105,
+        "protein": 2,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "four ounces of popcorn, seven ounces of chicken, three ounces of green beans, three ounces of carrots.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 105,
+          "protein": 2
+        }
+      },
+      {
+        "id": "461717c5-bc08-42ae-bee5-81ed239e9213",
+        "emoji": "🥕",
+        "name": "Carrots",
+        "amount": "3 ounces",
+        "fatSecretSearch": "carrots",
+        "parseSnapshot": {
+          "emoji": "🥕",
+          "name": "Carrots",
+          "amount": "3 ounces",
+          "fatSecretSearch": "carrots"
+        },
+        "status": "ready",
+        "timestamp": 1779431852564,
+        "calories": 30,
+        "protein": 1,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "four ounces of popcorn, seven ounces of chicken, three ounces of green beans, three ounces of carrots.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 30,
+          "protein": 1
+        }
+      },
+      {
+        "id": "a38b18b1-5ced-409e-8f9a-798ef3302780",
+        "emoji": "🥤",
+        "name": "Protein Powder",
+        "amount": "1 scoop",
+        "fatSecretSearch": "protein powder",
+        "parseSnapshot": {
+          "emoji": "🥤",
+          "name": "Protein Powder",
+          "amount": "1 scoop",
+          "fatSecretSearch": "protein powder"
+        },
+        "status": "ready",
+        "timestamp": 1779431855760,
+        "calories": 80,
+        "protein": 20,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Protein powder.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": 4,
+          "multiplier": 1
+        },
+        "libraryFoodId": "d3d1f9dd-2164-41bd-991e-7a01e6c6e2f9",
+        "servingMultiplier": 1
+      },
+      {
+        "id": "c84a1d28-62ef-40cb-82d8-6841a43c2708",
+        "emoji": "🍝",
+        "name": "Goodles Pasta",
+        "amount": "1.5 servings",
+        "fatSecretSearch": "Goodles Pasta",
+        "parseSnapshot": {
+          "emoji": "🍝",
+          "name": "Goodles Pasta",
+          "amount": "1.5 servings",
+          "fatSecretSearch": "Goodles Pasta"
+        },
+        "status": "ready",
+        "timestamp": 1779431890550,
+        "calories": 315,
+        "protein": 12,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Scanning: 1.5 servings",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 315,
+          "protein": 12
+        }
+      },
+      {
+        "id": "1321411f-b1e1-43cc-a4ca-dbe73875215b",
+        "emoji": "🍅",
+        "name": "Tomato Sauce",
+        "amount": "1 serving",
+        "fatSecretSearch": "plain tomato sauce",
+        "parseSnapshot": {
+          "emoji": "🍅",
+          "name": "Tomato Sauce",
+          "amount": "1 serving",
+          "fatSecretSearch": "plain tomato sauce"
+        },
+        "status": "ready",
+        "timestamp": 1779431902839,
+        "calories": 70,
+        "protein": 2,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "One serving of just like plain tomato sauce, a tablespoon of olive oil.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 70,
+          "protein": 2
+        }
+      },
+      {
+        "id": "f90302f9-aeae-4898-a0f1-6814c7c0340c",
+        "emoji": "🫒",
+        "name": "Olive Oil",
+        "amount": "1 tablespoon",
+        "fatSecretSearch": "olive oil",
+        "parseSnapshot": {
+          "emoji": "🫒",
+          "name": "Olive Oil",
+          "amount": "1 tablespoon",
+          "fatSecretSearch": "olive oil"
+        },
+        "status": "ready",
+        "timestamp": 1779431902839,
+        "calories": 120,
+        "protein": 0,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "One serving of just like plain tomato sauce, a tablespoon of olive oil.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 120,
+          "protein": 0
+        }
+      },
+      {
+        "id": "d3a64d0d-501d-4566-a791-f7ecb04ad13d",
+        "emoji": "🍗",
+        "name": "Chicken Breast",
+        "amount": "1/3 can",
+        "fatSecretSearch": "canned chicken breast",
+        "parseSnapshot": {
+          "emoji": "🍗",
+          "name": "Chicken Breast",
+          "amount": "1/3 can",
+          "fatSecretSearch": "canned chicken breast"
+        },
+        "status": "ready",
+        "timestamp": 1779431919626,
+        "calories": 23,
+        "protein": 4.3,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Scanning: 1/3 can",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 23,
+          "protein": 4.33
+        }
+      }
+    ],
+    "2026-05-22": [
+      {
+        "id": "54c703a8-f9b8-4d13-90ef-be79407d1042",
+        "emoji": "🥪",
+        "name": "Roast Beef",
+        "amount": "1.2",
+        "notes": "without cheese",
+        "fatSecretSearch": "Arby's regular roast beef sandwich",
+        "parseSnapshot": {
+          "emoji": "🥪",
+          "name": "Roast Beef",
+          "amount": "1.2",
+          "notes": "without cheese",
+          "fatSecretSearch": "Arby's regular roast beef sandwich"
+        },
+        "status": "ready",
+        "timestamp": 1779494733354,
+        "calories": 240,
+        "protein": 30,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Arby's regular roast beef sandwich, like without the cheese or anything, and a loaded Oreo. Actually, I had more like 1.2 of the Arby's sandwiches.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 240,
+          "protein": 30
+        }
+      },
+      {
+        "id": "8e1c2935-5378-4904-a718-cad8879b1ccb",
+        "emoji": "🍪",
+        "name": "Loaded Oreo",
+        "amount": "1",
+        "fatSecretSearch": "Loaded Oreo",
+        "parseSnapshot": {
+          "emoji": "🍪",
+          "name": "Loaded Oreo",
+          "amount": "1",
+          "fatSecretSearch": "Loaded Oreo"
+        },
+        "status": "ready",
+        "timestamp": 1779494733354,
+        "calories": 250,
+        "protein": 3,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Arby's regular roast beef sandwich, like without the cheese or anything, and a loaded Oreo. Actually, I had more like 1.2 of the Arby's sandwiches.",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 250,
+          "protein": 3
+        }
+      },
+      {
+        "id": "92897188-89c0-44aa-a108-3e11abb36056",
+        "emoji": "🍨",
+        "name": "Oikos S'mores",
+        "amount": "1 serving",
+        "fatSecretSearch": "Oikos S'mores yogurt",
+        "parseSnapshot": {
+          "emoji": "🍨",
+          "name": "Oikos S'mores",
+          "amount": "1 serving",
+          "fatSecretSearch": "Oikos S'mores yogurt"
+        },
+        "status": "ready",
+        "timestamp": 1779494861252,
+        "calories": 120,
+        "protein": 11,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Scanning: 1 serving",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 120,
+          "protein": 11
+        }
+      },
+      {
+        "id": "15d5aa6f-9299-48ed-aa2b-a4e6283cd014",
+        "emoji": "🍦",
+        "name": "Mint Choc Chip",
+        "amount": "1 serving",
+        "fatSecretSearch": "Mint Chocolate Chip ice cream",
+        "parseSnapshot": {
+          "emoji": "🍦",
+          "name": "Mint Choc Chip",
+          "amount": "1 serving",
+          "fatSecretSearch": "Mint Chocolate Chip ice cream"
+        },
+        "status": "ready",
+        "timestamp": 1779511880009,
+        "calories": 150,
+        "protein": 7,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Scanning: 1 serving",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 150,
+          "protein": 7
+        }
+      },
+      {
+        "id": "b93493c2-4ca1-4519-a4b6-c1b403c2ecaa",
+        "emoji": "🥗",
+        "name": "Chicken Salad",
+        "amount": "1 serving",
+        "fatSecretSearch": "Trader Joe's Chinese chicken salad",
+        "parseSnapshot": {
+          "emoji": "🥗",
+          "name": "Chicken Salad",
+          "amount": "1 serving",
+          "fatSecretSearch": "Trader Joe's Chinese chicken salad"
+        },
+        "status": "ready",
+        "timestamp": 1779511923781,
+        "calories": 300,
+        "protein": 25,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Chinese chicken salad from trader Joe’s",
+        "fatSecretResults": [],
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "calories": 300,
+          "protein": 25
+        }
       }
     ]
   }

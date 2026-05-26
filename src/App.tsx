@@ -71,7 +71,19 @@ function bottomNavButtonClass(active: boolean): string {
 
 export default function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
+  const bootRef = useRef<BootstrapResponse | null>(null)
+  bootRef.current = boot
   const [error, setError] = useState<string | null>(null)
+
+  const resyncFromServer = useCallback(async () => {
+    try {
+      const data = await fetchBootstrap()
+      bootRef.current = data
+      setBoot(data)
+    } catch {
+      /* ignore — user can reload if sync is critical */
+    }
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -113,7 +125,7 @@ export default function App() {
         data.habits.goals = cementedHabitsBundle.current
         data.habits.goalsSnapshotsByWeek = cementedHabitsBundle.snapshotsByWeek
         data.habits.goalsHistory = cementedHabitsBundle.goalHistory
-        void Promise.all([
+        await Promise.all([
           putMacro({
             goals: macroBundle.current,
             goalsSnapshotsByDay: macroBundle.snapshotsByDay,
@@ -128,9 +140,10 @@ export default function App() {
             logs: data.habits.logs,
             appSettings: data.habits.appSettings,
           }),
-        ]).catch(() => {})
+        ])
       }
       setBoot(data)
+      bootRef.current = data
     } catch (e) {
       const base = e instanceof Error ? e.message : 'Failed to load'
       const apiDown =
@@ -142,7 +155,7 @@ export default function App() {
         base.includes('auth token') ||
         base.includes('remote proxy')
       const hint = apiDown
-        ? ' Stop other dev servers, then from this project run `npm run dev` (Vite on 9024, API on 8787 with local D1).'
+        ? ' Check your internet connection and run `npm run dev` (Vite on 9024; API calls the deployed Worker / live D1).'
         : ''
       setError(base + hint)
     }
@@ -338,47 +351,58 @@ export default function App() {
     }
   }, [rawLiftDayIndex, safeLiftDayIndex, setLiftDayIndex, sortedLiftDays.length])
 
+  const habitsSaveSeq = useRef(Promise.resolve())
+
   const saveHabitsBundle = useCallback(
-    async (next: { goals?: HabitsGoals; logs?: Record<string, DayLog>; appSettings?: { firstDayOfWeek: number } }) => {
-      if (!boot) return
-      const appSettings = next.appSettings ?? habitsSettings
-      const logs = next.logs ?? habitsLogs
-      let bundle = habitsGoalsBundle
-      if (next.goals) {
-        bundle = recordHabitsGoalChange(bundle, next.goals, appSettings.firstDayOfWeek, todayDateStr)
-        const cemented = cementHabitsSnapshots(
-          bundle,
-          Object.keys(logs),
-          currentDate,
-          appSettings.firstDayOfWeek,
-          todayDateStr,
-        )
-        if (cemented.changed) bundle = cemented.bundle
-      }
-      await putHabits({
-        goals: bundle.current,
-        goalsSnapshotsByWeek: bundle.snapshotsByWeek,
-        goalsHistory: bundle.goalHistory,
-        logs,
-        appSettings,
-      })
-      setBoot((prev) =>
-        prev
-          ? {
-              ...prev,
-              habits: {
-                goals: bundle.current,
-                goalsSnapshotsByWeek: bundle.snapshotsByWeek,
-                goalsHistory: bundle.goalHistory,
-                logs,
-                appSettings,
-                updatedAt: Date.now(),
-              },
-            }
-          : prev,
-      )
+    (next: { goals?: HabitsGoals; logs?: Record<string, DayLog>; appSettings?: { firstDayOfWeek: number } }) => {
+      habitsSaveSeq.current = habitsSaveSeq.current
+        .then(async () => {
+          const prev = bootRef.current
+          if (!prev) return
+
+          const appSettings = next.appSettings ?? prev.habits.appSettings ?? { firstDayOfWeek: 0 }
+          const logs = next.logs ?? prev.habits.logs ?? {}
+          let bundle: HabitsGoalsBundleData = {
+            current: prev.habits.goals as HabitsGoals,
+            snapshotsByWeek: prev.habits.goalsSnapshotsByWeek ?? {},
+            goalHistory: prev.habits.goalsHistory ?? [],
+          }
+          if (next.goals) {
+            bundle = recordHabitsGoalChange(bundle, next.goals, appSettings.firstDayOfWeek, todayDateStr)
+            const cemented = cementHabitsSnapshots(
+              bundle,
+              Object.keys(logs),
+              currentDate,
+              appSettings.firstDayOfWeek,
+              todayDateStr,
+            )
+            if (cemented.changed) bundle = cemented.bundle
+          }
+
+          const habits = {
+            goals: bundle.current,
+            goalsSnapshotsByWeek: bundle.snapshotsByWeek,
+            goalsHistory: bundle.goalHistory,
+            logs,
+            appSettings,
+            updatedAt: Date.now(),
+          }
+          const nextBoot = { ...prev, habits }
+          bootRef.current = nextBoot
+          setBoot(nextBoot)
+
+          await putHabits({
+            goals: habits.goals,
+            goalsSnapshotsByWeek: habits.goalsSnapshotsByWeek,
+            goalsHistory: habits.goalsHistory,
+            logs: habits.logs,
+            appSettings: habits.appSettings,
+          })
+        })
+        .catch(() => resyncFromServer())
+      return habitsSaveSeq.current
     },
-    [boot, habitsGoalsBundle, habitsLogs, habitsSettings, currentDate, todayDateStr],
+    [currentDate, resyncFromServer, todayDateStr],
   )
 
   const macroSaveSeq = useRef(Promise.resolve())
@@ -391,78 +415,69 @@ export default function App() {
     }) => {
       macroSaveSeq.current = macroSaveSeq.current
         .then(async () => {
-          let snapshot: {
-            goals: typeof macroGoals
-            goalsSnapshotsByDay: MacroGoalsBundleData['snapshotsByDay']
-            goalsHistory: MacroGoalsBundleData['goalHistory']
-            logs: Record<string, MacroDayItem[]>
-            customFoods: MacroCustomFood[]
-          } | null = null
+          const prev = bootRef.current
+          if (!prev) return
 
-          setBoot((prev) => {
-            if (!prev) return prev
-            let bundle: MacroGoalsBundleData = {
-              current: normalizeMacroGoals(prev.macro.goals),
-              snapshotsByDay: prev.macro.goalsSnapshotsByDay ?? {},
-              goalHistory: prev.macro.goalsHistory ?? [],
-            }
-            if (next.goals) {
-              bundle = recordMacroGoalChange(bundle, next.goals, todayDateStr)
-              const cemented = cementMacroSnapshots(
-                bundle,
-                Object.keys(prev.macro.logs || {}),
-                todayDateStr,
-              )
-              if (cemented.changed) bundle = cemented.bundle
-            }
-            const logs = next.logs ? mergeMacroLogs(prev.macro.logs, next.logs) : prev.macro.logs
-            const customFoods = next.customFoods ?? prev.macro.customFoods
-            snapshot = {
-              goals: bundle.current,
-              goalsSnapshotsByDay: bundle.snapshotsByDay,
-              goalsHistory: bundle.goalHistory,
-              logs,
-              customFoods,
-            }
-            return {
-              ...prev,
-              macro: {
-                goals: bundle.current,
-                goalsSnapshotsByDay: bundle.snapshotsByDay,
-                goalsHistory: bundle.goalHistory,
-                customFoods,
-                logs,
-                updatedAt: Date.now(),
-              },
-            }
+          let bundle: MacroGoalsBundleData = {
+            current: normalizeMacroGoals(prev.macro.goals),
+            snapshotsByDay: prev.macro.goalsSnapshotsByDay ?? {},
+            goalHistory: prev.macro.goalsHistory ?? [],
+          }
+          if (next.goals) {
+            bundle = recordMacroGoalChange(bundle, next.goals, todayDateStr)
+            const cemented = cementMacroSnapshots(
+              bundle,
+              Object.keys(prev.macro.logs || {}),
+              todayDateStr,
+            )
+            if (cemented.changed) bundle = cemented.bundle
+          }
+          const logs = next.logs ? mergeMacroLogs(prev.macro.logs, next.logs) : prev.macro.logs
+          const customFoods = next.customFoods ?? prev.macro.customFoods
+
+          const macro = {
+            goals: bundle.current,
+            goalsSnapshotsByDay: bundle.snapshotsByDay,
+            goalsHistory: bundle.goalHistory,
+            customFoods,
+            logs,
+            updatedAt: Date.now(),
+          }
+          const nextBoot = { ...prev, macro }
+          bootRef.current = nextBoot
+          setBoot(nextBoot)
+
+          await putMacro({
+            goals: macro.goals,
+            goalsSnapshotsByDay: macro.goalsSnapshotsByDay,
+            goalsHistory: macro.goalsHistory,
+            customFoods: macro.customFoods,
+            logs: macro.logs,
           })
-
-          if (!snapshot) return
-          await putMacro(snapshot)
         })
-        .catch(() => {
-          /* keep queue alive after a failed persist */
-        })
+        .catch(() => resyncFromServer())
       return macroSaveSeq.current
     },
-    [todayDateStr],
+    [resyncFromServer, todayDateStr],
   )
 
-  const saveLiftBundle = useCallback(
-    async (next: LiftPayload) => {
-      if (!boot) return
-      await putLift(next)
-      setBoot((prev) =>
-        prev
-          ? {
-              ...prev,
-              lift: { payload: next, updatedAt: Date.now() },
-            }
-          : prev,
-      )
-    },
-    [boot],
-  )
+  const liftSaveSeq = useRef(Promise.resolve())
+
+  const saveLiftBundle = useCallback((next: LiftPayload) => {
+    setBoot((prev) => {
+      if (!prev) return prev
+      const nextBoot = { ...prev, lift: { payload: next, updatedAt: Date.now() } }
+      bootRef.current = nextBoot
+      return nextBoot
+    })
+
+    liftSaveSeq.current = liftSaveSeq.current
+      .then(async () => {
+        await putLift(next)
+      })
+      .catch(() => resyncFromServer())
+    return liftSaveSeq.current
+  }, [resyncFromServer])
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -630,7 +645,7 @@ export default function App() {
 
       <main
         id="app-main"
-        className="mx-auto flex min-h-0 w-full max-w-[var(--app-max-width)] flex-1 flex-col overflow-hidden px-[var(--app-pad-x)] pt-[var(--app-main-pad-top)] pb-[var(--app-main-pad-bottom)]"
+        className="mx-auto flex min-h-0 w-full max-w-[var(--app-max-width)] flex-1 flex-col overflow-hidden pt-[var(--app-main-pad-top)]"
       >
         {settingsOpen ? (
           <TabPager
@@ -707,7 +722,6 @@ export default function App() {
                     logs={macroLogs}
                     customFoods={macroFoods}
                     view="tracker"
-                    showDock={selectedTab === 'macro'}
                     onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
                     onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
                     onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}

@@ -1,4 +1,5 @@
 import type { LiftHistoryEntry, LiftPayload, LiftWorkout } from '../../types/domain'
+import { calculateOptimizedPlateOrder } from './optimizedPlates'
 
 export function getOptimalPlates(targetWeight: number, barWeight: number, availablePlates: number[]) {
   const bw = barWeight || 0
@@ -29,10 +30,94 @@ export function formatWeightStr(w: number) {
   return w.toString()
 }
 
+/** Collapse only consecutive identical plates (for optimized loading order display). */
+export function groupAdjacentPlates(ordered: number[]): { weight: number; count: number }[] {
+  if (ordered.length === 0) return []
+  const result: { weight: number; count: number }[] = []
+  let i = 0
+  while (i < ordered.length) {
+    let count = 1
+    while (i + count < ordered.length && ordered[i + count] === ordered[i]) count++
+    result.push({ weight: ordered[i], count })
+    i += count
+  }
+  return result
+}
+
+function greedyOrderedPlates(
+  targetWeight: number,
+  barWeight: number,
+  availablePlates: number[],
+): number[] {
+  const { plates } = getOptimalPlates(targetWeight, barWeight, availablePlates)
+  const ordered: number[] = []
+  for (const { weight, count } of plates) {
+    for (let i = 0; i < count; i++) ordered.push(weight)
+  }
+  return ordered
+}
+
+function buildRawSets(
+  workout: LiftWorkout,
+  availablePlates: number[],
+  optimizedPlateOrder: boolean,
+): Array<{
+  reps: number
+  actualWeight: number
+  plates: { weight: number; count: number }[]
+  isWarmup: boolean
+}> {
+  const targets: Array<{ targetWeight: number; reps: number; isWarmup: boolean }> = []
+
+  if (workout.hasWarmup) {
+    for (const wu of workout.warmupSets || []) {
+      targets.push({
+        targetWeight: workout.mainWeight * (wu.percentage / 100),
+        reps: wu.reps,
+        isWarmup: true,
+      })
+    }
+  }
+
+  for (let i = 0; i < (workout.sets || 1); i++) {
+    targets.push({ targetWeight: workout.mainWeight, reps: workout.reps, isWarmup: false })
+  }
+
+  if (targets.length === 0) return []
+
+  let orderedBySet: number[][] | null = null
+  if (optimizedPlateOrder) {
+    orderedBySet = calculateOptimizedPlateOrder(
+      targets.map((t) => t.targetWeight),
+      workout.barWeight,
+      availablePlates,
+    )
+    const needsFallback = targets.some((t, i) => {
+      const optimal = getOptimalPlates(t.targetWeight, workout.barWeight, availablePlates)
+      const needsPlates = optimal.actualWeight > (workout.barWeight || 0)
+      return needsPlates && (orderedBySet?.[i]?.length ?? 0) === 0
+    })
+    if (needsFallback) {
+      orderedBySet = targets.map((t) =>
+        greedyOrderedPlates(t.targetWeight, workout.barWeight, availablePlates),
+      )
+    }
+  }
+
+  return targets.map((t, idx) => {
+    const optimal = getOptimalPlates(t.targetWeight, workout.barWeight, availablePlates)
+    const plates = optimizedPlateOrder
+      ? groupAdjacentPlates(orderedBySet?.[idx] ?? [])
+      : optimal.plates
+    return { reps: t.reps, actualWeight: optimal.actualWeight, plates, isWarmup: t.isWarmup }
+  })
+}
+
 export function buildGroupedSets(
   workout: LiftWorkout,
   availablePlates: number[],
   startSetNum = 1,
+  optimizedPlateOrder = false,
 ): { groupedSets: Array<{
   reps: number
   actualWeight: number
@@ -41,30 +126,7 @@ export function buildGroupedSets(
   startNum: number
   endNum: number
 }>; nextSetNum: number } {
-  const rawSets: Array<{
-    reps: number
-    actualWeight: number
-    plates: { weight: number; count: number }[]
-    isWarmup: boolean
-  }> = []
-
-  if (workout.hasWarmup) {
-    for (const wu of workout.warmupSets || []) {
-      const targetWeight = workout.mainWeight * (wu.percentage / 100)
-      const optimal = getOptimalPlates(targetWeight, workout.barWeight, availablePlates)
-      rawSets.push({ reps: wu.reps, actualWeight: optimal.actualWeight, plates: optimal.plates, isWarmup: true })
-    }
-  }
-
-  const mainOptimal = getOptimalPlates(workout.mainWeight, workout.barWeight, availablePlates)
-  for (let i = 0; i < (workout.sets || 1); i++) {
-    rawSets.push({
-      reps: workout.reps,
-      actualWeight: mainOptimal.actualWeight,
-      plates: mainOptimal.plates,
-      isWarmup: false,
-    })
-  }
+  const rawSets = buildRawSets(workout, availablePlates, optimizedPlateOrder)
 
   const groupedSets: Array<{
     reps: number

@@ -3,9 +3,9 @@
  */
 :root {
   /** Max width for header + main (phone-sized layout); footer bar stays full viewport width. */
-  --app-max-width: 400px;
-  /** Horizontal inset for header + main (16px — common mobile content margin). */
-  --app-pad-x: 1rem;
+  --app-max-width: 480px;
+  /** Horizontal inset for header, tab gutters, and content bookends (24px). */
+  --app-pad-x: 24px;
   /** Header chrome below the notch (12px + row + 12px). */
   --app-header-pad-top: 0.75rem;
   --app-header-pad-bottom: 0.75rem;
@@ -117,45 +117,84 @@ html.lift-workout-swapping #app-main {
   }
 }
 
-/* Main tab pager — photo-gallery horizontal swipe between Goals / Diet / Lift */
-.tab-pager-viewport {
-  --tab-pager-gap: 1.5rem;
-}
+/* ─── Tab pager — CSS scroll-snap ─────────────────────────────────────────── */
 
-/* Each tab scrolls vertically; pan-y keeps touch scrolling smooth on iOS */
-.tab-pager-page {
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
+/*
+ * Layout: [slot0][slot1][slot2][trailing-gutter]
+ * Each slot is (viewport − 1 margin) wide.
+ * slot left-padding = 1 margin.
+ * So between slot N content and slot N+1 content there is exactly 1 shared margin.
+ * The trailing gutter provides the right margin for the last page.
+ *
+ * Snap points: 0, stride, 2*stride  where stride = viewport - margin
+ */
+
+.tab-pager-viewport {
+  /* horizontal scroll container */
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  /* hide scrollbar on all platforms */
+  scrollbar-width: none;
+}
+.tab-pager-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-pager-track {
-  will-change: transform;
+  display: flex;
+  height: 100%;
 }
 
-/* Hidden probe + spacers — width resolves rem/% correctly in pixels for snap math */
-.tab-pager-gap-measure,
-.tab-pager-gap {
-  flex: 0 0 var(--tab-pager-gap);
-  width: var(--tab-pager-gap);
+.tab-pager-page {
   flex-shrink: 0;
-  align-self: stretch;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* snapping: stop at every page, never skip one */
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  /* vertical scroll within each page */
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-.tab-pager-gap-measure {
-  position: absolute;
-  height: 0;
-  visibility: hidden;
+/* inactive tabs: invisible to assistive tech and not interactive */
+.tab-pager-page[aria-hidden='true'] {
   pointer-events: none;
 }
 
-.tab-pager-track--animating {
-  transition: transform 320ms var(--lift-workout-anim-ease);
+/*
+ * Pages that manage their own internal scroll (e.g. macro/diet with a pinned dock)
+ * must disable page-level overflow so the browser cannot scroll the page itself.
+ * Only the inner scroll container (overflow-y: auto) will receive scroll events.
+ */
+.tab-pager-page:has([data-macro-diet-page]) {
+  overflow-y: hidden;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tab-pager-track--animating {
-    transition: none;
-  }
+.tab-pager-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.tab-pager-trailing {
+  flex-shrink: 0;
+  height: 100%;
+}
+
+/* invisible element used only to read the --app-pad-x value in pixels */
+.tab-pager-margin-measure {
+  position: absolute;
+  width: var(--app-pad-x);
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* App loading — DNA double-strand wave (matches Loading Animations DNAHelix) */

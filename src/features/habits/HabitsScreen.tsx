@@ -88,7 +88,7 @@ export function HabitsScreen({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       {view === 'tracker' && (
         <div className="flex flex-col gap-10">
           <div className="grid grid-cols-2 gap-3 content-start">

@@ -11,7 +11,6 @@ export function MacroScreen({
   onSaveLogs,
   onSaveFoods,
   view,
-  showDock = false,
 }: {
   currentDate: Date
   goals: MacroGoals
@@ -21,26 +20,27 @@ export function MacroScreen({
   onSaveLogs?: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods?: (foods: MacroCustomFood[]) => void
   view: 'tracker' | 'settings'
-  /** When false, the food input dock is hidden (e.g. another bottom tab is active). */
-  showDock?: boolean
 }) {
   const dateKey = currentDate.toISOString().split('T')[0]
 
   return (
-    <div className="flex-1 flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col">
       {view === 'tracker' && onSaveLogs && onSaveFoods && (
         <MacroVoiceTracker
           dateKey={dateKey}
           goals={goals}
           logs={logs}
           customFoods={customFoods}
-          showDock={showDock}
           onSaveLogs={onSaveLogs}
           onSaveFoods={onSaveFoods}
         />
       )}
 
-      {view === 'settings' && <MacroSettings goals={goals} onSaveGoals={onSaveGoals} />}
+      {view === 'settings' && (
+        <div className="flex flex-col gap-4 pb-[var(--app-main-pad-bottom)]">
+          <MacroSettings goals={goals} onSaveGoals={onSaveGoals} />
+        </div>
+      )}
     </div>
   )
 }

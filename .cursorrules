@@ -87,7 +87,7 @@ If your app is a static HTML/CSS/JS site without a build step:
 - **Build fails with "is declared but never used":** TypeScript strict mode is enabled. Prefix unused variables with `_` (e.g., `const [_unused, setUsed] = useState()`)
 - **Deploy succeeded but old version is live:** The build likely failed silently. Run `npm run build` manually to see errors.
 - **"Unexpected token '<'" / `<!DOCTYPE` is not valid JSON:** API requests are getting the SPA HTML page. Redeploy with `npm run deploy` (Worker + D1), and run `npm run db:migrate:remote` if the database is new.
-- **"Internal Server Error" on load / API won't start:** Local dev must use local D1 (`wrangler dev --local`), not `remote = true` in `wrangler.toml`. Run `npm run dev` from the project folder (applies `db:migrate:local` then starts Vite + Worker). Do not rely on Cloudflare login for day-to-day dev.
+- **"Internal Server Error" on load / API won't start:** Local dev (`npm run dev`) serves the UI on port 9024 and calls the deployed Worker API (live D1). Requires internet. Use `npm run dev:local-api` with `VITE_USE_LOCAL_API=1` only when changing Worker code.
 
 ## Failure Recovery & AI Debugging
 

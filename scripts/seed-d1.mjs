@@ -1,8 +1,7 @@
 /**
  * Generates seed-generated.sql from seed-data/*.json
  * Run: node scripts/seed-d1.mjs
- * Then: wrangler d1 execute DB --local --file=seed-generated.sql
- *   or: wrangler d1 execute DB --remote --file=seed-generated.sql
+ * Then: npm run seed  (writes to remote D1)
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
