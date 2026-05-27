@@ -5,7 +5,7 @@ import type {
   FatSecretRoute,
   MacroEstimateSnapshot,
 } from '../types/domain'
-import { apiFetch } from './apiPaths'
+import { apiFetch, apiFetchForProfile } from './apiPaths'
 
 function htmlResponseHint(text: string): string | undefined {
   const t = text.trimStart()
@@ -48,6 +48,12 @@ async function parseJson<T>(res: Response): Promise<T> {
         : 'Invalid JSON in API response',
     )
   }
+}
+
+export async function checkProfileExists(profile: string): Promise<boolean> {
+  const res = await apiFetchForProfile(profile, '/exists')
+  const data = await parseJson<{ exists?: boolean }>(res)
+  return Boolean(data.exists)
 }
 
 export async function fetchBootstrap(): Promise<BootstrapResponse> {

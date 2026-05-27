@@ -90,3 +90,9 @@ export function apiUrl(path: string): string {
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(apiUrl(withProfileApiPath(path)), init)
 }
+
+/** Profile-scoped API call without binding activeProfile (entry page). */
+export function apiFetchForProfile(profile: string, suffix: string, init?: RequestInit): Promise<Response> {
+  const part = suffix.startsWith('/') ? suffix : `/${suffix}`
+  return fetch(apiUrl(`/api/u/${encodeURIComponent(profile)}${part}`), init)
+}

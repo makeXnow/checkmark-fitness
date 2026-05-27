@@ -256,6 +256,12 @@ api.get('/api/health', async (c) => {
   }
 })
 
+profileApi.get('/exists', async (c) => {
+  const profileId = c.get('profileId')
+  const row = await c.env.DB.prepare('SELECT device_id FROM app_state WHERE device_id = ?').bind(profileId).first()
+  return c.json({ exists: row != null })
+})
+
 profileApi.get('/bootstrap', async (c) => {
   try {
     const profileId = c.get('profileId')

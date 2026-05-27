@@ -336,7 +336,14 @@ function macroItemStatusRank(status?: string): number {
 export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayItem {
   const ra = macroItemStatusRank(a.status)
   const rb = macroItemStatusRank(b.status)
-  const base = ra !== rb ? (ra > rb ? { ...b, ...a } : { ...a, ...b }) : (a.timestamp ?? 0) >= (b.timestamp ?? 0) ? { ...b, ...a } : { ...a, ...b }
+  const base =
+    ra !== rb
+      ? ra > rb
+        ? { ...b, ...a }
+        : { ...a, ...b }
+      : (a.timestamp ?? 0) > (b.timestamp ?? 0)
+        ? { ...b, ...a }
+        : { ...a, ...b }
   const fatSecretResults =
     (a.fatSecretResults?.length ? a.fatSecretResults : undefined) ??
     (b.fatSecretResults?.length ? b.fatSecretResults : undefined) ??

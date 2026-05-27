@@ -613,12 +613,21 @@ export function MacroVoiceTracker({
               ? fields.servingMultiplier
               : (i.servingMultiplier ?? 1)
           const servingType = fields.servingType ?? i.servingType ?? 'serving'
+          const prevMult = i.servingMultiplier ?? 1
+          const servingChanged = mult !== prevMult
           let calories = fields.calories
           let protein = fields.protein
+          let baseCalories = i.baseCalories
+          let baseProtein = i.baseProtein
           if (i.baseCalories != null && i.baseProtein != null && fields.servingMultiplier != null) {
-            const scaled = scaleFatSecretServing({ calories: i.baseCalories, protein: i.baseProtein }, mult)
-            calories = scaled.calories
-            protein = scaled.protein
+            if (servingChanged) {
+              const scaled = scaleFatSecretServing({ calories: i.baseCalories, protein: i.baseProtein }, mult)
+              calories = scaled.calories
+              protein = scaled.protein
+            } else {
+              baseCalories = mult > 0 ? Math.round(fields.calories / mult) : fields.calories
+              baseProtein = mult > 0 ? Math.round((fields.protein / mult) * 10) / 10 : fields.protein
+            }
           }
           return {
             ...i,
@@ -629,7 +638,10 @@ export function MacroVoiceTracker({
             servingMultiplier: mult,
             calories,
             protein,
+            baseCalories,
+            baseProtein,
             status: 'ready',
+            timestamp: Date.now(),
           }
         }),
       )
@@ -842,6 +854,7 @@ function LibraryFoodRow({
   onLog: (fields: MacroFoodEditFields) => void
 }) {
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => libraryFoodToEditFields(food))
+  const editDataRef = useRef(editData)
   const cardRef = useRef<HTMLDivElement>(null)
   const { run: scheduleMacroAutosave, cancel: cancelMacroAutosave } = useDebouncedCallback(
     (fields: MacroFoodEditFields) => onSave(fields),
@@ -853,12 +866,22 @@ function LibraryFoodRow({
   useEffect(() => {
     if (!isEditing) {
       cancelMacroAutosave()
-      setEditData(libraryFoodToEditFields(food))
+      const fields = libraryFoodToEditFields(food)
+      editDataRef.current = fields
+      setEditData(fields)
     }
   }, [food, isEditing, cancelMacroAutosave])
 
+  useEffect(() => {
+    if (!isEditing) return
+    const fields = libraryFoodToEditFields(food)
+    editDataRef.current = fields
+    setEditData(fields)
+  }, [isEditing, food.id])
+
   const handleEditChange = (fields: MacroFoodEditFields) => {
-    const macroChanged = shouldAutosaveMacroFields(editData, fields, 'library')
+    const macroChanged = shouldAutosaveMacroFields(editDataRef.current, fields, 'library')
+    editDataRef.current = fields
     setEditData(fields)
     if (macroChanged) scheduleMacroAutosave(fields)
   }
@@ -871,17 +894,21 @@ function LibraryFoodRow({
         toolbar="library"
         data={editData}
         onChange={handleEditChange}
-        onReset={() => setEditData(libraryFoodToEditFields(food))}
+        onReset={() => {
+          const fields = libraryFoodToEditFields(food)
+          editDataRef.current = fields
+          setEditData(fields)
+        }}
         onDelete={() => {
           onDelete()
           onEndEdit()
         }}
         onSave={() => {
           cancelMacroAutosave()
-          onSave(editData)
+          onSave(editDataRef.current)
           onEndEdit()
         }}
-        onLog={() => onLog(editData)}
+        onLog={() => onLog(editDataRef.current)}
         saveDisabled={!editData.name.trim()}
       />
       </div>
@@ -928,6 +955,7 @@ function FoodRow({
   onCancelTranscription: () => void
 }) {
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item))
+  const editDataRef = useRef(editData)
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
   const [infoExpanded, setInfoExpanded] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -941,11 +969,20 @@ function FoodRow({
   useEffect(() => {
     if (!isEditing) {
       cancelMacroAutosave()
-      setEditData(itemToEditFields(item))
+      const fields = itemToEditFields(item)
+      editDataRef.current = fields
+      setEditData(fields)
       setInfoExpanded(false)
     }
     setTempRaw(item.rawText || '')
   }, [item, isEditing, cancelMacroAutosave])
+
+  useEffect(() => {
+    if (!isEditing) return
+    const fields = itemToEditFields(item)
+    editDataRef.current = fields
+    setEditData(fields)
+  }, [isEditing, item.id])
 
   const endEdit = () => {
     setInfoExpanded(false)
@@ -1011,8 +1048,9 @@ function FoodRow({
     )
   }
   const handleEditChange = (fields: MacroFoodEditFields) => {
-    const next = applyDayMacroEditChange(item, editData, fields)
-    const macroChanged = shouldAutosaveMacroFields(editData, next, 'day')
+    const next = applyDayMacroEditChange(item, editDataRef.current, fields)
+    const macroChanged = shouldAutosaveMacroFields(editDataRef.current, next, 'day')
+    editDataRef.current = next
     setEditData(next)
     if (macroChanged) scheduleMacroAutosave(next)
   }
@@ -1040,7 +1078,7 @@ function FoodRow({
           }}
           onSave={() => {
             cancelMacroAutosave()
-            onUpdate(editData)
+            onUpdate(editDataRef.current)
             endEdit()
           }}
           saveDisabled={!editData.name.trim()}
