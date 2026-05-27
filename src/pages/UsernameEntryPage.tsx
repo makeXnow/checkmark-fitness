@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { AppLoadingAnimation } from '../core/AppLoadingAnimation'
 import { normalizeUsername } from '../lib/username'
 
-export function SignInPage() {
+/** Username → profile URL. Not auth — same as navigating to a bookmarked path. */
+export function UsernameEntryPage() {
   const navigate = useNavigate()
   const [raw, setRaw] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -12,7 +13,7 @@ export function SignInPage() {
     e.preventDefault()
     const slug = normalizeUsername(raw)
     if (!slug) {
-      setError('Enter a username to continue.')
+      setError('Enter a username.')
       return
     }
     setError(null)
@@ -31,7 +32,7 @@ export function SignInPage() {
           </div>
           <div className="space-y-2">
             <h1 className="text-lg font-black uppercase tracking-widest text-white">Checkmark Fitness</h1>
-            <p className="text-sm text-neutral-400">Enter your username to open your tracker.</p>
+            <p className="text-sm text-neutral-400">Enter a username to open that tracker.</p>
           </div>
         </div>
 
@@ -45,7 +46,7 @@ export function SignInPage() {
                 setRaw(e.target.value)
                 if (error) setError(null)
               }}
-              autoComplete="username"
+              autoComplete="off"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
@@ -58,7 +59,7 @@ export function SignInPage() {
             type="submit"
             className="w-full rounded-2xl bg-emerald-400 py-3.5 text-base font-black text-black transition active:scale-[0.98]"
           >
-            Continue
+            Open
           </button>
         </form>
       </div>

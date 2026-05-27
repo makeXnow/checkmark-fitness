@@ -1,6 +1,7 @@
 let activeProfile: string | null = null
 
-export function setApiProfile(username: string | null): void {
+/** Bind API calls to a profile for the current page (not sign-in — just routing). */
+export function bindApiProfile(username: string): void {
   activeProfile = username
 }
 
@@ -16,7 +17,7 @@ export function withProfileApiPath(path: string): string {
 
   const profile = activeProfile
   if (!profile) {
-    throw new Error('No profile selected')
+    throw new Error('No profile in URL')
   }
   const suffix = path.slice('/api'.length)
   return `/api/u/${encodeURIComponent(profile)}${suffix}`
