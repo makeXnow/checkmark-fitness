@@ -229,63 +229,79 @@ html.lift-workout-swapping #app-main {
   pointer-events: none;
 }
 
-/* App loading — DNA double-helix (helix crossover + strand links) */
+/* App loading — DNA double-helix (center crossover + strand links) */
 @keyframes app-dna-helix-top {
   0% {
-    transform: translateY(calc(var(--amp) * -1)) scale(var(--max-scale));
-    opacity: var(--max-opacity);
+    transform: translateY(calc(var(--amp) * -1)) scale(var(--scale-top));
+    opacity: var(--opacity-top);
     z-index: 20;
+    animation-timing-function: ease-in;
   }
   24.99% {
     z-index: 20;
   }
   25% {
+    transform: translateY(0) scale(var(--scale-center));
+    opacity: var(--opacity-center);
     z-index: 1;
+    animation-timing-function: ease-out;
   }
   50% {
-    transform: translateY(var(--amp)) scale(var(--min-scale));
-    opacity: var(--min-opacity);
+    transform: translateY(var(--amp)) scale(var(--scale-bottom));
+    opacity: var(--opacity-bottom);
     z-index: 1;
+    animation-timing-function: ease-in;
   }
   74.99% {
     z-index: 1;
   }
   75% {
+    transform: translateY(0) scale(var(--scale-center));
+    opacity: var(--opacity-center);
     z-index: 20;
+    animation-timing-function: ease-out;
   }
   100% {
-    transform: translateY(calc(var(--amp) * -1)) scale(var(--max-scale));
-    opacity: var(--max-opacity);
+    transform: translateY(calc(var(--amp) * -1)) scale(var(--scale-top));
+    opacity: var(--opacity-top);
     z-index: 20;
   }
 }
 
 @keyframes app-dna-helix-bottom {
   0% {
-    transform: translateY(var(--amp)) scale(var(--min-scale));
-    opacity: var(--min-opacity);
+    transform: translateY(var(--amp)) scale(var(--scale-bottom));
+    opacity: var(--opacity-bottom);
     z-index: 1;
+    animation-timing-function: ease-in;
   }
   24.99% {
     z-index: 1;
   }
   25% {
+    transform: translateY(0) scale(var(--scale-center));
+    opacity: var(--opacity-center);
     z-index: 20;
+    animation-timing-function: ease-out;
   }
   50% {
-    transform: translateY(calc(var(--amp) * -1)) scale(var(--max-scale));
-    opacity: var(--max-opacity);
+    transform: translateY(calc(var(--amp) * -1)) scale(var(--scale-top));
+    opacity: var(--opacity-top);
     z-index: 20;
+    animation-timing-function: ease-in;
   }
   74.99% {
     z-index: 20;
   }
   75% {
+    transform: translateY(0) scale(var(--scale-center));
+    opacity: var(--opacity-center);
     z-index: 1;
+    animation-timing-function: ease-out;
   }
   100% {
-    transform: translateY(var(--amp)) scale(var(--min-scale));
-    opacity: var(--min-opacity);
+    transform: translateY(var(--amp)) scale(var(--scale-bottom));
+    opacity: var(--opacity-bottom);
     z-index: 1;
   }
 }
@@ -293,9 +309,19 @@ html.lift-workout-swapping #app-main {
 @keyframes app-dna-link-stretch {
   0% {
     transform: scaleY(1);
+    animation-timing-function: ease-in;
+  }
+  25% {
+    transform: scaleY(0);
+    animation-timing-function: ease-out;
   }
   50% {
     transform: scaleY(-1);
+    animation-timing-function: ease-in;
+  }
+  75% {
+    transform: scaleY(0);
+    animation-timing-function: ease-out;
   }
   100% {
     transform: scaleY(1);
@@ -324,11 +350,11 @@ html.lift-workout-swapping #app-main {
 }
 
 .app-dna-dot-top {
-  animation: app-dna-helix-top var(--speed) infinite ease-in-out;
+  animation: app-dna-helix-top var(--speed) infinite;
 }
 
 .app-dna-dot-bottom {
-  animation: app-dna-helix-bottom var(--speed) infinite ease-in-out;
+  animation: app-dna-helix-bottom var(--speed) infinite;
 }
 
 .app-dna-link {
@@ -337,7 +363,7 @@ html.lift-workout-swapping #app-main {
   height: calc(var(--amp) * 2);
   background: linear-gradient(to bottom, var(--color-accent), var(--color-accent-deep));
   opacity: var(--link-opacity);
-  animation: app-dna-link-stretch var(--speed) infinite ease-in-out;
+  animation: app-dna-link-stretch var(--speed) infinite;
   transform-origin: center;
   z-index: 10;
 }

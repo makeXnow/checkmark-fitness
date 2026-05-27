@@ -486,12 +486,33 @@ export default function App() {
     return liftSaveSeq.current
   }, [resyncFromServer])
 
-  const handleLiftWorkoutSubmitted = useCallback((dayId: string, localDate: string) => {
-    void clearLiftAssumption({ dayId, localDate }).catch(() => {})
-    setLiftAssumptionPrompt((prev) =>
-      prev && prev.dayId === dayId && prev.localDate === localDate ? null : prev,
-    )
-  }, [])
+  const markLiftHabitIfNeeded = useCallback(
+    (localDate: string) => {
+      const prev = bootRef.current
+      if (!prev) return
+      const logs = prev.habits.logs ?? {}
+      const dayLog = logs[localDate] ?? {}
+      if (dayLog.lift) return
+      void saveHabitsBundle({
+        logs: {
+          ...logs,
+          [localDate]: { ...dayLog, lift: true },
+        },
+      })
+    },
+    [saveHabitsBundle],
+  )
+
+  const handleLiftWorkoutSubmitted = useCallback(
+    (dayId: string, localDate: string) => {
+      markLiftHabitIfNeeded(localDate)
+      void clearLiftAssumption({ dayId, localDate }).catch(() => {})
+      setLiftAssumptionPrompt((prev) =>
+        prev && prev.dayId === dayId && prev.localDate === localDate ? null : prev,
+      )
+    },
+    [markLiftHabitIfNeeded],
+  )
 
   const dismissLiftAssumptionPrompt = useCallback(async () => {
     const prompt = liftAssumptionPrompt
@@ -518,12 +539,11 @@ export default function App() {
         advanceDayIndex: false,
       })
       await saveLiftBundle(nextPayload)
-      await clearLiftAssumption({ dayId: prompt.dayId, localDate: prompt.localDate })
-      setLiftAssumptionPrompt(null)
+      handleLiftWorkoutSubmitted(prompt.dayId, prompt.localDate)
     } finally {
       setLiftAssumptionBusy(false)
     }
-  }, [liftAssumptionBusy, liftAssumptionPrompt, saveLiftBundle])
+  }, [handleLiftWorkoutSubmitted, liftAssumptionBusy, liftAssumptionPrompt, saveLiftBundle])
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
 

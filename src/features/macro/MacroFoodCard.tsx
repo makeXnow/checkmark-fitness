@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Check, Info, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
 import type {
   FatSecretFoodRef,
   FatSecretRoute,
@@ -188,11 +188,11 @@ export function MacroFoodAuditPanel({
 export type MacroFoodEditFields = {
   emoji: string
   name: string
-  /** Library base serving label (text mode only). */
+  /** Library base serving label (e.g. "1 cup"). */
   amount: string
-  /** AI-assigned unit label (quantity mode). */
+  /** AI-assigned unit label for day-log items (e.g. "slice"). */
   servingType?: string
-  /** User-editable numeric multiplier (quantity mode). */
+  /** Numeric serving multiplier shown in the serving field. */
   servingMultiplier?: number
   calories: number
   protein: number
@@ -220,14 +220,79 @@ export function MacroMiniCard({
   )
 }
 
-const numberInputClass =
-  'w-full bg-transparent font-bold text-xs py-2.5 text-center outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+const macroEditBoxShellClass =
+  'flex items-center bg-white/5 rounded-xl overflow-hidden focus-within:bg-white/10 transition-colors'
+
+const macroEditInputClass =
+  'w-full bg-transparent font-bold text-xs py-2.5 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+
+const fieldLabelClass = 'text-[9px] font-black opacity-40 text-center truncate px-0.5'
+
+function MacroEditTextBox({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  colorClass = 'text-white',
+  shellClassName = '',
+  inputClassName = '',
+  align = 'center',
+  inputId,
+  ariaLabel,
+  step,
+  min,
+}: {
+  value: string | number
+  onChange: (v: string) => void
+  placeholder?: string
+  type?: 'text' | 'number'
+  colorClass?: string
+  shellClassName?: string
+  inputClassName?: string
+  align?: 'center' | 'left'
+  inputId?: string
+  ariaLabel?: string
+  step?: string | number
+  min?: string | number
+}) {
+  const display = value === 0 && type === 'number' ? '' : String(value)
+  const alignClass = align === 'left' ? 'text-left px-3' : 'text-center'
+
+  return (
+    <div className={`${macroEditBoxShellClass} ${shellClassName}`.trim()}>
+      <input
+        id={inputId}
+        value={display}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${macroEditInputClass} ${alignClass} ${colorClass} ${inputClassName}`.trim()}
+        placeholder={placeholder}
+        type={type}
+        step={step}
+        min={min}
+        aria-label={ariaLabel}
+      />
+    </div>
+  )
+}
+
+function MacroEditFieldColumn({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex-1 flex flex-col gap-1 min-w-0">
+      {children}
+      {typeof label === 'string' ? <span className={fieldLabelClass}>{label}</span> : label}
+    </div>
+  )
+}
+
+function servingUnitLabel(data: MacroFoodEditFields): string {
+  const type = data.servingType?.trim() || 'serving'
+  return /^\d/.test(type) ? type : `1 ${type}`
+}
 
 function MacroFieldInput({
   value,
   onChange,
   placeholder,
-  label,
   colorClass = 'text-white',
   type = 'text',
   proteinSplit = false,
@@ -236,7 +301,6 @@ function MacroFieldInput({
   value: string | number
   onChange: (v: string) => void
   placeholder: string
-  label: string
   colorClass?: string
   type?: 'text' | 'number'
   proteinSplit?: boolean
@@ -247,10 +311,10 @@ function MacroFieldInput({
   if (proteinSplit) {
     return (
       <div
-        className="flex-1 flex bg-white/5 rounded-xl overflow-hidden focus-within:bg-white/10 transition-colors cursor-text relative"
+        className={`${macroEditBoxShellClass} cursor-text`}
         onClick={() => inputId && document.getElementById(inputId)?.focus()}
       >
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-w-0">
           <input
             id={inputId}
             value={display}
@@ -261,24 +325,122 @@ function MacroFieldInput({
           />
           <span className={`w-1/2 ${colorClass} font-bold text-xs py-2.5 text-left pointer-events-none`}>g</span>
         </div>
-        <span className="text-[9px] font-black opacity-30 uppercase self-center absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          {label}
-        </span>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 flex bg-white/5 rounded-xl overflow-hidden focus-within:bg-white/10 transition-colors">
-      <input
-        id={inputId}
-        value={display}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${numberInputClass} pl-2 ${colorClass}`}
-        placeholder={placeholder}
-        type={type}
-      />
-      <span className="text-[9px] font-black opacity-30 uppercase self-center pr-2.5 shrink-0">{label}</span>
+    <MacroEditTextBox
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      type={type}
+      colorClass={colorClass}
+      inputId={inputId}
+    />
+  )
+}
+
+const macroEditToolbarIconClass = 'p-2 rounded-lg transition-colors'
+
+function MacroEditCloseButton({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className="self-center p-1.5 text-white/50 hover:text-white/90 disabled:opacity-40 rounded-lg transition-colors shrink-0"
+      aria-label="Close"
+    >
+      <X size={18} strokeWidth={2.5} />
+    </button>
+  )
+}
+
+function MacroEditActionsToolbar({
+  toolbar,
+  saveDisabled,
+  onDelete,
+  onReset,
+  onLog,
+  showAudit,
+  infoExpanded,
+  onInfoToggle,
+}: {
+  toolbar: 'day' | 'library'
+  saveDisabled?: boolean
+  onDelete: () => void
+  onReset: () => void
+  onLog?: () => void
+  showAudit?: boolean
+  infoExpanded?: boolean
+  onInfoToggle?: () => void
+}) {
+  return (
+    <div className="flex justify-between items-center px-4 py-2 bg-white/[0.04]">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className={`${macroEditToolbarIconClass} text-red-400 hover:bg-red-400/10`}
+          aria-label="Delete"
+        >
+          <Trash2 size={16} strokeWidth={2.5} />
+        </button>
+        {toolbar === 'day' && showAudit && onInfoToggle && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onInfoToggle()
+            }}
+            className={`${macroEditToolbarIconClass} ${
+              infoExpanded
+                ? 'text-emerald-300 bg-emerald-400/15 ring-1 ring-emerald-400/40'
+                : 'text-white/50 hover:text-white/80 hover:bg-white/10'
+            }`}
+            aria-label={infoExpanded ? 'Hide details' : 'Show details'}
+            aria-pressed={infoExpanded}
+          >
+            <Info size={16} strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {toolbar === 'library' && onLog ? (
+          <button
+            type="button"
+            disabled={saveDisabled}
+            onClick={(e) => {
+              e.stopPropagation()
+              onLog()
+            }}
+            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-40 rounded-lg transition-colors"
+          >
+            Log
+          </button>
+        ) : null}
+        {toolbar === 'day' ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReset()
+            }}
+            className={`${macroEditToolbarIconClass} text-emerald-400 hover:bg-emerald-400/10`}
+            title="Re-estimate macros"
+            aria-label="Re-estimate macros"
+          >
+            <RefreshCw size={16} strokeWidth={2.5} />
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -298,7 +460,6 @@ export function MacroFoodEditCard({
   audit,
   auditCustomFoods,
   toolbar = 'day',
-  amountMode = 'quantity',
 }: {
   fieldId: string
   data: MacroFoodEditFields
@@ -313,82 +474,82 @@ export function MacroFoodEditCard({
   onInfoToggle?: () => void
   audit?: MacroFoodAuditTrail
   auditCustomFoods?: MacroCustomFood[]
-  /** `library`: trash + log + save. `library-add`: full-width Save + Save & Log. `day`: re-estimate, trash, info, save. */
+  /** `library`: trash + log. `library-add`: full-width Save + Save & Log. `day`: trash + info + refresh. */
   toolbar?: 'day' | 'library' | 'library-add'
-  /** `quantity`: numeric multiplier + read-only unit. `text`: free-text serving (library). */
-  amountMode?: 'quantity' | 'text'
 }) {
   const proteinInputId = `macro-protein-${fieldId}`
+  const servingLabelEditable = toolbar === 'library' || toolbar === 'library-add'
+  const showCloseButton = toolbar === 'library' || toolbar === 'day'
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-2xl border border-white/10 overflow-hidden shadow-2xl flex flex-col gap-px">
-      <div className="p-3 bg-white/[0.02] flex gap-3">
-        <input
-          value={data.emoji}
-          onChange={(e) => onChange({ ...data, emoji: e.target.value })}
-          className="w-12 h-12 bg-white/5 rounded-xl text-2xl text-center outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all shrink-0"
-          placeholder="🍱"
-          aria-label="Emoji"
-        />
-        <input
-          value={data.name}
-          onChange={(e) => onChange({ ...data, name: e.target.value })}
-          className="flex-1 bg-white/5 rounded-xl px-3 font-bold text-sm text-white outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all min-w-0"
-          placeholder="Food name"
-        />
-      </div>
+    <div className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-white/10 overflow-hidden shadow-2xl flex flex-col gap-px">
+      <div className="p-3 bg-white/[0.02] flex flex-col gap-3">
+        <div className="flex gap-2 items-center">
+          <MacroEditTextBox
+            value={data.emoji}
+            onChange={(v) => onChange({ ...data, emoji: v })}
+            placeholder="🍱"
+            shellClassName="w-12 shrink-0"
+            inputClassName="text-xl"
+            ariaLabel="Emoji"
+          />
+          <MacroEditTextBox
+            value={data.name}
+            onChange={(v) => onChange({ ...data, name: v })}
+            placeholder="Food name"
+            shellClassName="flex-1 min-w-0"
+            align="left"
+            ariaLabel="Food name"
+          />
+          {showCloseButton ? <MacroEditCloseButton disabled={saveDisabled} onClick={onSave} /> : null}
+        </div>
 
-      <div className="p-3 bg-white/[0.02]">
         <div className="flex gap-2 w-full">
-          {amountMode === 'quantity' ? (
-            <div className="flex-1 flex bg-white/5 rounded-xl overflow-hidden min-w-0">
-              <input
-                value={data.servingMultiplier === 0 ? '' : String(data.servingMultiplier ?? 1)}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  const n = raw === '' ? 0 : parseFloat(raw)
-                  onChange({ ...data, servingMultiplier: Number.isFinite(n) ? n : 0 })
-                }}
-                className={`${numberInputClass} pl-2 text-white`}
-                placeholder="1"
-                type="number"
-                step="any"
-                min="0"
-                aria-label="Serving quantity"
-              />
-              <span
-                className="text-[9px] font-black opacity-50 uppercase self-center pr-2.5 shrink-0 truncate max-w-[5rem]"
-                title={data.servingType || 'serving'}
-              >
-                {data.servingType || 'serving'}
-              </span>
-            </div>
-          ) : (
+          <MacroEditFieldColumn
+            label={
+              servingLabelEditable ? (
+                <input
+                  value={data.amount}
+                  onChange={(e) => onChange({ ...data, amount: e.target.value })}
+                  className={`${fieldLabelClass} bg-transparent outline-none focus:opacity-70 w-full`}
+                  placeholder="1 serving"
+                  aria-label="Serving size"
+                />
+              ) : (
+                servingUnitLabel(data)
+              )
+            }
+          >
             <MacroFieldInput
-              value={data.amount}
-              onChange={(v) => onChange({ ...data, amount: v })}
-              placeholder="Serv"
-              label="Serv"
+              value={data.servingMultiplier ?? 1}
+              onChange={(v) => {
+                const n = v === '' ? 0 : parseFloat(v)
+                onChange({ ...data, servingMultiplier: Number.isFinite(n) ? n : 0 })
+              }}
+              placeholder="1"
+              type="number"
             />
-          )}
-          <MacroFieldInput
-            value={data.calories}
-            onChange={(v) => onChange({ ...data, calories: parseFloat(v) || 0 })}
-            placeholder="Cal"
-            label="Cal"
-            colorClass="text-emerald-400"
-            type="number"
-          />
-          <MacroFieldInput
-            value={data.protein}
-            onChange={(v) => onChange({ ...data, protein: parseFloat(v) || 0 })}
-            placeholder="0"
-            label="Pro"
-            colorClass="text-blue-400"
-            type="number"
-            proteinSplit
-            inputId={proteinInputId}
-          />
+          </MacroEditFieldColumn>
+          <MacroEditFieldColumn label="Calories">
+            <MacroFieldInput
+              value={data.calories}
+              onChange={(v) => onChange({ ...data, calories: parseFloat(v) || 0 })}
+              placeholder="0"
+              colorClass="text-emerald-400"
+              type="number"
+            />
+          </MacroEditFieldColumn>
+          <MacroEditFieldColumn label="Protein">
+            <MacroFieldInput
+              value={data.protein}
+              onChange={(v) => onChange({ ...data, protein: parseFloat(v) || 0 })}
+              placeholder="0"
+              colorClass="text-blue-400"
+              type="number"
+              proteinSplit
+              inputId={proteinInputId}
+            />
+          </MacroEditFieldColumn>
         </div>
       </div>
 
@@ -418,80 +579,16 @@ export function MacroFoodEditCard({
           </button>
         </div>
       ) : (
-      <div className="flex justify-between items-center px-4 py-2 bg-white/[0.04]">
-        <div className="flex gap-2">
-          {toolbar === 'day' && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onReset()
-              }}
-              className="p-2 text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
-              title="Re-estimate macros"
-              aria-label="Re-estimate macros"
-            >
-              <RefreshCw size={16} strokeWidth={2.5} />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-            aria-label="Delete"
-          >
-            <Trash2 size={16} strokeWidth={2.5} />
-          </button>
-          {toolbar === 'day' && showAudit && onInfoToggle && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onInfoToggle()
-              }}
-              className={`p-2 rounded-lg transition-colors ${
-                infoExpanded
-                  ? 'text-emerald-300 bg-emerald-400/15 ring-1 ring-emerald-400/40'
-                  : 'text-white/50 hover:text-white/80 hover:bg-white/10'
-              }`}
-              aria-label={infoExpanded ? 'Hide details' : 'Show details'}
-              aria-pressed={infoExpanded}
-            >
-              <Info size={16} strokeWidth={2.5} />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {toolbar === 'library' && onLog && (
-            <button
-              type="button"
-              disabled={saveDisabled}
-              onClick={(e) => {
-                e.stopPropagation()
-                onLog()
-              }}
-              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-40 rounded-lg transition-colors"
-            >
-              Log
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={saveDisabled}
-            onClick={(e) => {
-              e.stopPropagation()
-              onSave()
-            }}
-            className="p-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white rounded-lg shadow-lg active:scale-95 transition-all"
-            aria-label="Save"
-          >
-            <Check size={18} strokeWidth={3} />
-          </button>
-        </div>
-      </div>
+        <MacroEditActionsToolbar
+          toolbar={toolbar === 'library' ? 'library' : 'day'}
+          saveDisabled={saveDisabled}
+          onDelete={onDelete}
+          onReset={onReset}
+          onLog={onLog}
+          showAudit={showAudit}
+          infoExpanded={infoExpanded}
+          onInfoToggle={onInfoToggle}
+        />
       )}
       {showAudit && infoExpanded && audit && (
         <MacroFoodAuditPanel audit={audit} customFoods={auditCustomFoods} />
@@ -523,10 +620,10 @@ export function MacroFoodViewCard({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
-      className={`relative bg-white/5 hover:bg-white/10 p-4 rounded-[1.75rem] border border-white/5 transition-all cursor-pointer group ${pending ? 'opacity-80' : ''}`}
+      className={`relative bg-white/5 hover:bg-white/10 p-4 rounded-[var(--radius-card)] border border-white/5 transition-all cursor-pointer group ${pending ? 'opacity-80' : ''}`}
     >
       {pending && (
-        <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-[1.75rem] z-10">
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-[var(--radius-card)] z-10">
           <Loader2 className="animate-spin text-emerald-500 opacity-60" size={20} aria-hidden />
         </div>
       )}
@@ -576,6 +673,7 @@ export function libraryFoodToEditFields(food: MacroCustomFood): MacroFoodEditFie
     emoji: food.emoji || '🍱',
     name: food.name,
     amount: food.baseAmount || '',
+    servingMultiplier: 1,
     calories: food.calories,
     protein: food.protein,
   }

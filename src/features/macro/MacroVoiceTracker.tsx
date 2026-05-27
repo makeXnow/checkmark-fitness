@@ -13,9 +13,10 @@ import {
   Flame,
   AlertCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
+import { useScrollIntoViewWithin } from '../../lib/scrollIntoViewWithin'
 import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
 import {
   formatServingDisplay,
@@ -165,6 +166,7 @@ export function MacroVoiceTracker({
   const [dbModalOpen, setDbModalOpen] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editingLibraryFoodId, setEditingLibraryFoodId] = useState<string | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setEditingItemId(null)
@@ -650,19 +652,22 @@ export function MacroVoiceTracker({
     (libraryFoodId: string, fields: MacroFoodEditFields) => {
       if (!fields.name.trim()) return
       const servingType = fields.amount.trim() || '1 serving'
+      const mult =
+        typeof fields.servingMultiplier === 'number' && fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
+      const scaled = scaleFatSecretServing({ calories: fields.calories, protein: fields.protein }, mult)
       replaceDay((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           emoji: fields.emoji || '🍱',
           name: fields.name,
-          amount: formatServingDisplay(1, servingType),
+          amount: formatServingDisplay(mult, servingType),
           servingType,
-          servingMultiplier: 1,
+          servingMultiplier: mult,
           baseCalories: fields.calories,
           baseProtein: fields.protein,
-          calories: fields.calories,
-          protein: fields.protein,
+          calories: scaled.calories,
+          protein: scaled.protein,
           libraryFoodId,
           status: 'ready',
           timestamp: Date.now(),
@@ -675,7 +680,7 @@ export function MacroVoiceTracker({
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[1fr_auto]" data-macro-diet-page>
-      <div className="macro-diet-scroll flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-y-contain">
+      <div ref={scrollContainerRef} className="macro-diet-scroll flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-y-contain">
       <StatusDashboard
         consumed={totals.cal}
         goal={goals.calorieGoal}
@@ -696,6 +701,7 @@ export function MacroVoiceTracker({
                 key={item.id}
                 item={item}
                 customFoods={customFoods}
+                scrollContainerRef={scrollContainerRef}
                 isEditing={editingItemId === item.id}
                 onStartEdit={() => {
                   setEditingLibraryFoodId(null)
@@ -743,6 +749,7 @@ export function MacroVoiceTracker({
               <LibraryFoodRow
                 key={food.id}
                 food={food}
+                scrollContainerRef={scrollContainerRef}
                 isEditing={editingLibraryFoodId === food.id}
                 onStartEdit={() => {
                   setEditingItemId(null)
@@ -799,6 +806,7 @@ export function MacroVoiceTracker({
 
 function LibraryFoodRow({
   food,
+  scrollContainerRef,
   isEditing,
   onStartEdit,
   onEndEdit,
@@ -807,6 +815,7 @@ function LibraryFoodRow({
   onLog,
 }: {
   food: MacroCustomFood
+  scrollContainerRef: RefObject<HTMLDivElement | null>
   isEditing: boolean
   onStartEdit: () => void
   onEndEdit: () => void
@@ -815,6 +824,9 @@ function LibraryFoodRow({
   onLog: (fields: MacroFoodEditFields) => void
 }) {
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => libraryFoodToEditFields(food))
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useScrollIntoViewWithin(isEditing, cardRef, scrollContainerRef)
 
   useEffect(() => {
     if (!isEditing) setEditData(libraryFoodToEditFields(food))
@@ -822,10 +834,10 @@ function LibraryFoodRow({
 
   if (isEditing) {
     return (
-      <MacroFoodEditCard
+      <div ref={cardRef}>
+        <MacroFoodEditCard
         fieldId={`library-${food.id}`}
         toolbar="library"
-        amountMode="text"
         data={editData}
         onChange={setEditData}
         onReset={() => setEditData(libraryFoodToEditFields(food))}
@@ -840,6 +852,7 @@ function LibraryFoodRow({
         onLog={() => onLog(editData)}
         saveDisabled={!editData.name.trim()}
       />
+      </div>
     )
   }
 
@@ -858,6 +871,7 @@ function LibraryFoodRow({
 function FoodRow({
   item,
   customFoods,
+  scrollContainerRef,
   isEditing,
   onStartEdit,
   onEndEdit,
@@ -870,6 +884,7 @@ function FoodRow({
 }: {
   item: MacroDayItem
   customFoods: MacroCustomFood[]
+  scrollContainerRef: RefObject<HTMLDivElement | null>
   isEditing: boolean
   onStartEdit: () => void
   onEndEdit: () => void
@@ -883,6 +898,9 @@ function FoodRow({
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item))
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
   const [infoExpanded, setInfoExpanded] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useScrollIntoViewWithin(isEditing, cardRef, scrollContainerRef, [infoExpanded])
 
   useEffect(() => {
     if (!isEditing) {
@@ -971,29 +989,32 @@ function FoodRow({
 
   if (isEditing) {
     return (
-      <MacroFoodEditCard
-        fieldId={item.id}
-        data={editData}
-        onChange={handleEditChange}
-        showAudit
-        infoExpanded={infoExpanded}
-        onInfoToggle={() => setInfoExpanded((v) => !v)}
-        audit={macroItemAuditTrail(item)}
-        auditCustomFoods={customFoods}
-        onReset={() => {
-          endEdit()
-          onReestimate()
-        }}
-        onDelete={() => {
-          onRemove()
-          endEdit()
-        }}
-        onSave={() => {
-          onUpdate(editData)
-          endEdit()
-        }}
-        saveDisabled={!editData.name.trim()}
-      />
+      <div ref={cardRef}>
+        <MacroFoodEditCard
+          fieldId={item.id}
+          toolbar="day"
+          data={editData}
+          onChange={handleEditChange}
+          showAudit
+          infoExpanded={infoExpanded}
+          onInfoToggle={() => setInfoExpanded((v) => !v)}
+          audit={macroItemAuditTrail(item)}
+          auditCustomFoods={customFoods}
+          onReset={() => {
+            endEdit()
+            onReestimate()
+          }}
+          onDelete={() => {
+            onRemove()
+            endEdit()
+          }}
+          onSave={() => {
+            onUpdate(editData)
+            endEdit()
+          }}
+          saveDisabled={!editData.name.trim()}
+        />
+      </div>
     )
   }
 
@@ -1041,6 +1062,7 @@ function InteractionDock({
   return (
     <div className="relative z-20 shrink-0 pointer-events-none pb-[calc(var(--app-nav-offset)+0.5rem)]">
       <div
+        data-macro-diet-gradient
         className="pointer-events-none absolute inset-x-0 bottom-full h-6 bg-gradient-to-t from-black/80 to-transparent"
         aria-hidden
       />
@@ -1275,11 +1297,11 @@ function DatabaseModal({
         <MacroFoodEditCard
           fieldId="library-add"
           toolbar="library-add"
-          amountMode="text"
           data={{
             emoji: entry.emoji || '🍱',
             name: entry.name,
             amount: entry.baseAmount || '',
+            servingMultiplier: 1,
             calories: entry.calories,
             protein: entry.protein,
           }}
