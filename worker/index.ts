@@ -96,7 +96,27 @@ function asLogsMap(v: unknown): Record<string, Record<string, unknown>> {
   return v as Record<string, Record<string, unknown>>
 }
 
+let liftAssumptionSchemaReady = false
+
+async function ensureLiftAssumptionSchema(db: D1Database): Promise<void> {
+  if (liftAssumptionSchemaReady) return
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS lift_assumption (
+        device_id TEXT PRIMARY KEY DEFAULT 'default',
+        payload_json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+    )
+    .run()
+  await db
+    .prepare(`CREATE INDEX IF NOT EXISTS idx_lift_assumption_device ON lift_assumption(device_id)`)
+    .run()
+  liftAssumptionSchemaReady = true
+}
+
 async function ensureLiftAssumption(db: D1Database, deviceId: string): Promise<void> {
+  await ensureLiftAssumptionSchema(db)
   const existing = await db
     .prepare('SELECT device_id FROM lift_assumption WHERE device_id = ?')
     .bind(deviceId)
