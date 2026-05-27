@@ -7,10 +7,18 @@
         var p = location.pathname
         var u = p.indexOf('/u/')
         if (u < 0) return
-        var h = u === 0 ? '/' : p.slice(0, u) + '/'
+        var base = u === 0 ? '' : p.slice(0, u)
+        var h = base ? base + '/' : '/'
         var b = document.createElement('base')
         b.href = h
         document.head.insertBefore(b, document.head.firstChild)
+        var slug = p.slice(u).match(/^\/u\/([a-z0-9][a-z0-9_-]*[a-z0-9]|[a-z0-9])/)
+        if (!slug) return
+        var user = slug[1]
+        var manifest = document.querySelector('link[rel="manifest"]')
+        if (manifest) manifest.setAttribute('href', base + '/manifest/u/' + user + '.webmanifest')
+        var apple = document.querySelector('meta[name="apple-mobile-web-app-title"]')
+        if (apple) apple.setAttribute('content', user.charAt(0).toUpperCase() + user.slice(1))
       })()
     </script>
     <link rel="icon" type="image/png" href="./favicon.png" />

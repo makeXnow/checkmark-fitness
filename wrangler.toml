@@ -18,6 +18,10 @@ directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
+[vars]
+PUBLIC_APP_ORIGIN = "https://makexnow.com"
+PUBLIC_APP_BASE = "/checkmark-fitness"
+
 [dev]
 port = 8787
 # Local: copy .dev.vars.example → .dev.vars. Production: `npx wrangler secret put OPENAI_API_KEY` (encrypted; not in git).

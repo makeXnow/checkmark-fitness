@@ -17,11 +17,15 @@ function profileManifestDevPlugin(): Plugin {
           return
         }
         const username = m[1]
+        const startPath = url.replace(/\/manifest\/u\/[^/]+\.webmanifest$/, `/u/${username}`)
         const baseEnd = url.indexOf('/manifest/')
         const basePath = baseEnd > 0 ? url.slice(0, baseEnd) : ''
-        const startUrl = `${basePath}/u/${username}`
-        const scope = basePath ? `${basePath}/` : '/'
+        const origin = 'http://localhost:9024'
+        const startUrl = new URL(startPath, origin).href
+        const scope = new URL(basePath ? `${basePath}/` : '/', origin).href
+        const icon = (file: string) => new URL(`${basePath}/icons/${file}`, origin).href
         const body = {
+          id: startUrl,
           name: `Checkmark · ${username}`,
           short_name: username,
           start_url: startUrl,
@@ -31,14 +35,9 @@ function profileManifestDevPlugin(): Plugin {
           background_color: '#0a0a0a',
           theme_color: '#0a0a0a',
           icons: [
-            { src: `${basePath}/icons/pwa-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: `${basePath}/icons/pwa-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            {
-              src: `${basePath}/icons/pwa-512.png`,
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable',
-            },
+            { src: icon('pwa-192.png'), sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon('pwa-512.png'), sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: icon('pwa-512.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         }
         res.setHeader('Content-Type', 'application/manifest+json')

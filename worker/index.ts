@@ -29,6 +29,10 @@ import { isValidUsername, normalizeUsername } from './username'
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
+  /** Public site origin for PWA manifest URLs (e.g. https://makexnow.com). */
+  PUBLIC_APP_ORIGIN?: string
+  /** URL path prefix where the app is mounted (e.g. /checkmark-fitness). */
+  PUBLIC_APP_BASE?: string
   OPENAI_API_KEY?: string
   FATSECRET_CLIENT_ID?: string
   FATSECRET_CLIENT_SECRET?: string
@@ -749,16 +753,49 @@ function pathnameForWorkerRouter(pathname: string): string {
 
 const PROFILE_MANIFEST_RE = /\/manifest\/u\/([a-z0-9][a-z0-9_-]*[a-z0-9]|[a-z0-9])\.webmanifest$/
 
-function profileManifestResponse(pathname: string): Response | null {
+function publicOrigin(request: Request, env: Env): string {
+  const configured = env.PUBLIC_APP_ORIGIN?.replace(/\/$/, '')
+  if (configured) return configured
+
+  const referer = request.headers.get('referer')
+  if (referer) {
+    try {
+      const origin = new URL(referer).origin
+      if (!origin.includes('.workers.dev')) return origin
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+  if (host && !host.includes('.workers.dev')) {
+    const proto = request.headers.get('x-forwarded-proto') ?? 'https'
+    return `${proto}://${host}`
+  }
+  return new URL(request.url).origin
+}
+
+function profileManifestResponse(request: Request, env: Env): Response | null {
+  const url = new URL(request.url)
+  const origin = publicOrigin(request, env)
+  // makexnow router may strip the app prefix before the Worker; full public path is in x-mxn-path.
+  const pathname = request.headers.get('x-mxn-path') ?? url.pathname
   const m = pathname.match(PROFILE_MANIFEST_RE)
   if (!m) return null
   const username = m[1]
   if (!isValidUsername(username)) return null
+
+  const configuredBase = env.PUBLIC_APP_BASE?.replace(/\/$/, '') ?? ''
   const baseEnd = pathname.indexOf('/manifest/')
-  const basePath = baseEnd > 0 ? pathname.slice(0, baseEnd) : ''
-  const startUrl = `${basePath}/u/${username}`
-  const scope = basePath ? `${basePath}/` : '/'
+  const basePath =
+    configuredBase || (baseEnd > 0 ? pathname.slice(0, baseEnd) : '')
+  const startPath = basePath ? `${basePath}/u/${username}` : `/u/${username}`
+  const startUrl = new URL(startPath, origin).href
+  const scope = new URL(basePath ? `${basePath}/` : '/', origin).href
+  const icon = (file: string) => new URL(`${basePath}/icons/${file}`, origin).href
+
   const body = {
+    id: startUrl,
     name: `Checkmark · ${username}`,
     short_name: username,
     start_url: startUrl,
@@ -768,14 +805,9 @@ function profileManifestResponse(pathname: string): Response | null {
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
     icons: [
-      { src: `${basePath}/icons/pwa-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: `${basePath}/icons/pwa-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-      {
-        src: `${basePath}/icons/pwa-512.png`,
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
+      { src: icon('pwa-192.png'), sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: icon('pwa-512.png'), sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: icon('pwa-512.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
   return new Response(JSON.stringify(body), {
@@ -789,7 +821,7 @@ function profileManifestResponse(pathname: string): Response | null {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
-    const manifest = profileManifestResponse(url.pathname)
+    const manifest = profileManifestResponse(request, env)
     if (manifest) return manifest
 
     const path = pathnameForWorkerRouter(url.pathname)
