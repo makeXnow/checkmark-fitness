@@ -35,6 +35,34 @@ export type MacroEstimateResult = {
 }
 
 /** 1-based numbered list for the macro-estimate prompt. */
+/** Count day-log entries that reference each library food id. */
+export function countLibraryFoodUsage(logs: Record<string, MacroDayItem[]>): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const items of Object.values(logs)) {
+    for (const item of items) {
+      const id = item.libraryFoodId
+      if (!id) continue
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+/** Most-logged library foods first; tie-break by recency then name. */
+export function sortCustomFoodsByUsage(
+  foods: MacroCustomFood[],
+  logs: Record<string, MacroDayItem[]>,
+): MacroCustomFood[] {
+  const usage = countLibraryFoodUsage(logs)
+  return [...foods].sort((a, b) => {
+    const usageDiff = (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0)
+    if (usageDiff !== 0) return usageDiff
+    const createdDiff = (b.createdAt ?? 0) - (a.createdAt ?? 0)
+    if (createdDiff !== 0) return createdDiff
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  })
+}
+
 export function formatNumberedFoodLibrary(foods: MacroCustomFood[]): string {
   if (foods.length === 0) return ''
   const lines = foods.map((f, i) => {

@@ -1,7 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { DevLoadingPage } from './dev/DevLoadingPage'
 import './index.css'
+import { isDevLoadingRoute } from './lib/devRoutes'
 import { initPortraitOrientationLock } from './lib/lockOrientation'
 
 initPortraitOrientationLock()
@@ -21,6 +23,6 @@ initPortraitOrientationLock()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    {isDevLoadingRoute() ? <DevLoadingPage /> : <App />}
   </React.StrictMode>,
 )

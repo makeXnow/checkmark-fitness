@@ -25,6 +25,7 @@ import {
   mergeMacroLogs,
   parsedItemToDayItem,
   scaleFatSecretServing,
+  sortCustomFoodsByUsage,
   type ParsedFoodItem,
 } from './macroLib'
 import {
@@ -127,6 +128,10 @@ export function MacroVoiceTracker({
   onSaveFoods: (foods: MacroCustomFood[]) => void
 }) {
   const items = logs[dateKey] || []
+  const sortedCustomFoods = useMemo(
+    () => sortCustomFoodsByUsage(customFoods, logs),
+    [customFoods, logs],
+  )
   const logsRef = useRef(logs)
   logsRef.current = mergeMacroLogs(logs, logsRef.current)
   const customFoodsRef = useRef(customFoods)
@@ -734,7 +739,7 @@ export function MacroVoiceTracker({
           {customFoods.length === 0 ? (
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">Library is empty</p>
           ) : (
-            customFoods.map((food) => (
+            sortedCustomFoods.map((food) => (
               <LibraryFoodRow
                 key={food.id}
                 food={food}
