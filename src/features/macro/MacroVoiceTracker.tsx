@@ -33,11 +33,15 @@ import {
 import {
   MacroFoodEditCard,
   MacroFoodViewCard,
+  applyDayMacroEditChange,
   itemToEditFields,
   libraryFoodToEditFields,
   macroItemAuditTrail,
+  MACRO_FIELD_AUTOSAVE_MS,
+  shouldAutosaveMacroFields,
   type MacroFoodEditFields,
 } from './MacroFoodCard'
+import { useDebouncedCallback } from '../../lib/useDebouncedCallback'
 import { MACRO_PROMPTS } from './prompts'
 
 type QuickScanState = {
@@ -839,12 +843,25 @@ function LibraryFoodRow({
 }) {
   const [editData, setEditData] = useState<MacroFoodEditFields>(() => libraryFoodToEditFields(food))
   const cardRef = useRef<HTMLDivElement>(null)
+  const { run: scheduleMacroAutosave, cancel: cancelMacroAutosave } = useDebouncedCallback(
+    (fields: MacroFoodEditFields) => onSave(fields),
+    MACRO_FIELD_AUTOSAVE_MS,
+  )
 
   useScrollIntoViewWithin(isEditing, cardRef, scrollContainerRef)
 
   useEffect(() => {
-    if (!isEditing) setEditData(libraryFoodToEditFields(food))
-  }, [food, isEditing])
+    if (!isEditing) {
+      cancelMacroAutosave()
+      setEditData(libraryFoodToEditFields(food))
+    }
+  }, [food, isEditing, cancelMacroAutosave])
+
+  const handleEditChange = (fields: MacroFoodEditFields) => {
+    const macroChanged = shouldAutosaveMacroFields(editData, fields, 'library')
+    setEditData(fields)
+    if (macroChanged) scheduleMacroAutosave(fields)
+  }
 
   if (isEditing) {
     return (
@@ -853,13 +870,14 @@ function LibraryFoodRow({
         fieldId={`library-${food.id}`}
         toolbar="library"
         data={editData}
-        onChange={setEditData}
+        onChange={handleEditChange}
         onReset={() => setEditData(libraryFoodToEditFields(food))}
         onDelete={() => {
           onDelete()
           onEndEdit()
         }}
         onSave={() => {
+          cancelMacroAutosave()
           onSave(editData)
           onEndEdit()
         }}
@@ -913,16 +931,21 @@ function FoodRow({
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
   const [infoExpanded, setInfoExpanded] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const { run: scheduleMacroAutosave, cancel: cancelMacroAutosave } = useDebouncedCallback(
+    (fields: MacroFoodEditFields) => onUpdate(fields),
+    MACRO_FIELD_AUTOSAVE_MS,
+  )
 
   useScrollIntoViewWithin(isEditing, cardRef, scrollContainerRef, [infoExpanded])
 
   useEffect(() => {
     if (!isEditing) {
+      cancelMacroAutosave()
       setEditData(itemToEditFields(item))
       setInfoExpanded(false)
     }
     setTempRaw(item.rawText || '')
-  }, [item, isEditing])
+  }, [item, isEditing, cancelMacroAutosave])
 
   const endEdit = () => {
     setInfoExpanded(false)
@@ -988,17 +1011,10 @@ function FoodRow({
     )
   }
   const handleEditChange = (fields: MacroFoodEditFields) => {
-    if (
-      item.baseCalories != null &&
-      item.baseProtein != null &&
-      fields.servingMultiplier != null &&
-      fields.servingMultiplier !== editData.servingMultiplier
-    ) {
-      const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
-      const scaled = scaleFatSecretServing({ calories: item.baseCalories, protein: item.baseProtein }, mult)
-      fields = { ...fields, calories: scaled.calories, protein: scaled.protein }
-    }
-    setEditData(fields)
+    const next = applyDayMacroEditChange(item, editData, fields)
+    const macroChanged = shouldAutosaveMacroFields(editData, next, 'day')
+    setEditData(next)
+    if (macroChanged) scheduleMacroAutosave(next)
   }
 
   if (isEditing) {
@@ -1023,6 +1039,7 @@ function FoodRow({
             endEdit()
           }}
           onSave={() => {
+            cancelMacroAutosave()
             onUpdate(editData)
             endEdit()
           }}

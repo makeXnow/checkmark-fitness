@@ -8,7 +8,7 @@ import type {
   MacroParseSnapshot,
 } from '../../types/domain'
 import { FatSecretRouteChip } from './fatSecretRouteChip'
-import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName, macroItemServingFields } from './macroLib'
+import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName, macroItemServingFields, scaleFatSecretServing } from './macroLib'
 
 export type MacroFoodAuditTrail = {
   userInput?: string
@@ -196,6 +196,41 @@ export type MacroFoodEditFields = {
   servingMultiplier?: number
   calories: number
   protein: number
+}
+
+export const MACRO_FIELD_AUTOSAVE_MS = 400
+
+export function shouldAutosaveMacroFields(
+  prev: MacroFoodEditFields,
+  next: MacroFoodEditFields,
+  mode: 'day' | 'library',
+): boolean {
+  if (mode === 'library') {
+    return prev.amount !== next.amount || prev.calories !== next.calories || prev.protein !== next.protein
+  }
+  return (
+    (prev.servingMultiplier ?? 1) !== (next.servingMultiplier ?? 1) ||
+    prev.calories !== next.calories ||
+    prev.protein !== next.protein
+  )
+}
+
+export function applyDayMacroEditChange(
+  item: { baseCalories?: number; baseProtein?: number },
+  prev: MacroFoodEditFields,
+  fields: MacroFoodEditFields,
+): MacroFoodEditFields {
+  if (
+    item.baseCalories != null &&
+    item.baseProtein != null &&
+    fields.servingMultiplier != null &&
+    fields.servingMultiplier !== prev.servingMultiplier
+  ) {
+    const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
+    const scaled = scaleFatSecretServing({ calories: item.baseCalories, protein: item.baseProtein }, mult)
+    return { ...fields, calories: scaled.calories, protein: scaled.protein }
+  }
+  return fields
 }
 
 export function MacroMiniCard({

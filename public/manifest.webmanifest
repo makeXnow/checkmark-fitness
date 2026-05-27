@@ -1,6 +1,6 @@
 {
   "name": "Checkmark Fitness",
-  "short_name": "Checkmark",
+  "short_name": "Checkmark Fitness",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
