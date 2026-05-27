@@ -6,8 +6,11 @@ import {
   MACRO_GOAL_LABELS,
   MACRO_GOAL_MODES,
   matchGoalMode,
+  proteinGramsFromPct,
+  proteinPctFromGrams,
 } from './macroCalculator'
-import type { MacroGoalMode, MacroGoals } from '../../types/domain'
+import { SettingSwitch } from '../../core/SettingSwitch'
+import type { MacroGoalMode, MacroGoals, ProteinTrackMode } from '../../types/domain'
 
 const numberInputClass =
   'w-full p-3 bg-black border border-neutral-700 rounded-xl text-white text-center font-bold outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
@@ -16,6 +19,26 @@ const resultInputClass =
   'w-full text-center text-4xl font-black text-white bg-black border-2 border-neutral-700 rounded-xl p-4 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 
 const fieldLabelClass = 'block text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2'
+
+function syncProteinGoals(
+  calorieGoal: number,
+  trackMode: ProteinTrackMode,
+  proteinPct: number,
+  proteinGrams: number,
+): { proteinPctGoal: number; proteinGramsGoal: number } {
+  if (trackMode === 'grams') {
+    const proteinGramsGoal = Math.round(proteinGrams) || 0
+    return {
+      proteinGramsGoal,
+      proteinPctGoal: proteinPctFromGrams(calorieGoal, proteinGramsGoal),
+    }
+  }
+  const proteinPctGoal = Math.round(proteinPct) || 0
+  return {
+    proteinPctGoal,
+    proteinGramsGoal: proteinGramsFromPct(calorieGoal, proteinPctGoal),
+  }
+}
 
 export function MacroSettings({
   goals,
@@ -29,6 +52,10 @@ export function MacroSettings({
   const [activeHours, setActiveHours] = useState(String(goals.activeHours ?? DEFAULT_MACRO_INPUTS.activeHours))
   const [calories, setCalories] = useState(String(goals.calorieGoal))
   const [proteinPct, setProteinPct] = useState(String(goals.proteinPctGoal))
+  const [proteinGrams, setProteinGrams] = useState(
+    String(goals.proteinGramsGoal ?? proteinGramsFromPct(goals.calorieGoal, goals.proteinPctGoal)),
+  )
+  const [proteinTrackMode, setProteinTrackMode] = useState<ProteinTrackMode>(goals.proteinTrackMode ?? 'percent')
   const [goalMode, setGoalMode] = useState<MacroGoalMode | null>(goals.goalMode ?? DEFAULT_MACRO_INPUTS.goalMode)
   const [isCustomMode, setIsCustomMode] = useState(() => goals.goalMode == null)
 
@@ -38,6 +65,10 @@ export function MacroSettings({
     setActiveHours(String(goals.activeHours ?? DEFAULT_MACRO_INPUTS.activeHours))
     setCalories(String(goals.calorieGoal))
     setProteinPct(String(goals.proteinPctGoal))
+    setProteinGrams(
+      String(goals.proteinGramsGoal ?? proteinGramsFromPct(goals.calorieGoal, goals.proteinPctGoal)),
+    )
+    setProteinTrackMode(goals.proteinTrackMode ?? 'percent')
     setGoalMode(goals.goalMode ?? null)
     setIsCustomMode(goals.goalMode == null)
   }, [goals])
@@ -54,18 +85,26 @@ export function MacroSettings({
       const inputs = parseInputs()
       if (!inputsValid(inputs.weightLbs, inputs.bodyFatPct)) return
       const macros = getMacrosForGoal(mode, inputs)
+      const protein = syncProteinGoals(
+        macros.calories,
+        proteinTrackMode,
+        macros.proteinPercent,
+        proteinGramsFromPct(macros.calories, macros.proteinPercent),
+      )
       setCalories(String(macros.calories))
-      setProteinPct(String(macros.proteinPercent))
+      setProteinPct(String(protein.proteinPctGoal))
+      setProteinGrams(String(protein.proteinGramsGoal))
       setIsCustomMode(false)
       setGoalMode(mode)
       onSaveGoals({
         ...inputs,
         calorieGoal: macros.calories,
-        proteinPctGoal: macros.proteinPercent,
+        ...protein,
+        proteinTrackMode,
         goalMode: mode,
       })
     },
-    [onSaveGoals, parseInputs],
+    [onSaveGoals, parseInputs, proteinTrackMode],
   )
 
   const handlePrimaryChange = useCallback(
@@ -79,21 +118,36 @@ export function MacroSettings({
       const hrs = parseFloat(field === 'activity' ? value : activeHours) || 0
       const mode = goalMode ?? DEFAULT_MACRO_INPUTS.goalMode
 
+      const calorieGoal = parseInt(calories, 10) || 0
       if (!inputsValid(w, bf)) {
+        const protein = syncProteinGoals(
+          calorieGoal,
+          proteinTrackMode,
+          parseInt(proteinPct, 10) || 0,
+          parseInt(proteinGrams, 10) || 0,
+        )
         onSaveGoals({
           weightLbs: w,
           bodyFatPct: bf,
           activeHours: hrs,
-          calorieGoal: parseInt(calories, 10) || 0,
-          proteinPctGoal: parseInt(proteinPct, 10) || 0,
+          calorieGoal,
+          ...protein,
+          proteinTrackMode,
           goalMode: isCustomMode ? null : mode,
         })
         return
       }
 
       const macros = getMacrosForGoal(mode, { weightLbs: w, bodyFatPct: bf, activeHours: hrs })
+      const protein = syncProteinGoals(
+        macros.calories,
+        proteinTrackMode,
+        macros.proteinPercent,
+        proteinGramsFromPct(macros.calories, macros.proteinPercent),
+      )
       setCalories(String(macros.calories))
-      setProteinPct(String(macros.proteinPercent))
+      setProteinPct(String(protein.proteinPctGoal))
+      setProteinGrams(String(protein.proteinGramsGoal))
       setIsCustomMode(false)
       setGoalMode(mode)
       onSaveGoals({
@@ -101,11 +155,23 @@ export function MacroSettings({
         bodyFatPct: bf,
         activeHours: hrs,
         calorieGoal: macros.calories,
-        proteinPctGoal: macros.proteinPercent,
+        ...protein,
+        proteinTrackMode,
         goalMode: mode,
       })
     },
-    [activeHours, bodyFatPct, calories, goalMode, isCustomMode, onSaveGoals, proteinPct, weightLbs],
+    [
+      activeHours,
+      bodyFatPct,
+      calories,
+      goalMode,
+      isCustomMode,
+      onSaveGoals,
+      proteinGrams,
+      proteinPct,
+      proteinTrackMode,
+      weightLbs,
+    ],
   )
 
   const handleGoalClick = useCallback(
@@ -119,32 +185,67 @@ export function MacroSettings({
   const handleResultChange = useCallback(
     (field: 'calories' | 'protein', value: string) => {
       if (field === 'calories') setCalories(value)
+      else if (proteinTrackMode === 'grams') setProteinGrams(value)
       else setProteinPct(value)
 
       const inputCal = parseInt(field === 'calories' ? value : calories, 10)
-      const inputProt = parseInt(field === 'protein' ? value : proteinPct, 10)
+      const inputProtPct = parseInt(proteinTrackMode === 'percent' && field === 'protein' ? value : proteinPct, 10)
+      const inputProtGrams = parseInt(proteinTrackMode === 'grams' && field === 'protein' ? value : proteinGrams, 10)
       const inputs = parseInputs()
 
       if (
         !inputsValid(inputs.weightLbs, inputs.bodyFatPct) ||
         !Number.isFinite(inputCal) ||
-        !Number.isFinite(inputProt)
+        (proteinTrackMode === 'percent' ? !Number.isFinite(inputProtPct) : !Number.isFinite(inputProtGrams))
       ) {
         return
       }
 
-      const matched = matchGoalMode(inputs, inputCal, inputProt)
+      const protein = syncProteinGoals(
+        inputCal,
+        proteinTrackMode,
+        inputProtPct,
+        inputProtGrams,
+      )
+      const matched = matchGoalMode(inputs, inputCal, protein.proteinPctGoal)
       const custom = matched === null
       setIsCustomMode(custom)
       setGoalMode(matched)
+      setProteinPct(String(protein.proteinPctGoal))
+      setProteinGrams(String(protein.proteinGramsGoal))
       onSaveGoals({
         ...inputs,
         calorieGoal: inputCal,
-        proteinPctGoal: inputProt,
+        ...protein,
+        proteinTrackMode,
         goalMode: matched,
       })
     },
-    [calories, onSaveGoals, parseInputs, proteinPct],
+    [calories, onSaveGoals, parseInputs, proteinGrams, proteinPct, proteinTrackMode],
+  )
+
+  const handleProteinTrackModeChange = useCallback(
+    (mode: ProteinTrackMode) => {
+      setProteinTrackMode(mode)
+      const inputCal = parseInt(calories, 10) || 0
+      const protein = syncProteinGoals(
+        inputCal,
+        mode,
+        parseInt(proteinPct, 10) || 0,
+        parseInt(proteinGrams, 10) || 0,
+      )
+      setProteinPct(String(protein.proteinPctGoal))
+      setProteinGrams(String(protein.proteinGramsGoal))
+      const inputs = parseInputs()
+      onSaveGoals({
+        ...inputs,
+        calorieGoal: inputCal,
+        ...protein,
+        proteinTrackMode: mode,
+        goalMode: isCustomMode ? null : goalMode,
+      })
+    },
+    [calories, goalMode, isCustomMode, onSaveGoals, parseInputs, proteinGrams, proteinPct],
   )
 
   const inputs = parseInputs()
@@ -229,35 +330,41 @@ export function MacroSettings({
         </div>
       )}
 
-      <div
-        className={`flex flex-col sm:flex-row gap-4 ${showError ? 'opacity-50 pointer-events-none' : ''}`}
-      >
-        <div className="flex-1 w-full">
-          <label htmlFor="macro-result-calories" className={fieldLabelClass}>
-            Calories
-          </label>
-          <input
-            id="macro-result-calories"
-            type="number"
-            inputMode="numeric"
-            value={calories}
-            onChange={(e) => handleResultChange('calories', e.target.value)}
-            className={resultInputClass}
-          />
+      <div className={`space-y-4 ${showError ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex-1 w-full">
+            <label htmlFor="macro-result-calories" className={fieldLabelClass}>
+              Calories
+            </label>
+            <input
+              id="macro-result-calories"
+              type="number"
+              inputMode="numeric"
+              value={calories}
+              onChange={(e) => handleResultChange('calories', e.target.value)}
+              className={resultInputClass}
+            />
+          </div>
+          <div className="flex-1 w-full">
+            <label htmlFor="macro-result-protein" className={fieldLabelClass}>
+              {proteinTrackMode === 'grams' ? 'Protein (g)' : 'Protein (%)'}
+            </label>
+            <input
+              id="macro-result-protein"
+              type="number"
+              inputMode="numeric"
+              value={proteinTrackMode === 'grams' ? proteinGrams : proteinPct}
+              onChange={(e) => handleResultChange('protein', e.target.value)}
+              className={resultInputClass}
+            />
+          </div>
         </div>
-        <div className="flex-1 w-full">
-          <label htmlFor="macro-result-protein" className={fieldLabelClass}>
-            Protein (%)
-          </label>
-          <input
-            id="macro-result-protein"
-            type="number"
-            inputMode="numeric"
-            value={proteinPct}
-            onChange={(e) => handleResultChange('protein', e.target.value)}
-            className={resultInputClass}
-          />
-        </div>
+        <SettingSwitch
+          label="Track protein as grams"
+          checked={proteinTrackMode === 'grams'}
+          ariaLabel="Track protein as grams"
+          onCheckedChange={(grams) => handleProteinTrackModeChange(grams ? 'grams' : 'percent')}
+        />
       </div>
     </section>
   )

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, FileText, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AppAccentTextButton } from '../../core/AppAccentTextButton'
+import { SettingSwitch } from '../../core/SettingSwitch'
 import { localDateISO } from '../../lib/localDate'
 import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
@@ -751,7 +752,7 @@ export function LiftScreen({
 
   if (view === 'settings') {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 pb-[var(--app-main-pad-bottom)]">
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Units</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -795,32 +796,14 @@ export function LiftScreen({
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Plate rack</h3>
           <div className="mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Optimize Order</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={Boolean(payload.optimizedPlateOrder)}
-                aria-label="Optimize plate order"
-                disabled={!onPersist}
-                onClick={() =>
-                  persist({ ...payload, optimizedPlateOrder: !payload.optimizedPlateOrder })
-                }
-                className={`inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full border-0 p-0.5 transition-colors disabled:opacity-40 ${
-                  payload.optimizedPlateOrder ? 'bg-emerald-400' : 'bg-neutral-700'
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`block size-6 shrink-0 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
-                    payload.optimizedPlateOrder ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-            <p className="mt-1 text-xs text-neutral-500">
-              Minimize plate changes across warmups and working sets within each exercise.
-            </p>
+            <SettingSwitch
+              label="Optimize Order"
+              checked={Boolean(payload.optimizedPlateOrder)}
+              ariaLabel="Optimize plate order"
+              disabled={!onPersist}
+              onCheckedChange={(checked) => persist({ ...payload, optimizedPlateOrder: checked })}
+              description="Minimize plate changes across warmups and working sets within each exercise."
+            />
           </div>
           <div className="mb-4 flex gap-2">
             <input
@@ -955,12 +938,21 @@ export function LiftScreen({
             <Plus className="h-4 w-4" /> Add status
           </button>
         </div>
+
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Plan</h3>
+          <LiftPlanTab payload={payload} onPersist={onPersist} weightUnit={weightUnit} />
+        </div>
       </div>
     )
   }
 
   if (subRoute === 'plan') {
-    return <LiftPlanTab payload={payload} onPersist={onPersist} weightUnit={weightUnit} />
+    return (
+      <div className="pb-[var(--app-main-pad-bottom)]">
+        <LiftPlanTab payload={payload} onPersist={onPersist} weightUnit={weightUnit} />
+      </div>
+    )
   }
 
   if (subRoute === 'log') {

@@ -93,9 +93,13 @@ export type FatSecretRoute = 'computer' | 'cloud' | 'relay'
 
 export type MacroGoalMode = 'fast-cut' | 'slow-cut' | 'maintain' | 'bulk'
 
+export type ProteinTrackMode = 'percent' | 'grams'
+
 export interface MacroGoals {
   calorieGoal: number
   proteinPctGoal: number
+  proteinGramsGoal?: number
+  proteinTrackMode?: ProteinTrackMode
   weightLbs?: number
   bodyFatPct?: number
   activeHours?: number
@@ -106,6 +110,8 @@ export interface MacroGoals {
 export type MacroDayGoalsSnapshot = {
   calorieGoal: number
   proteinPctGoal: number
+  proteinGramsGoal?: number
+  proteinTrackMode?: ProteinTrackMode
 }
 
 export type MacroGoalHistoryEntry = MacroDayGoalsSnapshot & {

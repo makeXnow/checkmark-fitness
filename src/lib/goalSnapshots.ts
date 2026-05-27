@@ -1,3 +1,4 @@
+import { proteinGramsFromPct } from '../features/macro/macroCalculator'
 import { localDateISO } from './localDate'
 import type { HabitsGoals, MacroDayGoalsSnapshot, MacroGoalHistoryEntry, MacroGoals } from '../types/domain'
 
@@ -34,11 +35,21 @@ function compareISO(a: string, b: string): number {
 }
 
 export function macroTargetsFromGoals(goals: MacroGoals): MacroDayGoalsSnapshot {
-  return { calorieGoal: goals.calorieGoal, proteinPctGoal: goals.proteinPctGoal }
+  return {
+    calorieGoal: goals.calorieGoal,
+    proteinPctGoal: goals.proteinPctGoal,
+    proteinGramsGoal: goals.proteinGramsGoal ?? proteinGramsFromPct(goals.calorieGoal, goals.proteinPctGoal),
+    proteinTrackMode: goals.proteinTrackMode ?? 'percent',
+  }
 }
 
 export function macroTargetsChanged(a: MacroDayGoalsSnapshot, b: MacroDayGoalsSnapshot): boolean {
-  return a.calorieGoal !== b.calorieGoal || a.proteinPctGoal !== b.proteinPctGoal
+  return (
+    a.calorieGoal !== b.calorieGoal ||
+    a.proteinPctGoal !== b.proteinPctGoal ||
+    (a.proteinGramsGoal ?? 0) !== (b.proteinGramsGoal ?? 0) ||
+    (a.proteinTrackMode ?? 'percent') !== (b.proteinTrackMode ?? 'percent')
+  )
 }
 
 function latestMacroHistoryOnOrBefore(
@@ -51,7 +62,14 @@ function latestMacroHistoryOnOrBefore(
       if (!best || compareISO(entry.effectiveDate, best.effectiveDate) > 0) best = entry
     }
   }
-  return best ? { calorieGoal: best.calorieGoal, proteinPctGoal: best.proteinPctGoal } : null
+  return best
+    ? {
+        calorieGoal: best.calorieGoal,
+        proteinPctGoal: best.proteinPctGoal,
+        proteinGramsGoal: best.proteinGramsGoal,
+        proteinTrackMode: best.proteinTrackMode,
+      }
+    : null
 }
 
 /** Targets for a calendar day: today uses live goals; past uses cemented snapshot or history. */
@@ -123,6 +141,8 @@ export function recordMacroGoalChange(
     effectiveDate: todayISO,
     calorieGoal: nextTargets.calorieGoal,
     proteinPctGoal: nextTargets.proteinPctGoal,
+    proteinGramsGoal: nextTargets.proteinGramsGoal,
+    proteinTrackMode: nextTargets.proteinTrackMode,
   }
   if (existingIdx >= 0) history[existingIdx] = entry
   else history.push(entry)

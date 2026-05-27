@@ -17,7 +17,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { createPortal } from 'react-dom'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
 import { useScrollIntoViewWithin } from '../../lib/scrollIntoViewWithin'
-import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
+import { proteinGramsFromPct } from './macroCalculator'
+import type { MacroCustomFood, MacroDayItem, MacroGoals, ProteinTrackMode } from '../../types/domain'
 import {
   formatServingDisplay,
   macroItemDisplayEmoji,
@@ -62,15 +63,20 @@ function preferredRecorderMimeType(): string {
 function StatusDashboard({
   consumed,
   goal,
-  proteinPct,
+  proteinConsumed,
   proteinGoal,
+  proteinTrackMode,
 }: {
   consumed: number
   goal: number
-  proteinPct: number
+  proteinConsumed: number
   proteinGoal: number
+  proteinTrackMode: ProteinTrackMode
 }) {
   const isOver = consumed > goal
+  const trackByGrams = proteinTrackMode === 'grams'
+  const proteinProgress = proteinGoal > 0 ? Math.min((proteinConsumed / proteinGoal) * 100, 100) : 0
+
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="bg-[var(--color-surface)] p-4 rounded-[var(--radius-card)] border border-[var(--color-border)]">
@@ -96,16 +102,20 @@ function StatusDashboard({
           <div className="text-blue-400 opacity-60">
             <BicepsFlexed size={12} strokeWidth={3} />
           </div>
-          Protein %
+          {trackByGrams ? 'Protein (g)' : 'Protein %'}
         </div>
         <div className="flex items-end justify-between pr-1">
-          <span className="text-3xl font-black text-white leading-none">{proteinPct}%</span>
-          <span className="text-[11px] font-bold opacity-20 text-white leading-none mb-1">/ {proteinGoal}%</span>
+          <span className="text-3xl font-black text-white leading-none">
+            {trackByGrams ? `${Math.round(proteinConsumed)}g` : `${proteinConsumed}%`}
+          </span>
+          <span className="text-[11px] font-bold opacity-20 text-white leading-none mb-1">
+            / {trackByGrams ? `${proteinGoal}g` : `${proteinGoal}%`}
+          </span>
         </div>
         <div className="w-full bg-white/10 h-1 rounded-full mt-4 overflow-hidden">
           <div
             className="h-full bg-blue-500 transition-all duration-700"
-            style={{ width: `${Math.min((proteinPct / proteinGoal) * 100, 100)}%` }}
+            style={{ width: `${proteinProgress}%` }}
           />
         </div>
       </div>
@@ -199,6 +209,9 @@ export function MacroVoiceTracker({
   }, [items])
 
   const proteinPct = totals.cal > 0 ? Math.round(((totals.pro * 4) / totals.cal) * 100) : 0
+  const proteinTrackMode = goals.proteinTrackMode ?? 'percent'
+  const proteinGramsGoal =
+    goals.proteinGramsGoal ?? proteinGramsFromPct(goals.calorieGoal, goals.proteinPctGoal)
 
   const replaceDay = useCallback(
     (fn: (prev: MacroDayItem[]) => MacroDayItem[]) => {
@@ -684,8 +697,9 @@ export function MacroVoiceTracker({
       <StatusDashboard
         consumed={totals.cal}
         goal={goals.calorieGoal}
-        proteinPct={proteinPct}
-        proteinGoal={goals.proteinPctGoal}
+        proteinConsumed={proteinTrackMode === 'grams' ? totals.pro : proteinPct}
+        proteinGoal={proteinTrackMode === 'grams' ? proteinGramsGoal : goals.proteinPctGoal}
+        proteinTrackMode={proteinTrackMode}
       />
 
       <section className="space-y-3">

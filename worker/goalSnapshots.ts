@@ -1,6 +1,8 @@
 export type MacroDayGoalsSnapshot = {
   calorieGoal: number
   proteinPctGoal: number
+  proteinGramsGoal?: number
+  proteinTrackMode?: 'percent' | 'grams'
 }
 
 export type MacroGoalHistoryEntry = MacroDayGoalsSnapshot & {

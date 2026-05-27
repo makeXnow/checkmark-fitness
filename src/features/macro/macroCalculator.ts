@@ -1,4 +1,4 @@
-import type { MacroGoalMode, MacroGoals } from '../../types/domain'
+import type { MacroGoalMode, MacroGoals, ProteinTrackMode } from '../../types/domain'
 
 export const MACRO_GOAL_MODES: MacroGoalMode[] = ['fast-cut', 'slow-cut', 'maintain', 'bulk']
 
@@ -37,6 +37,16 @@ export type MacroCalcResult = {
   proteinPercent: number
 }
 
+export function proteinGramsFromPct(calorieGoal: number, proteinPctGoal: number): number {
+  if (calorieGoal <= 0 || proteinPctGoal <= 0) return 0
+  return Math.round((calorieGoal * proteinPctGoal) / 100 / 4)
+}
+
+export function proteinPctFromGrams(calorieGoal: number, proteinGramsGoal: number): number {
+  if (calorieGoal <= 0 || proteinGramsGoal <= 0) return 0
+  return Math.round((proteinGramsGoal * 4 * 100) / calorieGoal)
+}
+
 export function normalizeMacroGoals(raw: Partial<MacroGoals> | null | undefined): MacroGoals {
   const weightLbs =
     typeof raw?.weightLbs === 'number' && raw.weightLbs > 0 ? raw.weightLbs : DEFAULT_MACRO_INPUTS.weightLbs
@@ -67,9 +77,17 @@ export function normalizeMacroGoals(raw: Partial<MacroGoals> | null | undefined)
     goalMode = detected
   }
 
+  const proteinTrackMode: ProteinTrackMode = raw?.proteinTrackMode === 'grams' ? 'grams' : 'percent'
+  const proteinGramsGoal =
+    typeof raw?.proteinGramsGoal === 'number' && raw.proteinGramsGoal > 0
+      ? Math.round(raw.proteinGramsGoal)
+      : proteinGramsFromPct(calorieGoal, proteinPctGoal)
+
   return {
     calorieGoal,
     proteinPctGoal,
+    proteinGramsGoal,
+    proteinTrackMode,
     weightLbs,
     bodyFatPct,
     activeHours,

@@ -24,6 +24,7 @@ import {
   parseLiftAssumptionPayload,
   resolveLiftAssumptionPrompt,
 } from './liftAssumption'
+import { isValidUsername, normalizeUsername } from './username'
 
 export interface Env {
   DB: D1Database
@@ -36,14 +37,14 @@ export interface Env {
   FATSECRET_RELAY_SECRET?: string
 }
 
-const DEVICE_DEFAULT = 'default'
-
 const defaultHabitsGoals = {
-  cardio: { min: 4, max: 5, color: 'bg-rose-500', icon: 'Heart', label: 'Cardio' },
-  lift: { min: 3, max: 5, color: 'bg-indigo-500', icon: 'Dumbbell', label: 'Lift' },
+  cardio: { min: 1, max: 3, color: 'bg-rose-500', icon: 'Heart', label: 'Cardio' },
+  lift: { min: 1, max: 3, color: 'bg-indigo-500', icon: 'Dumbbell', label: 'Lift' },
   diet: { min: 6, max: 7, color: 'bg-emerald-500', icon: 'Apple', label: 'Diet' },
   water: { min: 6, max: 7, dailyTarget: 4, color: 'bg-blue-500', icon: 'Droplet', label: 'Water' },
 }
+
+type ProfileVariables = { profileId: string }
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -215,6 +216,16 @@ async function ensureDevice(db: D1Database, deviceId: string): Promise<void> {
 }
 
 const api = new Hono<{ Bindings: Env }>()
+const profileApi = new Hono<{ Bindings: Env; Variables: ProfileVariables }>()
+
+profileApi.use('*', async (c, next) => {
+  const id = normalizeUsername(c.req.param('username') ?? '')
+  if (!isValidUsername(id)) {
+    return c.json({ error: 'Invalid profile' }, 400)
+  }
+  c.set('profileId', id)
+  await next()
+})
 
 api.onError((err, c) => {
   console.error('[api]', err)
@@ -241,15 +252,16 @@ api.get('/api/health', async (c) => {
   }
 })
 
-api.get('/api/bootstrap', async (c) => {
+profileApi.get('/bootstrap', async (c) => {
   try {
+    const profileId = c.get('profileId')
     const db = c.env.DB
-    await ensureDevice(db, DEVICE_DEFAULT)
+    await ensureDevice(db, profileId)
 
-    const state = await db.prepare('SELECT * FROM app_state WHERE device_id = ?').bind(DEVICE_DEFAULT).first()
-    const habits = await db.prepare('SELECT * FROM habits_bundle WHERE device_id = ?').bind(DEVICE_DEFAULT).first()
-    const macro = await db.prepare('SELECT * FROM macro_bundle WHERE device_id = ?').bind(DEVICE_DEFAULT).first()
-    const lift = await db.prepare('SELECT * FROM lift_bundle WHERE device_id = ?').bind(DEVICE_DEFAULT).first()
+    const state = await db.prepare('SELECT * FROM app_state WHERE device_id = ?').bind(profileId).first()
+    const habits = await db.prepare('SELECT * FROM habits_bundle WHERE device_id = ?').bind(profileId).first()
+    const macro = await db.prepare('SELECT * FROM macro_bundle WHERE device_id = ?').bind(profileId).first()
+    const lift = await db.prepare('SELECT * FROM lift_bundle WHERE device_id = ?').bind(profileId).first()
 
     const goalsRaw = safeJsonParse<unknown>((habits?.goals_json as string) || '', {})
     const logsRaw = safeJsonParse<unknown>((habits?.logs_json as string) || '', {})
@@ -260,7 +272,7 @@ api.get('/api/bootstrap', async (c) => {
     const macroStored = parseMacroGoalsStored(macroGoalsRaw)
 
     const liftPayloadParsed = safeJsonParse((lift?.payload_json as string) || '', {})
-    const assumptionPayload = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+    const assumptionPayload = await readLiftAssumptionPayload(db, profileId)
     const pendingPrompt = resolveLiftAssumptionPrompt(assumptionPayload, liftPayloadParsed, Date.now())
 
     const body = {
@@ -305,9 +317,10 @@ api.get('/api/bootstrap', async (c) => {
   }
 })
 
-api.patch('/api/app-state', async (c) => {
+profileApi.patch('/app-state', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const body = (await c.req.json()) as Record<string, unknown>
   const allowed = [
     'selected_tab',
@@ -343,18 +356,19 @@ api.patch('/api/app-state', async (c) => {
   const now = Date.now()
   updates.push('updated_at = ?')
   values.push(now)
-  values.push(DEVICE_DEFAULT)
+  values.push(profileId)
 
   const sql = `UPDATE app_state SET ${updates.join(', ')} WHERE device_id = ?`
   await db.prepare(sql).bind(...values).run()
 
-  const state = await db.prepare('SELECT * FROM app_state WHERE device_id = ?').bind(DEVICE_DEFAULT).first()
+  const state = await db.prepare('SELECT * FROM app_state WHERE device_id = ?').bind(profileId).first()
   return c.json({ ok: true, appState: state })
 })
 
-api.put('/api/habits', async (c) => {
+profileApi.put('/habits', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const body = (await c.req.json()) as {
     goals?: Record<string, unknown>
     goalsSnapshotsByWeek?: Record<string, Record<string, unknown>>
@@ -383,15 +397,16 @@ api.put('/api/habits', async (c) => {
          app_settings_json = excluded.app_settings_json,
          updated_at = excluded.updated_at`,
     )
-    .bind(DEVICE_DEFAULT, JSON.stringify(stored), JSON.stringify(logs), JSON.stringify(appSettings), now)
+    .bind(profileId, JSON.stringify(stored), JSON.stringify(logs), JSON.stringify(appSettings), now)
     .run()
 
   return c.json({ ok: true })
 })
 
-api.put('/api/macro', async (c) => {
+profileApi.put('/macro', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const body = (await c.req.json()) as {
     goals?: Record<string, unknown>
     goalsSnapshotsByDay?: Record<string, { calorieGoal: number; proteinPctGoal: number }>
@@ -417,7 +432,7 @@ api.put('/api/macro', async (c) => {
          updated_at = excluded.updated_at`,
     )
     .bind(
-      DEVICE_DEFAULT,
+      profileId,
       JSON.stringify(stored),
       JSON.stringify(body.customFoods || []),
       JSON.stringify(body.logs || {}),
@@ -428,9 +443,10 @@ api.put('/api/macro', async (c) => {
   return c.json({ ok: true })
 })
 
-api.put('/api/lift', async (c) => {
+profileApi.put('/lift', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const body = (await c.req.json()) as Record<string, unknown>
   const now = Date.now()
   await db
@@ -441,7 +457,7 @@ api.put('/api/lift', async (c) => {
          payload_json = excluded.payload_json,
          updated_at = excluded.updated_at`,
     )
-    .bind(DEVICE_DEFAULT, JSON.stringify(body), now)
+    .bind(profileId, JSON.stringify(body), now)
     .run()
 
   return c.json({ ok: true })
@@ -455,53 +471,59 @@ async function readLiftSessionBody(c: { req: { json: () => Promise<unknown> } })
   return { dayId, localDate }
 }
 
-api.post('/api/lift/session/open', async (c) => {
+profileApi.post('/lift/session/open', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const parsed = await readLiftSessionBody(c)
   if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
 
-  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const current = await readLiftAssumptionPayload(db, profileId)
   const next = openLiftSession(current, parsed.dayId, parsed.localDate, Date.now())
-  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  await writeLiftAssumptionPayload(db, profileId, next)
   return c.json({ ok: true })
 })
 
-api.post('/api/lift/session/close', async (c) => {
+profileApi.post('/lift/session/close', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const parsed = await readLiftSessionBody(c)
   if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
 
-  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const current = await readLiftAssumptionPayload(db, profileId)
   const next = closeLiftSession(current, parsed.dayId, parsed.localDate, Date.now())
-  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  await writeLiftAssumptionPayload(db, profileId, next)
   return c.json({ ok: true })
 })
 
-api.post('/api/lift/assumption/dismiss', async (c) => {
+profileApi.post('/lift/assumption/dismiss', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const parsed = await readLiftSessionBody(c)
   if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
 
-  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const current = await readLiftAssumptionPayload(db, profileId)
   const next = dismissLiftAssumption(current, parsed.dayId, parsed.localDate)
-  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  await writeLiftAssumptionPayload(db, profileId, next)
   return c.json({ ok: true })
 })
 
-api.post('/api/lift/assumption/clear', async (c) => {
+profileApi.post('/lift/assumption/clear', async (c) => {
+  const profileId = c.get('profileId')
   const db = c.env.DB
-  await ensureDevice(db, DEVICE_DEFAULT)
+  await ensureDevice(db, profileId)
   const parsed = await readLiftSessionBody(c)
   if (!parsed) return c.json({ error: 'dayId and localDate required' }, 400)
 
-  const current = await readLiftAssumptionPayload(db, DEVICE_DEFAULT)
+  const current = await readLiftAssumptionPayload(db, profileId)
   const next = clearLiftAssumption(current, parsed.dayId, parsed.localDate)
-  await writeLiftAssumptionPayload(db, DEVICE_DEFAULT, next)
+  await writeLiftAssumptionPayload(db, profileId, next)
   return c.json({ ok: true })
 })
+
+api.route('/api/u/:username', profileApi)
 
 function audioUploadFromFormData(formData: FormData): { blob: Blob; filename: string } | null {
   const entry = formData.get('file')
@@ -725,9 +747,51 @@ function pathnameForWorkerRouter(pathname: string): string {
   return m && m.index !== undefined ? pathname.slice(m.index) : pathname
 }
 
+const PROFILE_MANIFEST_RE = /\/manifest\/u\/([a-z0-9][a-z0-9_-]*[a-z0-9]|[a-z0-9])\.webmanifest$/
+
+function profileManifestResponse(pathname: string): Response | null {
+  const m = pathname.match(PROFILE_MANIFEST_RE)
+  if (!m) return null
+  const username = m[1]
+  if (!isValidUsername(username)) return null
+  const baseEnd = pathname.indexOf('/manifest/')
+  const basePath = baseEnd > 0 ? pathname.slice(0, baseEnd) : ''
+  const startUrl = `${basePath}/u/${username}`
+  const scope = basePath ? `${basePath}/` : '/'
+  const body = {
+    name: `Checkmark · ${username}`,
+    short_name: username,
+    start_url: startUrl,
+    scope,
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    background_color: '#0a0a0a',
+    theme_color: '#0a0a0a',
+    icons: [
+      { src: `${basePath}/icons/pwa-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: `${basePath}/icons/pwa-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      {
+        src: `${basePath}/icons/pwa-512.png`,
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+    ],
+  }
+  return new Response(JSON.stringify(body), {
+    headers: {
+      'Content-Type': 'application/manifest+json',
+      'Cache-Control': 'no-cache',
+    },
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
+    const manifest = profileManifestResponse(url.pathname)
+    if (manifest) return manifest
+
     const path = pathnameForWorkerRouter(url.pathname)
     if (path.startsWith('/api')) {
       const next = new URL(url.toString())

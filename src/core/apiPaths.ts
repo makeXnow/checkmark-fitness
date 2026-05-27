@@ -1,4 +1,5 @@
 import { getBasename } from '../lib/getBasename'
+import { withProfileApiPath } from './apiProfile'
 
 /** Deployed Cloudflare Worker (must match wrangler.toml `name` + account workers.dev subdomain). */
 const DEPLOYED_WORKER_ORIGIN = 'https://mxn-checkmark-fitness.alexander-c3a.workers.dev'
@@ -54,11 +55,14 @@ export function apiUrl(path: string): string {
   }
 
   if (isLocalDevHost()) {
+    // Vite proxies /api → local wrangler (8787) or use VITE_API_URL / deployed origin.
     if (useLocalWorkerApi()) {
       const base = getBasename()
       if (base === '/') return apiPath
       return `${base.replace(/\/$/, '')}${apiPath}`
     }
+    const explicit = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
+    if (explicit) return `${explicit}${apiPath}`
     return `${WORKER_ORIGIN}${apiPath}`
   }
 
@@ -84,5 +88,5 @@ export function apiUrl(path: string): string {
 }
 
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(apiUrl(path), init)
+  return fetch(apiUrl(withProfileApiPath(path)), init)
 }

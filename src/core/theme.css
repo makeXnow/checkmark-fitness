@@ -161,6 +161,7 @@ html.lift-workout-swapping #app-main {
   /* vertical scroll within each page */
   overflow-y: auto;
   overscroll-behavior-y: contain;
+  scroll-padding-bottom: var(--app-main-pad-bottom);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -201,17 +202,15 @@ html.lift-workout-swapping #app-main {
 .tab-pager-frame {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
+  min-height: 100%;
   box-sizing: border-box;
 }
 
 /* Suspense boundaries must participate in flex so macro inner scroll gets a bounded height */
 .tab-pager-frame > * {
   display: flex;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   flex-direction: column;
-  min-height: 0;
   min-width: 0;
 }
 

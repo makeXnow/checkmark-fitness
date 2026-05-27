@@ -161,9 +161,12 @@ export default function App() {
         base.includes('no such table') ||
         base.includes('auth token') ||
         base.includes('remote proxy')
-      const hint = apiDown
-        ? ' Check your internet connection and run `npm run dev` (Vite on 9024; API calls the deployed Worker / live D1).'
-        : ''
+      const notFound = base === 'Not Found' || base.includes('404')
+      const hint = notFound
+        ? ' Deploy the Worker (`npm run deploy`) or restart dev with `npm run dev` (local API on :8787).'
+        : apiDown
+          ? ' Check your internet connection and run `npm run dev` (Vite on 9024 + local Worker, live D1).'
+          : ''
       setError(base + hint)
     }
   }, [])
