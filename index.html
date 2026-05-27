@@ -2,6 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        var p = location.pathname
+        var u = p.indexOf('/u/')
+        if (u < 0) return
+        var h = u === 0 ? '/' : p.slice(0, u) + '/'
+        var b = document.createElement('base')
+        b.href = h
+        document.head.insertBefore(b, document.head.firstChild)
+      })()
+    </script>
     <link rel="icon" type="image/png" href="./favicon.png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
