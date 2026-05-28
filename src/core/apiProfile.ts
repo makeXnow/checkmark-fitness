@@ -12,7 +12,14 @@ export function getApiProfile(): string | null {
 /** Prefix user-scoped API paths with `/api/u/{profile}`. Global routes (AI, health) pass through unchanged. */
 export function withProfileApiPath(path: string): string {
   if (!path.startsWith('/api/')) return path
-  const globalPrefixes = ['/api/health', '/api/ai/', '/api/fatsecret/', '/api/macro/estimate', '/api/internal/']
+  const globalPrefixes = [
+    '/api/health',
+    '/api/ai/',
+    '/api/fatsecret/',
+    '/api/macro/estimate',
+    '/api/macro/prompts',
+    '/api/internal/',
+  ]
   if (globalPrefixes.some((p) => path === p || path.startsWith(p))) return path
 
   const profile = activeProfile

@@ -1,4 +1,35 @@
-export const MACRO_PROMPTS = {
+/** Profile allowed to view and edit diet AI prompts in settings. */
+export const MACRO_PROMPTS_OWNER = 'alexander'
+
+export const MACRO_PROMPT_KEYS = [
+  'TRANSCRIPTION',
+  'PARSER',
+  'MACROS',
+  'ANALYZE_FRONT',
+  'ANALYZE_NUTRITION',
+] as const
+
+export type MacroPromptKey = (typeof MACRO_PROMPT_KEYS)[number]
+
+export type MacroPrompts = Record<MacroPromptKey, string>
+
+export const MACRO_PROMPT_LABELS: Record<MacroPromptKey, string> = {
+  TRANSCRIPTION: 'Voice transcription',
+  PARSER: 'Food log parser',
+  MACROS: 'Macro estimate',
+  ANALYZE_FRONT: 'Package front (vision)',
+  ANALYZE_NUTRITION: 'Nutrition label (vision)',
+}
+
+export const MACRO_PROMPT_DESCRIPTIONS: Record<MacroPromptKey, string> = {
+  TRANSCRIPTION: 'Guides OpenAI audio transcription when logging food by voice.',
+  PARSER: 'Splits spoken or typed food input into diary items (JSON).',
+  MACROS: 'Estimates calories/protein from library, FatSecret, or direct AI.',
+  ANALYZE_FRONT: 'Reads product name and emoji from packaging photos.',
+  ANALYZE_NUTRITION: 'Reads serving size and macros from nutrition label photos.',
+}
+
+export const DEFAULT_MACRO_PROMPTS: MacroPrompts = {
   TRANSCRIPTION: `Transcribe the audio provided exactly as spoken. Do not add any conversational filler. Only return the transcription text.`,
   PARSER: `You are a culinary transcriptionist. Split the input into separate food items the user ate.
 
@@ -50,4 +81,21 @@ JSON only. Examples:
   3. Simplify generic or common items.
   Also extract a single appropriate emoji. Return JSON exactly: { "name": "...", "emoji": "..." }`,
   ANALYZE_NUTRITION: `Analyze this nutrition label. Extract standard base serving size (e.g., '1 pouch', '100g'), and nutrition facts for that EXACT base serving size. Return JSON exactly: { "baseAmount": "...", "calories": n, "protein": n, "fat": n, "carbs": n }`,
-} as const
+}
+
+/** @deprecated Use DEFAULT_MACRO_PROMPTS; kept for imports during transition. */
+export const MACRO_PROMPTS = DEFAULT_MACRO_PROMPTS
+
+export function isMacroPromptKey(value: string): value is MacroPromptKey {
+  return (MACRO_PROMPT_KEYS as readonly string[]).includes(value)
+}
+
+export function mergeMacroPrompts(partial: Partial<MacroPrompts> | null | undefined): MacroPrompts {
+  const merged = { ...DEFAULT_MACRO_PROMPTS }
+  if (!partial) return merged
+  for (const key of MACRO_PROMPT_KEYS) {
+    const text = partial[key]
+    if (typeof text === 'string' && text.trim()) merged[key] = text.trim()
+  }
+  return merged
+}

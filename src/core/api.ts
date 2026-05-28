@@ -1,8 +1,8 @@
+import { MACRO_PROMPTS_OWNER, type MacroPromptKey, type MacroPrompts } from '../features/macro/prompts'
 import type {
   AppStateRow,
   BootstrapResponse,
   FatSecretFoodRef,
-  FatSecretRoute,
   MacroEstimateSnapshot,
 } from '../types/domain'
 import { apiFetch, apiFetchForProfile } from './apiPaths'
@@ -187,10 +187,35 @@ export async function clearLiftAssumption(body: { dayId: string; localDate: stri
   if (!res.ok) throw new Error(await res.text())
 }
 
-export async function transcribeAudio(file: File, model?: string): Promise<string> {
+export async function fetchMacroPrompts(): Promise<MacroPrompts> {
+  const res = await apiFetch('/api/macro/prompts')
+  const data = await parseJson<{ prompts?: MacroPrompts; error?: string }>(res)
+  if (!data.prompts) throw new Error(data.error || 'Failed to load prompts')
+  return data.prompts
+}
+
+export async function saveMacroPrompts(prompts: Partial<MacroPrompts>): Promise<MacroPrompts> {
+  const res = await apiFetchForProfile(MACRO_PROMPTS_OWNER, '/macro/prompts', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(prompts),
+  })
+  const data = await parseJson<{ prompts?: MacroPrompts; error?: string }>(res)
+  if (!data.prompts) throw new Error(data.error || 'Failed to save prompts')
+  return data.prompts
+}
+
+export async function transcribeAudio(
+  file: File,
+  options?: { model?: string; promptKey?: MacroPromptKey },
+): Promise<string> {
   const fd = new FormData()
   fd.append('file', file)
-  const q = model ? `?model=${encodeURIComponent(model)}` : ''
+  const params = new URLSearchParams()
+  if (options?.model) params.set('model', options.model)
+  if (options?.promptKey) params.set('promptKey', options.promptKey)
+  else params.set('promptKey', 'TRANSCRIPTION')
+  const q = params.toString() ? `?${params}` : ''
   const res = await apiFetch(`/api/ai/transcribe${q}`, { method: 'POST', body: fd })
   const data = await parseJson<{ text?: string; error?: string }>(res)
   if (data.error) throw new Error(data.error)
@@ -202,6 +227,7 @@ export async function transcribeAudio(file: File, model?: string): Promise<strin
 export async function aiJson(body: {
   model?: string
   system?: string
+  promptKey?: MacroPromptKey
   user: string
   images?: { mimeType: string; base64: string }[]
 }): Promise<unknown> {
@@ -215,15 +241,15 @@ export async function aiJson(body: {
   return data.result
 }
 
-export async function fatSecretSearch(query: string): Promise<{ foods: FatSecretFoodRef[]; route?: FatSecretRoute }> {
+export async function fatSecretSearch(query: string): Promise<{ foods: FatSecretFoodRef[] }> {
   const res = await apiFetch('/api/fatsecret/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),
   })
-  const data = await parseJson<{ foods?: FatSecretFoodRef[]; route?: FatSecretRoute; error?: string }>(res)
+  const data = await parseJson<{ foods?: FatSecretFoodRef[]; error?: string }>(res)
   if (data.error) throw new Error(data.error)
-  return { foods: data.foods ?? [], route: data.route }
+  return { foods: data.foods ?? [] }
 }
 
 export type MacroEstimateApiResult = {
@@ -236,14 +262,12 @@ export type MacroEstimateApiResult = {
   baseProtein?: number
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
-  fatSecretRoute?: FatSecretRoute
   macroEstimateSnapshot?: MacroEstimateSnapshot
 }
 
 export class MacroEstimateError extends Error {
   fatSecretResults?: FatSecretFoodRef[]
   fatSecretSource?: MacroEstimateApiResult['fatSecretSource']
-  fatSecretRoute?: FatSecretRoute
 }
 
 export async function macroEstimateItem(body: {
@@ -252,7 +276,6 @@ export async function macroEstimateItem(body: {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
-  fatSecretRoute?: FatSecretRoute
   skipFatSecretFetch?: boolean
   customFoods?: { id: string; name: string; emoji?: string; baseAmount?: string; calories: number; protein: number }[]
   extraCtx?: string
@@ -274,7 +297,6 @@ export async function macroEstimateItem(body: {
     if (data.fatSecretResults?.length) {
       err.fatSecretResults = data.fatSecretResults
       err.fatSecretSource = data.fatSecretSource
-      err.fatSecretRoute = data.fatSecretRoute
     }
     throw err
   }
@@ -284,6 +306,7 @@ export async function macroEstimateItem(body: {
 /** Nutrition / label photos → structured JSON (uses vision-capable model). */
 export async function aiVisionJson(body: {
   system?: string
+  promptKey?: MacroPromptKey
   user: string
   images: { mimeType: string; base64: string }[]
   model?: string

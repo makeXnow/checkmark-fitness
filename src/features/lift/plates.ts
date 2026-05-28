@@ -57,17 +57,14 @@ function greedyOrderedPlates(
   return ordered
 }
 
-function buildRawSets(
-  workout: LiftWorkout,
-  availablePlates: number[],
-  optimizedPlateOrder: boolean,
-): Array<{
+export type WorkoutSetTarget = {
+  targetWeight: number
   reps: number
-  actualWeight: number
-  plates: { weight: number; count: number }[]
   isWarmup: boolean
-}> {
-  const targets: Array<{ targetWeight: number; reps: number; isWarmup: boolean }> = []
+}
+
+export function collectWorkoutSetTargets(workout: LiftWorkout): WorkoutSetTarget[] {
+  const targets: WorkoutSetTarget[] = []
 
   if (workout.hasWarmup) {
     for (const wu of workout.warmupSets || []) {
@@ -83,10 +80,70 @@ function buildRawSets(
     targets.push({ targetWeight: workout.mainWeight, reps: workout.reps, isWarmup: false })
   }
 
+  return targets
+}
+
+/** Optimize plate order across all workouts on a day (plan order). */
+export function buildDayOptimizedPlateOrders(
+  workouts: LiftWorkout[],
+  availablePlates: number[],
+): Map<string, number[][]> {
+  const flatTargets: { targetWeight: number; barWeight: number }[] = []
+  const segments: { workoutId: string; count: number }[] = []
+
+  for (const workout of workouts) {
+    const sets = collectWorkoutSetTargets(workout)
+    if (sets.length === 0) continue
+    segments.push({ workoutId: workout.id, count: sets.length })
+    for (const s of sets) {
+      flatTargets.push({ targetWeight: s.targetWeight, barWeight: workout.barWeight })
+    }
+  }
+
+  const result = new Map<string, number[][]>()
+  if (flatTargets.length === 0) return result
+
+  let ordered = calculateOptimizedPlateOrder(
+    flatTargets.map((t) => t.targetWeight),
+    flatTargets.map((t) => t.barWeight),
+    availablePlates,
+  )
+
+  const needsFallback = flatTargets.some((t, i) => {
+    const optimal = getOptimalPlates(t.targetWeight, t.barWeight, availablePlates)
+    const needsPlates = optimal.actualWeight > (t.barWeight || 0)
+    return needsPlates && (ordered[i]?.length ?? 0) === 0
+  })
+  if (needsFallback) {
+    ordered = flatTargets.map((t) =>
+      greedyOrderedPlates(t.targetWeight, t.barWeight, availablePlates),
+    )
+  }
+
+  let offset = 0
+  for (const seg of segments) {
+    result.set(seg.workoutId, ordered.slice(offset, offset + seg.count))
+    offset += seg.count
+  }
+  return result
+}
+
+function buildRawSets(
+  workout: LiftWorkout,
+  availablePlates: number[],
+  optimizedPlateOrder: boolean,
+  precomputedOrderedPlates?: number[][],
+): Array<{
+  reps: number
+  actualWeight: number
+  plates: { weight: number; count: number }[]
+  isWarmup: boolean
+}> {
+  const targets = collectWorkoutSetTargets(workout)
   if (targets.length === 0) return []
 
-  let orderedBySet: number[][] | null = null
-  if (optimizedPlateOrder) {
+  let orderedBySet: number[][] | null = precomputedOrderedPlates ?? null
+  if (optimizedPlateOrder && !orderedBySet) {
     orderedBySet = calculateOptimizedPlateOrder(
       targets.map((t) => t.targetWeight),
       workout.barWeight,
@@ -118,6 +175,7 @@ export function buildGroupedSets(
   availablePlates: number[],
   startSetNum = 1,
   optimizedPlateOrder = false,
+  precomputedOrderedPlates?: number[][],
 ): { groupedSets: Array<{
   reps: number
   actualWeight: number
@@ -126,7 +184,12 @@ export function buildGroupedSets(
   startNum: number
   endNum: number
 }>; nextSetNum: number } {
-  const rawSets = buildRawSets(workout, availablePlates, optimizedPlateOrder)
+  const rawSets = buildRawSets(
+    workout,
+    availablePlates,
+    optimizedPlateOrder,
+    precomputedOrderedPlates,
+  )
 
   const groupedSets: Array<{
     reps: number

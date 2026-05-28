@@ -331,8 +331,8 @@ export function MacroSettings({
       )}
 
       <div className={`space-y-4 ${showError ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="flex flex-col gap-4 sm:flex-row">
-          <div className="flex-1 w-full">
+        <div className="flex flex-row flex-wrap gap-4">
+          <div className="w-32 shrink-0">
             <label htmlFor="macro-result-calories" className={fieldLabelClass}>
               Calories
             </label>
@@ -345,7 +345,7 @@ export function MacroSettings({
               className={resultInputClass}
             />
           </div>
-          <div className="flex-1 w-full">
+          <div className="min-w-32 flex-1">
             <label htmlFor="macro-result-protein" className={fieldLabelClass}>
               {proteinTrackMode === 'grams' ? 'Protein (g)' : 'Protein (%)'}
             </label>

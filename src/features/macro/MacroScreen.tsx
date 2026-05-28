@@ -1,4 +1,7 @@
+import { getApiProfile } from '../../core/apiProfile'
 import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
+import { MacroPromptSettings } from './MacroPromptSettings'
+import { MACRO_PROMPTS_OWNER } from './prompts'
 import { MacroSettings } from './MacroSettings'
 import { MacroVoiceTracker } from './MacroVoiceTracker'
 
@@ -39,6 +42,7 @@ export function MacroScreen({
       {view === 'settings' && (
         <div className="flex flex-col gap-4 pb-[var(--app-main-pad-bottom)]">
           <MacroSettings goals={goals} onSaveGoals={onSaveGoals} />
+          {getApiProfile() === MACRO_PROMPTS_OWNER ? <MacroPromptSettings /> : null}
         </div>
       )}
     </div>

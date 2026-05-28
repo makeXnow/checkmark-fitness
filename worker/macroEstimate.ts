@@ -5,10 +5,9 @@ import {
   resolveMacroEstimate,
   type MacroEstimateResponse,
 } from '../src/features/macro/macroLib'
-import { MACRO_PROMPTS } from '../src/features/macro/prompts'
 import type { FatSecretFoodRef } from './fatsecret'
-import { fatSecretSearchFoods, type FatSecretSearchResult } from './fatsecret'
-import type { FatSecretRoute } from '../src/types/domain'
+import { fatSecretSearchFoods } from './fatsecret'
+import { getMacroPrompt } from './macroPromptsStore'
 import { callOpenAiJson } from './openaiJson'
 
 export type MacroEstimateApiFood = {
@@ -26,7 +25,6 @@ export type MacroEstimateApiBody = {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
-  fatSecretRoute?: FatSecretRoute
   skipFatSecretFetch?: boolean
   customFoods?: MacroEstimateApiFood[]
   extraCtx?: string
@@ -42,32 +40,26 @@ export type MacroEstimateApiResult = {
   baseProtein?: number
   fatSecretResults: FatSecretFoodRef[]
   fatSecretSource: 'cache' | 'search' | 'none'
-  fatSecretRoute?: FatSecretRoute
   macroEstimateSnapshot: MacroEstimateResponse
 }
 
 type EnvMacro = {
+  DB: D1Database
   OPENAI_API_KEY?: string
   FATSECRET_CLIENT_ID?: string
   FATSECRET_CLIENT_SECRET?: string
-  FATSECRET_LOCAL_EGRESS?: string
-  FATSECRET_RELAY_URL?: string
-  FATSECRET_RELAY_SECRET?: string
 }
 
 export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody): Promise<MacroEstimateApiResult> {
   const customFoods = body.customFoods ?? []
   let fatSecretResults = body.fatSecretResults ?? []
-  let fatSecretRoute: FatSecretRoute | undefined = body.fatSecretRoute
   let fatSecretSource: MacroEstimateApiResult['fatSecretSource'] = fatSecretResults.length > 0 ? 'cache' : 'none'
 
   const searchQ = body.fatSecretSearch?.trim()
   if (!body.skipFatSecretFetch && searchQ && fatSecretResults.length === 0) {
     if (env.FATSECRET_CLIENT_ID && env.FATSECRET_CLIENT_SECRET) {
       try {
-        const searched: FatSecretSearchResult = await fatSecretSearchFoods(env, searchQ)
-        fatSecretResults = searched.foods
-        fatSecretRoute = searched.route
+        fatSecretResults = await fatSecretSearchFoods(env, searchQ)
         fatSecretSource = fatSecretResults.length > 0 ? 'search' : 'none'
       } catch {
         /* FatSecret optional — continue with library + AI estimate */
@@ -78,14 +70,15 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
   const key = env.OPENAI_API_KEY
   if (!key) {
     const err = new Error('OPENAI_API_KEY missing')
-    if (fatSecretResults.length > 0) Object.assign(err, { fatSecretResults, fatSecretSource, fatSecretRoute })
+    if (fatSecretResults.length > 0) Object.assign(err, { fatSecretResults, fatSecretSource })
     throw err
   }
 
   const user = `${buildMacroEstimatePrompt(body.name, body.amount, body.notes)}${formatNumberedFoodLibrary(customFoods)}${formatNumberedFatSecret(fatSecretResults)}${body.extraCtx ?? ''}`
 
   try {
-    const json = (await callOpenAiJson(key, MACRO_PROMPTS.MACROS, user)) as MacroEstimateResponse
+    const macrosPrompt = await getMacroPrompt(env.DB, 'MACROS')
+    const json = (await callOpenAiJson(key, macrosPrompt, user)) as MacroEstimateResponse
     const result = resolveMacroEstimate(json, customFoods, fatSecretResults)
 
     return {
@@ -98,13 +91,12 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
       baseProtein: result.baseProtein,
       fatSecretResults,
       fatSecretSource,
-      fatSecretRoute,
       macroEstimateSnapshot: json,
     }
   } catch (e) {
     if (fatSecretResults.length > 0) {
       const err = new Error(e instanceof Error ? e.message : 'Macro AI failed')
-      Object.assign(err, { fatSecretResults, fatSecretSource, fatSecretRoute })
+      Object.assign(err, { fatSecretResults, fatSecretSource })
       throw err
     }
     throw e

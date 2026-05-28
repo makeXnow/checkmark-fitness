@@ -15,53 +15,19 @@ export type FatSecretFoodRef = {
   servings: FatSecretServingRef[]
 }
 
-import type { FatSecretRoute } from '../src/types/domain'
-
-export type FatSecretSearchResult = {
-  foods: FatSecretFoodRef[]
-  route: FatSecretRoute
-}
-
 type EnvFatSecret = {
   FATSECRET_CLIENT_ID?: string
   FATSECRET_CLIENT_SECRET?: string
-  /** Set to `1` in .dev.vars when running `wrangler dev` (home IP egress). */
-  FATSECRET_LOCAL_EGRESS?: string
-  /** Public base URL of your home tunnel, e.g. https://fatsecret-relay.example.com */
-  FATSECRET_RELAY_URL?: string
-  /** Shared secret; must match on relay (local) and deployed Worker. */
-  FATSECRET_RELAY_SECRET?: string
-}
-
-export class FatSecretIpDeniedError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'FatSecretIpDeniedError'
-  }
-}
-
-function isLocalEgress(env: EnvFatSecret): boolean {
-  const v = env.FATSECRET_LOCAL_EGRESS?.trim().toLowerCase()
-  return v === '1' || v === 'true' || v === 'yes'
-}
-
-export function verifyFatSecretRelayAuth(authHeader: string | undefined, secret: string | undefined): boolean {
-  if (!secret?.trim()) return false
-  const expected = `Bearer ${secret.trim()}`
-  return authHeader === expected
 }
 
 let tokenCache: { token: string; expiresAt: number } | null = null
 
-/** FatSecret returns HTTP 200 with { error: { code, message } } for IP whitelist failures, etc. */
+/** FatSecret returns HTTP 200 with { error: { code, message } } for API failures. */
 function fatSecretApiErrorMessage(body: string): string | null {
   try {
     const data = JSON.parse(body) as { error?: { code?: number; message?: string } }
     const err = data.error
     if (!err?.message) return null
-    if (err.code === 21) {
-      return `FatSecret IP not allowed (${err.message}). Whitelist Cloudflare egress, use a home relay (FATSECRET_RELAY_URL), or run locally with FATSECRET_LOCAL_EGRESS=1.`
-    }
     return `FatSecret API error ${err.code ?? ''}: ${err.message}`.trim()
   } catch {
     return null
@@ -204,12 +170,10 @@ function trimFoods(foods: FatSecretFoodRef[]): FatSecretFoodRef[] {
 
 function throwFatSecretApiError(msg: string | null): void {
   if (!msg) return
-  if (msg.includes('IP not allowed')) throw new FatSecretIpDeniedError(msg)
   throw new Error(msg)
 }
 
-/** Direct FatSecret call from this Worker (no home relay). */
-export async function fatSecretSearchFoodsDirect(env: EnvFatSecret, query: string): Promise<FatSecretFoodRef[]> {
+export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Promise<FatSecretFoodRef[]> {
   const q = query.trim()
   if (!q) return []
 
@@ -270,61 +234,4 @@ export async function fatSecretSearchFoodsDirect(env: EnvFatSecret, query: strin
   const apiErr = fatSecretApiErrorMessage(errText)
   throwFatSecretApiError(apiErr)
   throw new Error(`FatSecret search failed: ${errText.slice(0, 300)}`)
-}
-
-async function fatSecretSearchViaRelay(env: EnvFatSecret, query: string): Promise<FatSecretFoodRef[]> {
-  const base = env.FATSECRET_RELAY_URL?.trim().replace(/\/$/, '')
-  const secret = env.FATSECRET_RELAY_SECRET?.trim()
-  if (!base || !secret) {
-    throw new Error('FatSecret home relay not configured (FATSECRET_RELAY_URL / FATSECRET_RELAY_SECRET)')
-  }
-
-  const res = await fetch(`${base}/api/internal/fatsecret/search`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${secret}`,
-    },
-    body: JSON.stringify({ query }),
-  })
-
-  const text = await res.text()
-  let data: { foods?: FatSecretFoodRef[]; error?: string }
-  try {
-    data = JSON.parse(text) as { foods?: FatSecretFoodRef[]; error?: string }
-  } catch {
-    throw new Error(`FatSecret relay invalid JSON: ${text.slice(0, 200)}`)
-  }
-
-  if (!res.ok || data.error) {
-    throw new Error(data.error || `FatSecret relay failed (${res.status}): ${text.slice(0, 200)}`)
-  }
-
-  return data.foods ?? []
-}
-
-/**
- * Search FatSecret: direct from this Worker, then optional home relay on IP denial.
- * `route` is `computer` when FATSECRET_LOCAL_EGRESS=1, `cloud` when direct from deploy, `relay` via tunnel.
- */
-export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Promise<FatSecretSearchResult> {
-  const q = query.trim()
-  if (!q) return { foods: [], route: isLocalEgress(env) ? 'computer' : 'cloud' }
-
-  try {
-    const foods = await fatSecretSearchFoodsDirect(env, q)
-    return { foods, route: isLocalEgress(env) ? 'computer' : 'cloud' }
-  } catch (e) {
-    if (e instanceof FatSecretIpDeniedError && env.FATSECRET_RELAY_URL?.trim()) {
-      const foods = await fatSecretSearchViaRelay(env, q)
-      return { foods, route: 'relay' }
-    }
-    throw e
-  }
-}
-
-/** Home relay handler: direct FatSecret only (whitelisted home IP). */
-export async function fatSecretSearchFoodsForRelay(env: EnvFatSecret, query: string): Promise<FatSecretSearchResult> {
-  const foods = await fatSecretSearchFoodsDirect(env, query)
-  return { foods, route: 'computer' }
 }

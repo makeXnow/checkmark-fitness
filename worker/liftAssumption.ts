@@ -141,21 +141,7 @@ export function clearLiftAssumption(
   return { ...payload, pending: null }
 }
 
-export function hasLiftHistoryForDayOnDate(
-  liftPayload: { workouts?: { id: string; dayId: string }[]; history?: { workoutId: string; date: string }[] },
-  dayId: string,
-  localDate: string,
-): boolean {
-  const workoutIds = new Set(
-    (liftPayload.workouts || []).filter((w) => w.dayId === dayId).map((w) => w.id),
-  )
-  if (workoutIds.size === 0) return false
-  return (liftPayload.history || []).some((entry) => {
-    if (!workoutIds.has(entry.workoutId)) return false
-    const entryDate = entry.date.slice(0, 10)
-    return entryDate === localDate
-  })
-}
+export { hasLiftHistoryForDayOnDate } from '../src/features/lift/liftHistory'
 
 export function resolveLiftAssumptionPrompt(
   assumptionPayload: LiftAssumptionPayload,

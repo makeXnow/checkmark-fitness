@@ -7,8 +7,10 @@ import { localDateISO } from '../../lib/localDate'
 import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
 import { useLiftOpenSession } from './useLiftOpenSession'
-import { buildSubmitWorkoutDayPayload } from './submitWorkoutDay'
+import { historyEntryLocalDate } from './liftHistory'
+import { buildSubmitWorkoutDayPayload, dateAtLocalNoonISO } from './submitWorkoutDay'
 import {
+  buildDayOptimizedPlateOrders,
   buildGroupedSets,
   formatLogDate,
   formatProgressDelta,
@@ -192,6 +194,99 @@ function LiftWeightModal({
   )
 }
 
+function LiftIncrementModal({
+  workoutName,
+  initialIncrement,
+  weightUnit,
+  onClose,
+  onSave,
+}: {
+  workoutName: string
+  initialIncrement: number
+  weightUnit: LiftWeightUnit
+  onClose: () => void
+  onSave: (increment: number) => void
+}) {
+  const [value, setValue] = useState(String(initialIncrement))
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  const handleSave = () => {
+    const trimmed = value.trim()
+    if (trimmed === '' || Number.isNaN(parseFloat(trimmed))) return
+    onSave(Math.max(0, parseFloat(trimmed)))
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lift-increment-modal-title"
+        className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Progress increment</p>
+            <h2 id="lift-increment-modal-title" className="text-lg font-black text-white line-clamp-2">
+              {workoutName}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="mb-5">
+          <FieldLabel>Increment ({weightUnit})</FieldLabel>
+          <input
+            ref={inputRef}
+            type="number"
+            step="any"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave()
+              else if (e.key === 'Escape') onClose()
+            }}
+            className="w-full rounded-xl border border-neutral-700 bg-black/40 px-4 py-3 text-center text-2xl font-black text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-neutral-700 px-4 py-3 text-sm font-bold text-neutral-300 transition-colors hover:bg-neutral-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex-1 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-emerald-300"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 type LiftLogDayGroup = {
   dayName: string
   dateStr: string
@@ -209,6 +304,13 @@ function applyDateInputToEntry(iso: string, dateInput: string): string {
   if (!y || !m || !day) return iso
   const merged = new Date(y, m - 1, day, old.getHours(), old.getMinutes(), old.getSeconds(), old.getMilliseconds())
   return merged.toISOString()
+}
+
+function effectiveHistoryStatusName(
+  entry: Pick<LiftHistoryEntry, 'statusName'>,
+  statuses: LiftPayload['statuses'],
+): string {
+  return String(entry.statusName ?? statuses?.[0]?.name ?? '')
 }
 
 function LiftLogDayCard({
@@ -229,12 +331,30 @@ function LiftLogDayCard({
 
   const openEdit = () => {
     const first = group.entries[0]
+    const statuses = payload.statuses || []
     setDraftDate(first ? historyEntryToDateInput(first.date) : localDateISO(new Date()))
-    setDraftById(Object.fromEntries(group.entries.map((e) => [e.id, { ...e }])))
+    setDraftById(
+      Object.fromEntries(
+        group.entries.map((e) => [
+          e.id,
+          { ...e, statusName: effectiveHistoryStatusName(e, statuses) || e.statusName },
+        ]),
+      ),
+    )
     setIsEditing(true)
   }
 
-  const cancelEdit = () => {
+  const deleteDay = () => {
+    if (!onPersist) return
+    const ok = window.confirm(
+      `Delete this workout day?\n\n${group.dayName} · ${group.dateStr}\n\nThis removes all logged exercises for this day from your log.`,
+    )
+    if (!ok) return
+    const ids = new Set(group.entries.map((e) => e.id))
+    void onPersist({
+      ...payload,
+      history: (payload.history || []).filter((h) => !ids.has(h.id)),
+    })
     setIsEditing(false)
     setDraftById({})
   }
@@ -254,7 +374,6 @@ function LiftLogDayCard({
         return {
           ...h,
           date: applyDateInputToEntry(h.date, draftDate),
-          workoutName: draft.workoutName,
           weight: draft.weight,
           oldWeight: draft.oldWeight,
           newWeight: draft.newWeight,
@@ -269,10 +388,23 @@ function LiftLogDayCard({
 
   return (
     <div className="box-border w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 shadow-sm">
-      <div className="relative flex w-full min-w-0 items-center justify-between gap-3 border-b border-neutral-800 bg-neutral-800 py-3 pl-4 pr-12 text-neutral-200">
-        <span className="min-w-0 flex-1 truncate text-left text-base font-bold leading-snug">
-          {group.dateStr}
-        </span>
+      <div
+        className={`relative flex w-full min-w-0 items-center justify-between gap-3 border-b border-neutral-800 bg-neutral-800 py-3 pl-4 text-neutral-200 ${
+          isEditing ? 'pr-4' : 'pr-12'
+        }`}
+      >
+        {isEditing ? (
+          <input
+            type="date"
+            value={draftDate}
+            onChange={(e) => setDraftDate(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-neutral-600 bg-black px-2 py-1.5 text-sm font-bold text-white outline-none focus:border-emerald-400"
+          />
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-left text-base font-bold leading-snug">
+            {group.dateStr}
+          </span>
+        )}
         {showDayName ? (
           <span className="max-w-[40%] shrink-0 truncate text-right text-[10px] font-bold uppercase tracking-widest text-neutral-400">
             {group.dayName}
@@ -293,34 +425,19 @@ function LiftLogDayCard({
       <div className="min-w-0 space-y-4 p-4">
         {isEditing ? (
           <>
-            <div>
-              <FieldLabel>Date</FieldLabel>
-              <input
-                type="date"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
-                className="w-full rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400"
-              />
-            </div>
             {group.entries.map((entry) => {
               const draft = draftById[entry.id] ?? entry
               const unit = payload.weightUnit ?? 'lbs'
+              const statusStr = effectiveHistoryStatusName(draft, statuses)
+              const statusObj = statuses.find((s) => s.name === statusStr)
+              const mVal = statusObj ? parseStatusMultiplier(statusObj.multiplier) : 1
+              const isNegative = isNonPositiveProgressionMultiplier(mVal)
+              const currentStatusExists = statuses.some((s) => s.name === statusStr)
               return (
                 <div key={entry.id} className="min-w-0 space-y-3 rounded-lg border border-neutral-800 bg-black/40 p-3">
-                  <div className="min-w-0">
-                    <FieldLabel>Exercise</FieldLabel>
-                    <input
-                      type="text"
-                      value={draft.workoutName ?? ''}
-                      onChange={(e) =>
-                        setDraftById((prev) => ({
-                          ...prev,
-                          [entry.id]: { ...draft, workoutName: e.target.value },
-                        }))
-                      }
-                      className="w-full max-w-full rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400"
-                    />
-                  </div>
+                  <h4 className="min-w-0 truncate text-lg font-bold text-white">
+                    {entry.workoutName || 'Workout'}
+                  </h4>
                   <div className="grid min-w-0 grid-cols-2 gap-3">
                     <div className="min-w-0">
                       <FieldLabel>Weight ({unit})</FieldLabel>
@@ -365,28 +482,34 @@ function LiftLogDayCard({
                   {statuses.length > 0 ? (
                     <div>
                       <FieldLabel>Status</FieldLabel>
-                      <div className="relative rounded-lg border border-neutral-700 bg-black">
-                        <select
-                          className="w-full cursor-pointer appearance-none bg-transparent p-3 text-sm font-bold text-white outline-none"
-                          value={draft.statusName ?? ''}
-                          onChange={(e) =>
-                            setDraftById((prev) => ({
-                              ...prev,
-                              [entry.id]: { ...draft, statusName: e.target.value },
-                            }))
-                          }
-                        >
-                          <option value="" className="bg-neutral-900">
-                            —
+                      <LiftStatusSelector
+                        isNegative={isNegative}
+                        value={statusStr || '__NONE__'}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setDraftById((prev) => ({
+                            ...prev,
+                            [entry.id]: {
+                              ...draft,
+                              statusName: v === '__NONE__' ? '' : v,
+                            },
+                          }))
+                        }}
+                      >
+                        <option value="__NONE__" className="bg-neutral-900 text-white">
+                          —
+                        </option>
+                        {!currentStatusExists && statusStr ? (
+                          <option value={statusStr} className="bg-neutral-900 text-white">
+                            {statusStr}
                           </option>
-                          {statuses.map((s) => (
-                            <option key={s.id} value={s.name} className="bg-neutral-900">
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-                      </div>
+                        ) : null}
+                        {statuses.map((s) => (
+                          <option key={s.id} value={s.name} className="bg-neutral-900 text-white">
+                            {s.name}
+                          </option>
+                        ))}
+                      </LiftStatusSelector>
                     </div>
                   ) : null}
                 </div>
@@ -395,10 +518,11 @@ function LiftLogDayCard({
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={cancelEdit}
-                className="flex flex-1 items-center justify-center rounded-lg border border-neutral-700 px-4 py-3 text-xs font-black uppercase tracking-widest text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200"
+                onClick={deleteDay}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-400 transition-colors hover:border-red-800 hover:bg-red-950/50 hover:text-red-300"
               >
-                Cancel
+                <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                Delete
               </button>
               <button
                 type="button"
@@ -452,7 +576,7 @@ function LiftHistoryEntryCard({
     }
   })()
 
-  const statusStr = String(entry.statusName ?? statuses[0]?.name ?? '')
+  const statusStr = effectiveHistoryStatusName(entry, statuses)
   const statusObj = statuses.find((s) => s.name === statusStr)
   const mVal = statusObj ? parseStatusMultiplier(statusObj.multiplier) : 1
   const isNegative = isNonPositiveProgressionMultiplier(mVal)
@@ -662,12 +786,19 @@ export function LiftScreen({
 
   const [workoutStatusById, setWorkoutStatusById] = useState<Record<string, string>>({})
   const [newPlateInput, setNewPlateInput] = useState('')
+  const [addingPlate, setAddingPlate] = useState(false)
+  const addPlateInputRef = useRef<HTMLInputElement>(null)
   const [openNotesByWorkoutId, setOpenNotesByWorkoutId] = useState<Record<string, boolean>>({})
   const [weightModalWorkoutId, setWeightModalWorkoutId] = useState<string | null>(null)
+  const [incrementModalWorkoutId, setIncrementModalWorkoutId] = useState<string | null>(null)
 
   useEffect(() => {
     setWorkoutStatusById({})
   }, [currentDayIndex])
+
+  useEffect(() => {
+    if (addingPlate) addPlateInputRef.current?.focus()
+  }, [addingPlate])
 
   const persist = useCallback(
     (next: LiftPayload) => {
@@ -679,6 +810,12 @@ export function LiftScreen({
   const weightModalWorkout = useMemo(
     () => (weightModalWorkoutId ? payload.workouts.find((w) => w.id === weightModalWorkoutId) : undefined),
     [payload.workouts, weightModalWorkoutId],
+  )
+
+  const incrementModalWorkout = useMemo(
+    () =>
+      incrementModalWorkoutId ? payload.workouts.find((w) => w.id === incrementModalWorkoutId) : undefined,
+    [payload.workouts, incrementModalWorkoutId],
   )
 
   const saveManualWeight = useCallback(
@@ -693,12 +830,15 @@ export function LiftScreen({
         setWeightModalWorkoutId(null)
         return
       }
-      const nextHistory = [...(payload.history || [])]
+      const localToday = localDateISO(new Date())
+      const nextHistory = (payload.history || []).filter(
+        (e) => !(e.workoutId === workoutId && historyEntryLocalDate(e) === localToday),
+      )
       nextHistory.push({
         id: crypto.randomUUID(),
         workoutId: workout.id,
         workoutName: workout.name,
-        date: new Date().toISOString(),
+        date: dateAtLocalNoonISO(localToday),
         weight: newWeight,
         oldWeight,
         newWeight,
@@ -710,6 +850,28 @@ export function LiftScreen({
         workouts: payload.workouts.map((w) => (w.id === workoutId ? { ...w, mainWeight: newWeight } : w)),
       })
       setWeightModalWorkoutId(null)
+    },
+    [payload, persist],
+  )
+
+  const saveWorkoutIncrement = useCallback(
+    (workoutId: string, newIncrement: number) => {
+      const workout = payload.workouts.find((w) => w.id === workoutId)
+      if (!workout) {
+        setIncrementModalWorkoutId(null)
+        return
+      }
+      if (newIncrement === workout.increment) {
+        setIncrementModalWorkoutId(null)
+        return
+      }
+      persist({
+        ...payload,
+        workouts: payload.workouts.map((w) =>
+          w.id === workoutId ? { ...w, increment: newIncrement } : w,
+        ),
+      })
+      setIncrementModalWorkoutId(null)
     },
     [payload, persist],
   )
@@ -802,48 +964,16 @@ export function LiftScreen({
               ariaLabel="Optimize plate order"
               disabled={!onPersist}
               onCheckedChange={(checked) => persist({ ...payload, optimizedPlateOrder: checked })}
-              description="Minimize plate changes across warmups and working sets within each exercise."
+              description="Minimize plate changes across warmups, working sets, and all exercises on the day."
             />
           </div>
-          <div className="mb-4 flex gap-2">
-            <input
-              type="number"
-              step="any"
-              value={newPlateInput}
-              onChange={(e) => setNewPlateInput(e.target.value)}
-              placeholder="Add plate (e.g. 2.5)"
-              disabled={!onPersist}
-              className="min-w-0 flex-1 rounded-lg border border-neutral-700 bg-black p-3 text-sm font-bold text-white outline-none focus:border-emerald-400 placeholder:text-neutral-600"
-            />
-            <button
-              type="button"
-              disabled={!onPersist}
-              onClick={() => {
-                const val = parseFloat(newPlateInput)
-                const list = [...(payload.availablePlates || [])]
-                if (!Number.isFinite(val) || val <= 0 || list.includes(val)) {
-                  setNewPlateInput('')
-                  return
-                }
-                list.push(val)
-                list.sort((a, b) => b - a)
-                setNewPlateInput('')
-                persist({ ...payload, availablePlates: list })
-              }}
-              className="flex shrink-0 items-center justify-center gap-1 rounded-lg bg-emerald-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-emerald-300 disabled:opacity-40"
-            >
-              <Plus className="h-4 w-4" /> Add
-            </button>
-          </div>
-          <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
             {(payload.availablePlates || []).map((p) => (
-              <div
+              <span
                 key={p}
-                className="flex items-center justify-between rounded-xl border border-neutral-800 bg-black p-4"
+                className="inline-flex items-center gap-0.5 rounded-full border border-neutral-700 bg-black py-1 pl-3 pr-1 text-sm font-bold text-white"
               >
-                <span className="font-black text-white">
-                  {formatWeightStr(p)} {plateUnit}
-                </span>
+                {formatWeightStr(p)} {plateUnit}
                 <button
                   type="button"
                   disabled={!onPersist}
@@ -853,13 +983,71 @@ export function LiftScreen({
                       availablePlates: (payload.availablePlates || []).filter((x) => x !== p),
                     })
                   }
-                  className="text-red-900 transition-colors hover:text-red-500 disabled:opacity-40"
-                  aria-label={`Remove ${p}`}
+                  className="rounded-full p-1 text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-red-400 disabled:opacity-40"
+                  aria-label={`Remove ${p} ${plateUnit} plate`}
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
-              </div>
+              </span>
             ))}
+            {addingPlate ? (
+              <span className="inline-flex items-center rounded-full border border-emerald-400/60 bg-black py-1 pl-3 pr-2">
+                <input
+                  ref={addPlateInputRef}
+                  type="number"
+                  step="any"
+                  inputMode="decimal"
+                  value={newPlateInput}
+                  onChange={(e) => setNewPlateInput(e.target.value)}
+                  disabled={!onPersist}
+                  placeholder="2.5"
+                  className="w-14 bg-transparent text-sm font-bold text-white outline-none placeholder:text-neutral-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const val = parseFloat(newPlateInput)
+                      const list = [...(payload.availablePlates || [])]
+                      if (!Number.isFinite(val) || val <= 0 || list.includes(val)) {
+                        setNewPlateInput('')
+                        setAddingPlate(false)
+                        return
+                      }
+                      list.push(val)
+                      list.sort((a, b) => b - a)
+                      setNewPlateInput('')
+                      setAddingPlate(false)
+                      persist({ ...payload, availablePlates: list })
+                    } else if (e.key === 'Escape') {
+                      setNewPlateInput('')
+                      setAddingPlate(false)
+                    }
+                  }}
+                  onBlur={() => {
+                    const val = parseFloat(newPlateInput)
+                    const list = [...(payload.availablePlates || [])]
+                    if (Number.isFinite(val) && val > 0 && !list.includes(val)) {
+                      list.push(val)
+                      list.sort((a, b) => b - a)
+                      persist({ ...payload, availablePlates: list })
+                    }
+                    setNewPlateInput('')
+                    setAddingPlate(false)
+                  }}
+                />
+              </span>
+            ) : null}
+            <button
+              type="button"
+              disabled={!onPersist}
+              onClick={() => {
+                setAddingPlate(true)
+                setNewPlateInput('')
+              }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-400 transition-colors hover:border-emerald-400 hover:bg-neutral-800 hover:text-emerald-400 disabled:opacity-40"
+              aria-label="Add plate"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
@@ -1008,15 +1196,22 @@ export function LiftScreen({
           { dateOnly: true },
         )
 
+        const platesList = payload.availablePlates || []
+        const useOptimized = payload.optimizedPlateOrder ?? false
+        const dayPlateOrders = useOptimized
+          ? buildDayOptimizedPlateOrders(activeWorkouts, platesList)
+          : null
+
         let runningSetNum = 1
         return (
           <>
             {activeWorkouts.map((workout) => {
         const { groupedSets, nextSetNum } = buildGroupedSets(
           workout,
-          payload.availablePlates || [],
+          platesList,
           runningSetNum,
-          payload.optimizedPlateOrder ?? false,
+          useOptimized,
+          dayPlateOrders?.get(workout.id),
         )
         runningSetNum = nextSetNum
         const sid = effectiveStatusId(workout.id)
@@ -1105,6 +1300,12 @@ export function LiftScreen({
                         set.isWarmup ? 'bg-emerald-100' : 'bg-emerald-300'
                       } relative flex min-h-[72px] items-center justify-center sm:min-h-[85px]`}
                     >
+                      {!set.isWarmup && onPersist ? (
+                        <Pencil
+                          className="pointer-events-none absolute right-2.5 top-2.5 h-3.5 w-3.5 text-emerald-700/45"
+                          aria-hidden
+                        />
+                      ) : null}
                       <div className="flex flex-wrap items-center justify-center px-4 py-3">
                           {set.plates.length > 0 ? (
                             set.plates.map((p, i) => (
@@ -1147,12 +1348,26 @@ export function LiftScreen({
             </div>
 
             <div className="mt-4 flex items-end justify-between gap-3">
-              <p
-                className={`min-w-0 text-sm font-bold tabular-nums leading-tight ${
-                  isNeg ? 'text-red-400' : 'text-emerald-400'
-                }`}
-              >
-                <span>{formatProgressDelta(progressDelta)}</span>
+              <p className="min-w-0 text-sm font-bold tabular-nums leading-tight">
+                {onPersist ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIncrementModalWorkoutId(workout.id)
+                    }}
+                    className={`rounded-md px-1 -ml-1 transition-colors hover:bg-neutral-800 ${
+                      isNeg ? 'text-red-400' : 'text-emerald-400'
+                    }`}
+                    aria-label={`Edit progress increment for ${workout.name}`}
+                  >
+                    {formatProgressDelta(progressDelta)}
+                  </button>
+                ) : (
+                  <span className={isNeg ? 'text-red-400' : 'text-emerald-400'}>
+                    {formatProgressDelta(progressDelta)}
+                  </span>
+                )}
                 <span className="text-neutral-500">, </span>
                 <span className="font-semibold text-neutral-300">
                   {nextLiftWeight} {weightUnit}
@@ -1231,6 +1446,17 @@ export function LiftScreen({
         weightUnit={weightUnit}
         onClose={() => setWeightModalWorkoutId(null)}
         onSave={(newWeight) => saveManualWeight(weightModalWorkout.id, newWeight)}
+      />
+    ) : null}
+
+    {incrementModalWorkout && onPersist ? (
+      <LiftIncrementModal
+        key={incrementModalWorkout.id}
+        workoutName={incrementModalWorkout.name}
+        initialIncrement={incrementModalWorkout.increment}
+        weightUnit={weightUnit}
+        onClose={() => setIncrementModalWorkoutId(null)}
+        onSave={(newIncrement) => saveWorkoutIncrement(incrementModalWorkout.id, newIncrement)}
       />
     ) : null}
     </>

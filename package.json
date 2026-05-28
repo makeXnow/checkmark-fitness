@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev:ensure-assets && npm run dev:clean-ports && concurrently -n web,api \"VITE_USE_LOCAL_API=1 vite\" \"wrangler dev\"",
+    "dev": "npm run dev:remote-api",
     "dev:local-api": "npm run dev:ensure-assets && npm run dev:clean-ports && npm run db:migrate && concurrently -n web,api \"VITE_USE_LOCAL_API=1 vite\" \"wrangler dev\"",
     "dev:remote-api": "npm run dev:ensure-assets && npm run dev:clean-ports && vite",
     "dev:clean-ports": "for p in 8787 9024 9025; do lsof -nP -iTCP:$p -sTCP:LISTEN -t 2>/dev/null | xargs kill -9 2>/dev/null || true; done",

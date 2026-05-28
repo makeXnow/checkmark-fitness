@@ -350,7 +350,6 @@ export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayIte
     a.fatSecretResults ??
     b.fatSecretResults
   const fatSecretSearch = base.fatSecretSearch ?? a.fatSecretSearch ?? b.fatSecretSearch
-  const fatSecretRoute = base.fatSecretRoute ?? a.fatSecretRoute ?? b.fatSecretRoute
   const userInput = base.userInput ?? a.userInput ?? b.userInput
   const parseSnapshot = base.parseSnapshot ?? a.parseSnapshot ?? b.parseSnapshot
   const macroEstimateSnapshot = base.macroEstimateSnapshot ?? a.macroEstimateSnapshot ?? b.macroEstimateSnapshot
@@ -358,7 +357,6 @@ export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayIte
     ...base,
     fatSecretResults,
     fatSecretSearch,
-    fatSecretRoute,
     userInput,
     parseSnapshot,
     macroEstimateSnapshot,

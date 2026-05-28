@@ -26,6 +26,7 @@ import {
   type HabitsGoalsBundleData,
   type MacroGoalsBundleData,
 } from './lib/goalSnapshots'
+import { normalizeLiftHistoryOnLoad } from './features/lift/liftHistory'
 import { localDateISO } from './lib/localDate'
 import { scrollAppMainToTop } from './lib/scrollAppMain'
 import type {
@@ -123,7 +124,15 @@ export default function App() {
 
       const logs = normalizeMacroLogsOnLoad(data.macro.logs || {}, data.macro.customFoods || [])
       const logsChanged = logs !== data.macro.logs
-      if (logsChanged || macroCement.changed || habitsCement.changed) {
+
+      const liftPayload = data.lift.payload as LiftPayload
+      const liftHistoryNorm = normalizeLiftHistoryOnLoad(liftPayload.history)
+      const liftHistoryChanged = liftHistoryNorm.changed
+      if (liftHistoryChanged) {
+        data.lift.payload = { ...liftPayload, history: liftHistoryNorm.history }
+      }
+
+      if (logsChanged || macroCement.changed || habitsCement.changed || liftHistoryChanged) {
         data.macro.logs = logs
         data.macro.goals = macroBundle.current
         data.macro.goalsSnapshotsByDay = macroBundle.snapshotsByDay
@@ -131,7 +140,7 @@ export default function App() {
         data.habits.goals = cementedHabitsBundle.current
         data.habits.goalsSnapshotsByWeek = cementedHabitsBundle.snapshotsByWeek
         data.habits.goalsHistory = cementedHabitsBundle.goalHistory
-        await Promise.all([
+        const persistTasks: Promise<unknown>[] = [
           putMacro({
             goals: macroBundle.current,
             goalsSnapshotsByDay: macroBundle.snapshotsByDay,
@@ -146,7 +155,11 @@ export default function App() {
             logs: data.habits.logs,
             appSettings: data.habits.appSettings,
           }),
-        ])
+        ]
+        if (liftHistoryChanged) {
+          persistTasks.push(putLift(data.lift.payload as LiftPayload))
+        }
+        await Promise.all(persistTasks)
       }
       setBoot(data)
       bootRef.current = data

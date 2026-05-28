@@ -2,19 +2,16 @@ import type { ReactNode } from 'react'
 import { Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
 import type {
   FatSecretFoodRef,
-  FatSecretRoute,
   MacroCustomFood,
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { FatSecretRouteChip } from './fatSecretRouteChip'
 import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName, macroItemServingFields, scaleFatSecretServing } from './macroLib'
 
 export type MacroFoodAuditTrail = {
   userInput?: string
   classification?: MacroParseSnapshot
   fatSecretResults?: FatSecretFoodRef[]
-  fatSecretRoute?: FatSecretRoute
   macroEstimate?: MacroEstimateSnapshot
 }
 
@@ -28,7 +25,6 @@ export function macroItemAuditTrail(item: {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
-  fatSecretRoute?: FatSecretRoute
   macroEstimateSnapshot?: MacroEstimateSnapshot
 }): MacroFoodAuditTrail {
   const classification =
@@ -47,7 +43,6 @@ export function macroItemAuditTrail(item: {
     userInput: item.userInput ?? item.rawText,
     classification,
     fatSecretResults: item.fatSecretResults,
-    fatSecretRoute: item.fatSecretRoute,
     macroEstimate: item.macroEstimateSnapshot,
   }
 }
@@ -162,14 +157,7 @@ export function MacroFoodAuditPanel({
       </AuditStepCard>
       <AuditStepCard label="FatSecret results">
         {audit.fatSecretResults?.length ? (
-          <div className="space-y-2">
-            {audit.fatSecretRoute ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <FatSecretRouteChip route={audit.fatSecretRoute} />
-              </div>
-            ) : null}
-            <FatSecretResultsBody foods={audit.fatSecretResults} />
-          </div>
+          <FatSecretResultsBody foods={audit.fatSecretResults} />
         ) : undefined}
       </AuditStepCard>
       <AuditStepCard label="Macro estimate">

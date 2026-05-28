@@ -52,8 +52,11 @@ function sideWeightForTarget(targetWeight: number, barWeight: number, smallestPl
   return Math.round(rawPerSide / smallestPlate) * smallestPlate
 }
 
-function maxPlateCount(sideWeight: number, plate: number): number {
-  return Math.max(0, Math.floor((sideWeight + 0.01) / plate))
+/** Max count per plate size on one side (matches prototype: pairs for most, many 45s). */
+function plateLimit(plate: number, ctx: PlateContext): number {
+  const largest = ctx.availablePlates[0]
+  if (plate === largest) return 20
+  return 2
 }
 
 function getValidCombinations(targetWeight: number, ctx: PlateContext): number[][] {
@@ -78,7 +81,7 @@ function getValidCombinations(targetWeight: number, ctx: PlateContext): number[]
     if (remaining < 0 || plateIdx >= availablePlates.length) return
 
     const p = availablePlates[plateIdx]
-    const maxCount = Math.min(maxPlateCount(targetWeight, p), Math.floor((remaining + 0.01) / p))
+    const maxCount = Math.min(plateLimit(p, ctx), Math.floor((remaining + 0.01) / p))
 
     for (let count = maxCount; count >= 0; count--) {
       currentCounts[plateIdx] = count
@@ -173,12 +176,12 @@ function updateTrieBest(node: TrieNode, p: DpState, pScore: number) {
 }
 
 /**
- * Prefix-trie DP: given per-side target weights for one exercise (warmups + working sets),
- * returns ordered plate stacks (inner collar → outer) per set.
+ * Prefix-trie DP: given per-set target weights (and bar weights), returns ordered plate stacks
+ * (inner collar → outer) per set. Call with all sets for a day to optimize across exercises.
  */
 export function calculateOptimizedPlateOrder(
   targetWeights: number[],
-  barWeight: number,
+  barWeights: number | number[],
   availablePlates: number[],
 ): number[][] {
   const ctx = buildPlateContext(availablePlates)
@@ -186,7 +189,11 @@ export function calculateOptimizedPlateOrder(
     return targetWeights.map(() => [])
   }
 
-  const sideWeights = targetWeights.map((tw) => sideWeightForTarget(tw, barWeight, ctx.smallestPlate))
+  const barWeightsPerSet =
+    typeof barWeights === 'number' ? targetWeights.map(() => barWeights) : barWeights
+  const sideWeights = targetWeights.map((tw, i) =>
+    sideWeightForTarget(tw, barWeightsPerSet[i] ?? 0, ctx.smallestPlate),
+  )
 
   const initial: DpState = {
     cost: 0,

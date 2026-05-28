@@ -1,10 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import {
-  fatSecretSearchFoods,
-  fatSecretSearchFoodsForRelay,
-  verifyFatSecretRelayAuth,
-} from './fatsecret'
+import { fatSecretSearchFoods } from './fatsecret'
 import {
   type HabitsGoalsStored,
   parseHabitsGoalsStored,
@@ -15,7 +11,13 @@ import {
   unwrapMacroGoalsLeaf,
 } from './goalSnapshots'
 import { runMacroEstimate } from './macroEstimate'
+import {
+  getMacroPrompts,
+  resolveMacroPromptSystem,
+  saveMacroPrompts,
+} from './macroPromptsStore'
 import { OPENAI_MODELS } from './openaiModels'
+import { MACRO_PROMPTS_OWNER, type MacroPrompts } from '../src/features/macro/prompts'
 import {
   clearLiftAssumption,
   closeLiftSession,
@@ -36,9 +38,6 @@ export interface Env {
   OPENAI_API_KEY?: string
   FATSECRET_CLIENT_ID?: string
   FATSECRET_CLIENT_SECRET?: string
-  FATSECRET_LOCAL_EGRESS?: string
-  FATSECRET_RELAY_URL?: string
-  FATSECRET_RELAY_SECRET?: string
 }
 
 const defaultHabitsGoals = {
@@ -533,7 +532,22 @@ profileApi.post('/lift/assumption/clear', async (c) => {
   return c.json({ ok: true })
 })
 
+profileApi.put('/macro/prompts', async (c) => {
+  const profileId = c.get('profileId')
+  if (profileId !== MACRO_PROMPTS_OWNER) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const body = (await c.req.json()) as Partial<MacroPrompts>
+  const prompts = await saveMacroPrompts(c.env.DB, body)
+  return c.json({ prompts, updatedAt: Date.now() })
+})
+
 api.route('/api/u/:username', profileApi)
+
+api.get('/api/macro/prompts', async (c) => {
+  const prompts = await getMacroPrompts(c.env.DB)
+  return c.json({ prompts })
+})
 
 function audioUploadFromFormData(formData: FormData): { blob: Blob; filename: string } | null {
   const entry = formData.get('file')
@@ -562,6 +576,16 @@ api.post('/api/ai/transcribe', async (c) => {
       : c.req.query('model') || OPENAI_MODELS.transcribeDefault
   upstream.append('model', model)
 
+  const promptKey = c.req.query('promptKey') || 'TRANSCRIPTION'
+  try {
+    const prompts = await getMacroPrompts(c.env.DB)
+    const transcriptionPrompt = resolveMacroPromptSystem(prompts, promptKey, undefined)
+    if (transcriptionPrompt) upstream.append('prompt', transcriptionPrompt)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Invalid prompt key'
+    return c.json({ error: msg }, 400)
+  }
+
   const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}` },
@@ -585,8 +609,18 @@ api.post('/api/ai/json', async (c) => {
   const body = (await c.req.json()) as {
     model?: string
     system?: string
+    promptKey?: string
     user: string
     images?: { mimeType: string; base64: string }[]
+  }
+
+  let system: string | undefined
+  try {
+    const prompts = await getMacroPrompts(c.env.DB)
+    system = resolveMacroPromptSystem(prompts, body.promptKey, body.system)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Invalid prompt key'
+    return c.json({ error: msg }, 400)
   }
 
   const model = body.model || OPENAI_MODELS.chatFast
@@ -609,7 +643,7 @@ api.post('/api/ai/json', async (c) => {
       temperature: 0.2,
       response_format: { type: 'json_object' },
       messages: [
-        ...(body.system ? [{ role: 'system', content: body.system }] : []),
+        ...(system ? [{ role: 'system', content: system }] : []),
         { role: 'user', content },
       ],
     }),
@@ -640,8 +674,18 @@ api.post('/api/ai/vision', async (c) => {
   const body = (await c.req.json()) as {
     model?: string
     system?: string
+    promptKey?: string
     user: string
     images: { mimeType: string; base64: string }[]
+  }
+
+  let system: string | undefined
+  try {
+    const prompts = await getMacroPrompts(c.env.DB)
+    system = resolveMacroPromptSystem(prompts, body.promptKey, body.system)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Invalid prompt key'
+    return c.json({ error: msg }, 400)
   }
 
   const model = body.model || OPENAI_MODELS.chatVision
@@ -664,7 +708,7 @@ api.post('/api/ai/vision', async (c) => {
       temperature: 0.2,
       response_format: { type: 'json_object' },
       messages: [
-        ...(body.system ? [{ role: 'system', content: body.system }] : []),
+        ...(system ? [{ role: 'system', content: system }] : []),
         { role: 'user', content },
       ],
     }),
@@ -697,7 +741,7 @@ api.post('/api/macro/estimate', async (c) => {
     const msg = e instanceof Error ? e.message : 'Macro estimate failed'
     const partial =
       e && typeof e === 'object' && 'fatSecretResults' in e
-        ? (e as { fatSecretResults?: unknown; fatSecretSource?: string; fatSecretRoute?: string })
+        ? (e as { fatSecretResults?: unknown; fatSecretSource?: string })
         : null
     if (partial?.fatSecretResults) {
       return c.json(
@@ -705,7 +749,6 @@ api.post('/api/macro/estimate', async (c) => {
           error: msg,
           fatSecretResults: partial.fatSecretResults,
           fatSecretSource: partial.fatSecretSource ?? 'none',
-          fatSecretRoute: partial.fatSecretRoute,
         },
         502,
       )
@@ -723,30 +766,10 @@ api.post('/api/fatsecret/search', async (c) => {
     return c.json({ error: 'FatSecret credentials missing' }, 500)
   }
   try {
-    const { foods, route } = await fatSecretSearchFoods(c.env, query)
-    return c.json({ foods, route })
+    const foods = await fatSecretSearchFoods(c.env, query)
+    return c.json({ foods })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'FatSecret search failed'
-    return c.json({ error: msg }, 502)
-  }
-})
-
-/** Home relay: deployed Worker calls this when FatSecret blocks Cloudflare IPs. */
-api.post('/api/internal/fatsecret/search', async (c) => {
-  if (!verifyFatSecretRelayAuth(c.req.header('Authorization'), c.env.FATSECRET_RELAY_SECRET)) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
-  const body = (await c.req.json()) as { query?: string }
-  const query = body.query?.trim()
-  if (!query) return c.json({ error: 'query required' }, 400)
-  if (!c.env.FATSECRET_CLIENT_ID || !c.env.FATSECRET_CLIENT_SECRET) {
-    return c.json({ error: 'FatSecret credentials missing' }, 500)
-  }
-  try {
-    const { foods, route } = await fatSecretSearchFoodsForRelay(c.env, query)
-    return c.json({ foods, route })
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'FatSecret relay search failed'
     return c.json({ error: msg }, 502)
   }
 })

@@ -1,6 +1,9 @@
 import { localDateISO } from '../../lib/localDate'
 import type { LiftPayload } from '../../types/domain'
+import { historyEntryLocalDate } from './liftHistory'
 import { nextDayIndexFromHistory, parseStatusMultiplier } from './plates'
+
+export { hasLiftHistoryForDayOnDate } from './liftHistory'
 
 export function dateAtLocalNoonISO(localDate: string): string {
   const [y, m, d] = localDate.split('-').map((x) => parseInt(x, 10))
@@ -18,10 +21,14 @@ export function buildSubmitWorkoutDayPayload(
   },
 ): { nextPayload: LiftPayload; nextDayIndex?: number } {
   const statuses = payload.statuses || []
-  const submitDateISO = options?.localDate ? dateAtLocalNoonISO(options.localDate) : new Date().toISOString()
+  const submitLocalDate = options?.localDate ?? localDateISO(new Date())
+  const submitDateISO = dateAtLocalNoonISO(submitLocalDate)
   const dayWorkouts = payload.workouts.filter((w) => w.dayId === dayId)
-  const nextHistory = [...(payload.history || [])]
   const twIds = new Set(dayWorkouts.map((x) => x.id))
+  const nextHistory = (payload.history || []).filter((entry) => {
+    if (!twIds.has(entry.workoutId)) return true
+    return historyEntryLocalDate(entry) !== submitLocalDate
+  })
 
   const nextWorkouts = payload.workouts.map((w) => {
     if (!twIds.has(w.id)) return w
@@ -56,13 +63,4 @@ export function buildSubmitWorkoutDayPayload(
     : undefined
 
   return { nextPayload, nextDayIndex }
-}
-
-export function hasLiftHistoryForDayOnDate(payload: LiftPayload, dayId: string, localDate: string): boolean {
-  const workoutIds = new Set(payload.workouts.filter((w) => w.dayId === dayId).map((w) => w.id))
-  if (workoutIds.size === 0) return false
-  return (payload.history || []).some((entry) => {
-    if (!workoutIds.has(entry.workoutId)) return false
-    return localDateISO(new Date(entry.date)) === localDate
-  })
 }

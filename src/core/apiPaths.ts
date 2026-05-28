@@ -87,12 +87,41 @@ export function apiUrl(path: string): string {
   return `${normalized}${rel}`
 }
 
+function remoteWorkerOrigin(): string {
+  return (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || WORKER_ORIGIN
+}
+
+async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
+  if (typeof window !== 'undefined' && isLocalDevHost()) {
+    const remote = remoteWorkerOrigin()
+
+    if (useLocalWorkerApi()) {
+      try {
+        const local = await fetch(apiUrl(path), init)
+        if (local.ok) return local
+      } catch {
+        /* local wrangler unavailable or errored */
+      }
+      return fetch(`${remote}${path}`, init)
+    }
+
+    return fetch(`${remote}${path}`, init)
+  }
+
+  return fetch(apiUrl(path), init)
+}
+
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(apiUrl(withProfileApiPath(path)), init)
+  return fetchApi(withProfileApiPath(path), init)
 }
 
 /** Profile-scoped API call without binding activeProfile (entry page). */
-export function apiFetchForProfile(profile: string, suffix: string, init?: RequestInit): Promise<Response> {
-  const part = suffix.startsWith('/') ? suffix : `/${suffix}`
-  return fetch(apiUrl(`/api/u/${encodeURIComponent(profile)}${part}`), init)
+export async function apiFetchForProfile(
+  profile: string,
+  suffix: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const path = `/api/u/${encodeURIComponent(profile)}${suffix.startsWith('/') ? suffix : `/${suffix}`}`
+
+  return fetchApi(path, init)
 }

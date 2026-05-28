@@ -45,7 +45,6 @@ import {
   type MacroFoodEditFields,
 } from './MacroFoodCard'
 import { useDebouncedCallback } from '../../lib/useDebouncedCallback'
-import { MACRO_PROMPTS } from './prompts'
 
 type QuickScanState = {
   isOpen: boolean
@@ -55,6 +54,7 @@ type QuickScanState = {
   nutritionStatus: 'idle' | 'processing' | 'done' | 'error'
   frontData: Record<string, unknown> | null
   nutritionData: Record<string, unknown> | null
+  addToDatabase: boolean
 }
 
 const MAX_RECORDING_MS = 3 * 60 * 1000
@@ -176,6 +176,7 @@ export function MacroVoiceTracker({
     nutritionStatus: 'idle',
     frontData: null,
     nutritionData: null,
+    addToDatabase: true,
   })
   const frontPromiseRef = useRef<Promise<unknown> | null>(null)
   const nutritionPromiseRef = useRef<Promise<unknown> | null>(null)
@@ -268,7 +269,6 @@ export function MacroVoiceTracker({
           notes: item.notes,
           fatSecretSearch: item.fatSecretSearch,
           fatSecretResults: item.fatSecretResults,
-          fatSecretRoute: item.fatSecretRoute,
           skipFatSecretFetch: options?.skipFatSecretFetch,
           customFoods: customFoodsRef.current,
           extraCtx,
@@ -290,7 +290,6 @@ export function MacroVoiceTracker({
                   ? formatServingDisplay(result.servingMultiplier ?? 1, result.servingType)
                   : i.amount,
               fatSecretResults: result.fatSecretResults,
-              fatSecretRoute: result.fatSecretRoute ?? i.fatSecretRoute,
               macroEstimateSnapshot: result.macroEstimateSnapshot ?? i.macroEstimateSnapshot,
               status: 'ready',
             }
@@ -298,7 +297,6 @@ export function MacroVoiceTracker({
         )
       } catch (e) {
         const fs = e instanceof MacroEstimateError ? e.fatSecretResults : undefined
-        const route = e instanceof MacroEstimateError ? e.fatSecretRoute : undefined
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
@@ -306,14 +304,14 @@ export function MacroVoiceTracker({
               return {
                 ...i,
                 status: 'pending' as const,
-                ...(fs?.length ? { fatSecretResults: fs, fatSecretRoute: route } : {}),
+                ...(fs?.length ? { fatSecretResults: fs } : {}),
               }
             }
             return {
               ...i,
               status: 'editing_raw' as const,
               rawText: [item.name, item.amount].filter(Boolean).join(' '),
-              ...(fs?.length ? { fatSecretResults: fs, fatSecretRoute: route } : {}),
+              ...(fs?.length ? { fatSecretResults: fs } : {}),
             }
           }),
         )
@@ -399,7 +397,7 @@ export function MacroVoiceTracker({
   }, [pendingEstimateKey, items, estimateMacrosForItem])
 
   const startParsingFlow = useCallback(
-    async (id: string, rawText: string, baseFood?: Record<string, unknown> | null) => {
+    async (id: string, rawText: string, baseFood?: Record<string, unknown> | null, addToDatabase = false) => {
       const controller = new AbortController()
       processingRefs.current[id] = controller
       try {
@@ -407,27 +405,30 @@ export function MacroVoiceTracker({
         if (baseFood && baseFood.name) {
           promptInput += `\n\nContext: The user scanned "${String(baseFood.name)}".`
           const nf = await aiJson({
-            system: MACRO_PROMPTS.PARSER,
+            promptKey: 'PARSER',
             user: promptInput,
           }).catch(() => null)
           if (!nf || typeof nf !== 'object') throw new Error('parse')
           const data = nf as { items?: ParsedFoodItem[] }
-          const libItem: MacroCustomFood = {
-            id: crypto.randomUUID(),
-            name: String(baseFood.name || ''),
-            emoji: String(baseFood.emoji || '🍱'),
-            baseAmount: String(baseFood.baseAmount || '1 serving'),
-            calories: Number(baseFood.calories) || 0,
-            protein: Number(baseFood.protein) || 0,
-            fat: Number(baseFood.fat) || 0,
-            carbs: Number(baseFood.carbs) || 0,
-            createdAt: Date.now(),
+          if (addToDatabase) {
+            const libItem: MacroCustomFood = {
+              id: crypto.randomUUID(),
+              name: String(baseFood.name || ''),
+              emoji: String(baseFood.emoji || '🍱'),
+              baseAmount: String(baseFood.baseAmount || '1 serving'),
+              calories: Number(baseFood.calories) || 0,
+              protein: Number(baseFood.protein) || 0,
+              fat: Number(baseFood.fat) || 0,
+              carbs: Number(baseFood.carbs) || 0,
+              createdAt: Date.now(),
+            }
+            onSaveFoods([...customFoodsRef.current, libItem])
           }
-          onSaveFoods([...customFoodsRef.current, libItem])
           replaceDay((prev) => prev.filter((i) => i.id !== id))
           if (data.items?.length) {
             const newItems = data.items.map((it) => parsedItemToDayItem(it, { userInput: rawText }))
             replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
+            scrollDietListToTop()
             newItems.forEach((it) =>
               void estimateMacrosForItem(it, `\n\nScanned base: ${JSON.stringify(baseFood)}`),
             )
@@ -435,7 +436,7 @@ export function MacroVoiceTracker({
           return
         }
         const parsed = await aiJson({
-          system: MACRO_PROMPTS.PARSER,
+          promptKey: 'PARSER',
           user: promptInput,
         })
         const data = parsed as { items?: ParsedFoodItem[] }
@@ -443,6 +444,7 @@ export function MacroVoiceTracker({
         if (data.items?.length) {
           const newItems = data.items.map((it) => parsedItemToDayItem(it, { userInput: rawText }))
           replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
+          scrollDietListToTop()
           newItems.forEach((it) => void estimateMacrosForItem(it))
         }
       } catch {
@@ -451,7 +453,7 @@ export function MacroVoiceTracker({
         delete processingRefs.current[id]
       }
     },
-    [estimateMacrosForItem, onSaveFoods, replaceDay],
+    [estimateMacrosForItem, onSaveFoods, replaceDay, scrollDietListToTop],
   )
 
   const handleMicToggle = useCallback(async () => {
@@ -485,6 +487,7 @@ export function MacroVoiceTracker({
         if (audioChunksRef.current.length === 0) return
         const tempId = crypto.randomUUID()
         replaceDay((prev) => [...prev, { id: tempId, status: 'transcribing', timestamp: Date.now(), name: '', amount: '' }])
+        scrollDietListToTop()
         const mime = rec.mimeType || recorderMime || 'audio/webm'
         const ext = mime.includes('mp4') || mime.includes('aac') ? 'm4a' : 'webm'
         const blob = new Blob(audioChunksRef.current, { type: mime })
@@ -520,7 +523,7 @@ export function MacroVoiceTracker({
     } catch {
       /* mic denied */
     }
-  }, [clearRecordingLimitTimer, recording, replaceDay, startParsingFlow, stopRecording])
+  }, [clearRecordingLimitTimer, recording, replaceDay, scrollDietListToTop, startParsingFlow, stopRecording])
 
   const handleSend = useCallback(async () => {
     const isQuickReady =
@@ -529,6 +532,7 @@ export function MacroVoiceTracker({
     const text = inputText.trim() || '1 serving'
     const quickWasOpen = quickScan.isOpen
     const hadQuickMedia = Boolean(quickScan.frontPreview || quickScan.nutritionPreview)
+    const addToDatabase = quickScan.addToDatabase
     setInputText('')
     const fp = frontPromiseRef.current
     const np = nutritionPromiseRef.current
@@ -541,6 +545,7 @@ export function MacroVoiceTracker({
         nutritionStatus: 'idle',
         frontData: null,
         nutritionData: null,
+        addToDatabase: true,
       })
       frontPromiseRef.current = null
       nutritionPromiseRef.current = null
@@ -559,7 +564,7 @@ export function MacroVoiceTracker({
         baseFood = null
       }
     }
-    void startParsingFlow(tempId, logText, baseFood)
+    void startParsingFlow(tempId, logText, baseFood, addToDatabase)
   }, [inputText, quickScan, replaceDay, scrollDietListToTop, startParsingFlow])
 
   const handleQuickFile = useCallback(
@@ -576,7 +581,7 @@ export function MacroVoiceTracker({
         if (kind === 'front') {
           setQuickScan((p) => ({ ...p, frontPreview: result, frontStatus: 'processing' }))
           const p = aiVisionJson({
-            system: MACRO_PROMPTS.ANALYZE_FRONT,
+            promptKey: 'ANALYZE_FRONT',
             user: 'Analyze this image.',
             images: [payload],
             model: 'gpt-4o',
@@ -588,7 +593,7 @@ export function MacroVoiceTracker({
         } else {
           setQuickScan((p) => ({ ...p, nutritionPreview: result, nutritionStatus: 'processing' }))
           const p = aiVisionJson({
-            system: MACRO_PROMPTS.ANALYZE_NUTRITION,
+            promptKey: 'ANALYZE_NUTRITION',
             user: 'Analyze this nutrition facts panel.',
             images: [payload],
             model: 'gpt-4o',
@@ -1149,34 +1154,45 @@ function InteractionDock({
       />
       <div className="relative flex w-full flex-col gap-3 pt-2 pointer-events-auto">
         {quickScan.isOpen && (
-          <div className="flex gap-3 bg-[var(--color-surface)] p-3 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-2xl">
-            <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onQuickFile(e, 'nutrition')} />
-              {quickScan.nutritionPreview ? (
-                <img src={quickScan.nutritionPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-              ) : (
-                <Camera size={24} className="opacity-30 mb-2" />
-              )}
-              {quickScan.nutritionStatus === 'processing' && (
-                <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
-              )}
-              <span className="relative z-10 text-[9px] font-black uppercase text-white text-center px-2">
-                {quickScan.nutritionStatus === 'done' ? 'Nutrition OK' : '1. Nutrition'}
-              </span>
-            </label>
-            <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onQuickFile(e, 'front')} />
-              {quickScan.frontPreview ? (
-                <img src={quickScan.frontPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-              ) : (
-                <Camera size={24} className="opacity-30 mb-2" />
-              )}
-              {quickScan.frontStatus === 'processing' && (
-                <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
-              )}
-              <span className="relative z-10 text-[9px] font-black uppercase text-white text-center px-2">
-                {quickScan.frontStatus === 'done' ? 'Front OK' : '2. Front'}
-              </span>
+          <div className="flex flex-col gap-3 bg-[var(--color-surface)] p-3 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-2xl">
+            <div className="flex gap-3">
+              <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onQuickFile(e, 'nutrition')} />
+                {quickScan.nutritionPreview ? (
+                  <img src={quickScan.nutritionPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                ) : (
+                  <Camera size={24} className="opacity-30 mb-2" />
+                )}
+                {quickScan.nutritionStatus === 'processing' && (
+                  <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
+                )}
+                <span className="relative z-10 text-[9px] font-black uppercase text-white text-center px-2">
+                  {quickScan.nutritionStatus === 'done' ? 'Nutrition OK' : '1. Nutrition'}
+                </span>
+              </label>
+              <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onQuickFile(e, 'front')} />
+                {quickScan.frontPreview ? (
+                  <img src={quickScan.frontPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                ) : (
+                  <Camera size={24} className="opacity-30 mb-2" />
+                )}
+                {quickScan.frontStatus === 'processing' && (
+                  <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
+                )}
+                <span className="relative z-10 text-[9px] font-black uppercase text-white text-center px-2">
+                  {quickScan.frontStatus === 'done' ? 'Front OK' : '2. Front'}
+                </span>
+              </label>
+            </div>
+            <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={quickScan.addToDatabase}
+                onChange={(e) => setQuickScan((p) => ({ ...p, addToDatabase: e.target.checked }))}
+                className="h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald-500"
+              />
+              <span className="text-xs font-semibold text-white/80">Add to database</span>
             </label>
           </div>
         )}
@@ -1186,8 +1202,18 @@ function InteractionDock({
             onClick={() =>
               setQuickScan((p) =>
                 p.isOpen
-                  ? { ...p, isOpen: false, frontPreview: null, nutritionPreview: null, frontStatus: 'idle', nutritionStatus: 'idle', frontData: null, nutritionData: null }
-                  : { ...p, isOpen: true },
+                  ? {
+                      ...p,
+                      isOpen: false,
+                      frontPreview: null,
+                      nutritionPreview: null,
+                      frontStatus: 'idle',
+                      nutritionStatus: 'idle',
+                      frontData: null,
+                      nutritionData: null,
+                      addToDatabase: true,
+                    }
+                  : { ...p, isOpen: true, addToDatabase: true },
               )
             }
             className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 ${
@@ -1277,7 +1303,7 @@ function DatabaseModal({
     void (async () => {
       try {
         const nutData = (await aiVisionJson({
-          system: MACRO_PROMPTS.ANALYZE_NUTRITION,
+          promptKey: 'ANALYZE_NUTRITION',
           user: 'Analyze nutrition label.',
           images: [{ mimeType: nutritionImage.mimeType, base64: nutritionImage.data }],
           model: 'gpt-4o',
@@ -1307,7 +1333,7 @@ function DatabaseModal({
     void (async () => {
       try {
         const frontData = (await aiVisionJson({
-          system: MACRO_PROMPTS.ANALYZE_FRONT,
+          promptKey: 'ANALYZE_FRONT',
           user: 'Analyze front label.',
           images: [{ mimeType: frontImage.mimeType, base64: frontImage.data }],
           model: 'gpt-4o',
