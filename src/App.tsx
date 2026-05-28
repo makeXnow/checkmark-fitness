@@ -26,7 +26,10 @@ import {
   type HabitsGoalsBundleData,
   type MacroGoalsBundleData,
 } from './lib/goalSnapshots'
-import { normalizeLiftHistoryOnLoad } from './features/lift/liftHistory'
+import {
+  normalizeLiftHistoryOnLoad,
+  reconcileWorkoutMainWeightsFromHistory,
+} from './features/lift/liftHistory'
 import { localDateISO } from './lib/localDate'
 import { scrollAppMainToTop } from './lib/scrollAppMain'
 import type {
@@ -127,9 +130,17 @@ export default function App() {
 
       const liftPayload = data.lift.payload as LiftPayload
       const liftHistoryNorm = normalizeLiftHistoryOnLoad(liftPayload.history)
-      const liftHistoryChanged = liftHistoryNorm.changed
+      const liftReconcile = reconcileWorkoutMainWeightsFromHistory(
+        liftPayload.workouts,
+        liftHistoryNorm.history,
+      )
+      const liftHistoryChanged = liftHistoryNorm.changed || liftReconcile.changed
       if (liftHistoryChanged) {
-        data.lift.payload = { ...liftPayload, history: liftHistoryNorm.history }
+        data.lift.payload = {
+          ...liftPayload,
+          history: liftHistoryNorm.history,
+          workouts: liftReconcile.workouts,
+        }
       }
 
       if (logsChanged || macroCement.changed || habitsCement.changed || liftHistoryChanged) {

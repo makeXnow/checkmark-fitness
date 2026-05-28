@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { FileText, Plus, Trash2 } from 'lucide-react'
 import type { LiftPayload, LiftWarmupSet, LiftWeightUnit, LiftWorkout } from '../../types/domain'
 import { defaultWarmupSets, makeLiftId, newEmptyWorkout } from './liftDefaults'
+import { workoutWithSessionWeight } from './plates'
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -408,6 +409,7 @@ function DaySection({
   confirmDeleteDay,
   setConfirmDeleteDay,
   onDeleteDay,
+  onOpenWorkout,
   setEditingWorkout,
   weightUnit,
 }: {
@@ -416,6 +418,7 @@ function DaySection({
   confirmDeleteDay: string | null
   setConfirmDeleteDay: (id: string | null) => void
   onDeleteDay: (dayId: string) => void
+  onOpenWorkout: (w: LiftWorkout) => void
   setEditingWorkout: (w: LiftWorkout | null) => void
   weightUnit: LiftWeightUnit
 }) {
@@ -456,7 +459,7 @@ function DaySection({
           <button
             key={workout.id}
             type="button"
-            onClick={() => setEditingWorkout(workout)}
+            onClick={() => onOpenWorkout(workout)}
             className="w-full cursor-pointer rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-left transition-colors hover:border-neutral-600"
           >
             <div className="mb-1 flex items-start justify-between">
@@ -532,6 +535,11 @@ export function LiftPlanTab({
   const [newDayName, setNewDayName] = useState('')
 
   const sortedDays = [...payload.days].sort((a, b) => (a.order || 0) - (b.order || 0))
+  const plates = payload.availablePlates || []
+
+  const openWorkoutEditor = (workout: LiftWorkout) => {
+    setEditingWorkout(workoutWithSessionWeight(workout, payload.history, plates))
+  }
 
   const persist = (next: LiftPayload) => {
     if (onPersist) void onPersist(next)
@@ -652,6 +660,7 @@ export function LiftPlanTab({
           confirmDeleteDay={confirmDeleteDay}
           setConfirmDeleteDay={setConfirmDeleteDay}
           onDeleteDay={handleDeleteDay}
+          onOpenWorkout={openWorkoutEditor}
           setEditingWorkout={setEditingWorkout}
           weightUnit={weightUnit}
         />

@@ -1,7 +1,7 @@
 import { localDateISO } from '../../lib/localDate'
 import type { LiftPayload } from '../../types/domain'
 import { historyEntryLocalDate } from './liftHistory'
-import { nextDayIndexFromHistory, parseStatusMultiplier } from './plates'
+import { getSessionMainWeight, nextDayIndexFromHistory, parseStatusMultiplier } from './plates'
 
 export { hasLiftHistoryForDayOnDate } from './liftHistory'
 
@@ -30,6 +30,7 @@ export function buildSubmitWorkoutDayPayload(
     return historyEntryLocalDate(entry) !== submitLocalDate
   })
 
+  const plates = payload.availablePlates || []
   const nextWorkouts = payload.workouts.map((w) => {
     if (!twIds.has(w.id)) return w
     const chosen = options?.statusByWorkoutId?.[w.id]
@@ -37,14 +38,15 @@ export function buildSubmitWorkoutDayPayload(
     const status = statuses.find((s) => s.id === chosenId) ?? statuses[0]
     const mult = parseStatusMultiplier(status?.multiplier)
     const inc = w.increment || 0
-    const newWeight = Math.max(0, w.mainWeight + inc * mult)
+    const sessionWeight = getSessionMainWeight(w, payload.history, plates)
+    const newWeight = Math.max(0, sessionWeight + inc * mult)
     nextHistory.push({
       id: crypto.randomUUID(),
       workoutId: w.id,
       workoutName: w.name,
       date: submitDateISO,
-      weight: w.mainWeight,
-      oldWeight: w.mainWeight,
+      weight: sessionWeight,
+      oldWeight: sessionWeight,
       newWeight,
       statusName: status?.name ?? '',
     })

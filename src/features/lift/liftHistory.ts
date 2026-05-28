@@ -1,5 +1,5 @@
 import { localDateISO } from '../../lib/localDate'
-import type { LiftHistoryEntry, LiftPayload } from '../../types/domain'
+import type { LiftHistoryEntry, LiftPayload, LiftWorkout } from '../../types/domain'
 
 /** Calendar day (local) for a history entry's `date` ISO string. */
 export function historyEntryLocalDate(entry: Pick<LiftHistoryEntry, 'date'>): string {
@@ -49,4 +49,35 @@ export function normalizeLiftHistoryOnLoad(history: LiftHistoryEntry[] | undefin
     history: deduped,
     changed: deduped.length !== input.length,
   }
+}
+
+/** Most recent log row for a workout (any calendar day). */
+export function getLatestHistoryEntryForWorkout(
+  history: LiftHistoryEntry[] | undefined,
+  workoutId: string,
+): LiftHistoryEntry | undefined {
+  let latest: LiftHistoryEntry | undefined
+  for (const entry of history || []) {
+    if (entry.workoutId !== workoutId) continue
+    if (!latest || new Date(entry.date).getTime() > new Date(latest.date).getTime()) {
+      latest = entry
+    }
+  }
+  return latest
+}
+
+/** Align plan mainWeight with the next target recorded on the latest log entry. */
+export function reconcileWorkoutMainWeightsFromHistory(
+  workouts: LiftWorkout[],
+  history: LiftHistoryEntry[] | undefined,
+): { workouts: LiftWorkout[]; changed: boolean } {
+  let changed = false
+  const next = workouts.map((w) => {
+    const latest = getLatestHistoryEntryForWorkout(history, w.id)
+    const target = latest?.newWeight
+    if (target === undefined || !Number.isFinite(target) || target === w.mainWeight) return w
+    changed = true
+    return { ...w, mainWeight: target }
+  })
+  return { workouts: next, changed }
 }

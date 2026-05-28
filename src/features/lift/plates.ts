@@ -1,4 +1,5 @@
 import type { LiftHistoryEntry, LiftPayload, LiftWorkout } from '../../types/domain'
+import { getLatestHistoryEntryForWorkout } from './liftHistory'
 import { calculateOptimizedPlateOrder } from './optimizedPlates'
 
 export function getOptimalPlates(targetWeight: number, barWeight: number, availablePlates: number[]) {
@@ -61,6 +62,29 @@ export type WorkoutSetTarget = {
   targetWeight: number
   reps: number
   isWarmup: boolean
+}
+
+/** Working weight for this session: latest log's next target, else plan mainWeight (plate-rounded). */
+export function getSessionMainWeight(
+  workout: LiftWorkout,
+  history: LiftHistoryEntry[] | undefined,
+  availablePlates: number[],
+): number {
+  const latest = getLatestHistoryEntryForWorkout(history, workout.id)
+  const raw =
+    latest?.newWeight !== undefined && Number.isFinite(latest.newWeight)
+      ? latest.newWeight
+      : workout.mainWeight
+  return getOptimalPlates(raw, workout.barWeight, availablePlates).actualWeight
+}
+
+export function workoutWithSessionWeight(
+  workout: LiftWorkout,
+  history: LiftHistoryEntry[] | undefined,
+  availablePlates: number[],
+): LiftWorkout {
+  const mainWeight = getSessionMainWeight(workout, history, availablePlates)
+  return mainWeight === workout.mainWeight ? workout : { ...workout, mainWeight }
 }
 
 export function collectWorkoutSetTargets(workout: LiftWorkout): WorkoutSetTarget[] {

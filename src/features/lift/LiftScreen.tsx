@@ -16,6 +16,8 @@ import {
   formatProgressDelta,
   formatWeightStr,
   getNextLiftWeight,
+  getSessionMainWeight,
+  workoutWithSessionWeight,
   getOptimalPlates,
   getProgressDelta,
   groupHistory,
@@ -1176,7 +1178,10 @@ export function LiftScreen({
         const activeDay = sortedDays[activeIndex]
         if (!activeDay) return null
 
-        const activeWorkouts = payload.workouts.filter((w) => w.dayId === activeDay.id)
+        const platesList = payload.availablePlates || []
+        const activeWorkouts = payload.workouts
+          .filter((w) => w.dayId === activeDay.id)
+          .map((w) => workoutWithSessionWeight(w, payload.history, platesList))
         if (activeWorkouts.length === 0) {
           return (
             <div className="flex flex-col items-center justify-center p-12 py-24 text-center text-neutral-500">
@@ -1196,7 +1201,6 @@ export function LiftScreen({
           { dateOnly: true },
         )
 
-        const platesList = payload.availablePlates || []
         const useOptimized = payload.optimizedPlateOrder ?? false
         const dayPlateOrders = useOptimized
           ? buildDayOptimizedPlateOrders(activeWorkouts, platesList)
@@ -1442,7 +1446,11 @@ export function LiftScreen({
       <LiftWeightModal
         key={weightModalWorkout.id}
         workoutName={weightModalWorkout.name}
-        initialWeight={weightModalWorkout.mainWeight}
+        initialWeight={getSessionMainWeight(
+          weightModalWorkout,
+          payload.history,
+          payload.availablePlates || [],
+        )}
         weightUnit={weightUnit}
         onClose={() => setWeightModalWorkoutId(null)}
         onSave={(newWeight) => saveManualWeight(weightModalWorkout.id, newWeight)}
