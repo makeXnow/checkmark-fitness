@@ -77,6 +77,12 @@ SERVING TYPE (servingType):
 MULTIPLIER:
 - How many of the chosen base serving the user's portion represents (2 for two cookies, 0.8 for four-fifths of a can, 1.25 for a large handful vs "1 oz").
 
+MASS / WEIGHT (oz, g, lb, lbs, pounds):
+- When Serving is a weight (e.g. "4 lbs", "6 oz", "170 g"), convert to grams: 1 oz ≈ 28.35 g, 1 lb ≈ 453.59 g.
+- For FatSecret or library matches: multiplier = (user weight in g) ÷ (chosen database serving weight in g). Never use the quantity digit alone as multiplier (e.g. "4 lbs" with a 100 g FatSecret serving → multiplier ≈ 18.14, not 4).
+- Pick servingIndex for the database line whose unit fits (100g, oz, etc.). If only 100g exists, use that and compute multiplier from grams.
+- Examples: Serving "4 lbs", FatSecret 100g → servingIndex for 100g, multiplier ≈ 18.14. Serving "6 oz", library base "3 oz (84g)" → multiplier = 2 (6÷3 oz), not 6.
+
 JSON only. Examples:
 { "libraryIndex": 3, "multiplier": 2 }
 { "fatSecretIndex": 2, "servingIndex": 1, "multiplier": 1 }

@@ -118,20 +118,23 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
   try {
     const macrosPrompt = await getMacroPrompt(env.DB, 'MACROS')
     const json = (await callOpenAiJson(key, macrosPrompt, user)) as MacroEstimateResponse
-    const result = resolveMacroEstimate(
-      json,
-      userConfirmedFatSecret ? [] : customFoods,
-      fatSecretForAi,
-    )
     const selectedIdx =
       typeof body.fatSecretSelectedIndex === 'number' && body.fatSecretSelectedIndex >= 1
         ? Math.trunc(body.fatSecretSelectedIndex)
         : null
-    const macroEstimateSnapshot: MacroEstimateResponse = body.skipFatSecretForAi
+    const jsonForResolve: MacroEstimateResponse = body.skipFatSecretForAi
       ? { ...json, libraryIndex: null, fatSecretIndex: null }
       : selectedIdx != null
         ? { ...json, libraryIndex: null, fatSecretIndex: selectedIdx, servingIndex: json.servingIndex ?? 1 }
         : json
+    const foodsForResolve = userConfirmedFatSecret ? [] : customFoods
+    const result = resolveMacroEstimate(jsonForResolve, foodsForResolve, fatSecretForAi, {
+      userAmount: estimateFields.amount,
+    })
+    const macroEstimateSnapshot: MacroEstimateResponse = {
+      ...jsonForResolve,
+      multiplier: result.servingMultiplier ?? jsonForResolve.multiplier,
+    }
 
     return {
       calories: result.calories,

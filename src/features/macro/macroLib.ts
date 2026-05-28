@@ -5,6 +5,7 @@ import type {
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
+import { applyMassMultiplierCorrection } from './macroMass'
 
 export type ParsedFoodItem = {
   emoji?: string
@@ -215,15 +216,25 @@ export function macroEstimateFatSecretIndex(snap?: MacroEstimateSnapshot | null)
   return parseIndex(snap?.fatSecretIndex)
 }
 
+export type ResolveMacroEstimateOptions = {
+  /** Parser/classification serving (e.g. "4 lbs") — used to correct weight-based multipliers. */
+  userAmount?: string
+}
+
 export function resolveMacroEstimate(
   response: MacroEstimateResponse,
   foods: MacroCustomFood[],
   fatSecretResults: FatSecretFoodRef[] = [],
+  options?: ResolveMacroEstimateOptions,
 ): MacroEstimateResult {
-  const libIdx = parseIndex(response.libraryIndex)
+  const adjusted = options?.userAmount?.trim()
+    ? applyMassMultiplierCorrection(response, options.userAmount, foods, fatSecretResults)
+    : response
+
+  const libIdx = parseIndex(adjusted.libraryIndex)
   if (libIdx !== null && libIdx >= 1 && libIdx <= foods.length) {
     const food = foods[libIdx - 1]!
-    const multiplier = typeof response.multiplier === 'number' && response.multiplier > 0 ? response.multiplier : 1
+    const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
     const scaled = scaleLibraryMacros(food, multiplier)
     return {
       calories: scaled.calories,
@@ -236,15 +247,15 @@ export function resolveMacroEstimate(
     }
   }
 
-  const fsIdx = parseIndex(response.fatSecretIndex)
+  const fsIdx = parseIndex(adjusted.fatSecretIndex)
   if (fsIdx !== null && fsIdx >= 1 && fsIdx <= fatSecretResults.length) {
     const food = fatSecretResults[fsIdx - 1]!
-    const servIdx = parseIndex(response.servingIndex)
+    const servIdx = parseIndex(adjusted.servingIndex)
     const serving =
       servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
-    const multiplier = typeof response.multiplier === 'number' && response.multiplier > 0 ? response.multiplier : 1
+    const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
     const scaled = scaleFatSecretServing(serving, multiplier)
     return {
       calories: scaled.calories,
@@ -256,10 +267,10 @@ export function resolveMacroEstimate(
     }
   }
 
-  const multiplier = typeof response.multiplier === 'number' && response.multiplier > 0 ? response.multiplier : 1
-  const calories = Math.round(response.calories ?? 0)
-  const protein = Math.round((response.protein ?? 0) * 10) / 10
-  const servingType = response.servingType?.trim() || 'serving'
+  const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
+  const calories = Math.round(adjusted.calories ?? 0)
+  const protein = Math.round((adjusted.protein ?? 0) * 10) / 10
+  const servingType = adjusted.servingType?.trim() || 'serving'
   return {
     calories,
     protein,
