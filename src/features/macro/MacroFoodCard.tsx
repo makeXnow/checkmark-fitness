@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { ChevronDown, ChevronUp, Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
 import type {
   FatSecretFoodRef,
   MacroCustomFood,
@@ -104,6 +104,147 @@ function FatSecretResultsBody({ foods }: { foods: FatSecretFoodRef[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+function fatSecretFoodLabel(f: FatSecretFoodRef): string {
+  return f.brandName ? `${f.brandName} ${f.name}`.trim() : f.name
+}
+
+const databaseMatchCardSelectedClass =
+  'border-emerald-400/50 bg-emerald-400/10 ring-1 ring-emerald-400/30'
+const databaseMatchCardIdleClass = 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] active:bg-white/[0.08]'
+
+function databaseMatchCardClass(selected: boolean, disabled: boolean) {
+  return `w-full text-left rounded-2xl border transition-colors p-5 ${
+    selected ? databaseMatchCardSelectedClass : databaseMatchCardIdleClass
+  } ${disabled ? 'opacity-60 pointer-events-none' : ''}`
+}
+
+function DatabaseMatchOptionContent({
+  title,
+  subtitle,
+  servings,
+}: {
+  title: string
+  subtitle?: string
+  servings?: FatSecretFoodRef['servings']
+}) {
+  return (
+    <>
+      <span className="block text-sm font-bold text-white/90 leading-snug">{title}</span>
+      {subtitle ? <span className="block text-xs text-white/50 mt-1">{subtitle}</span> : null}
+      {servings?.length ? (
+        <ul className="mt-2.5 space-y-1 text-xs text-white/55">
+          {servings.map((s) => (
+            <li key={s.servingId}>
+              {s.description}: {s.calories} cal, {s.protein}g protein
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  )
+}
+
+function MacroDatabaseMatchPicker({
+  foods,
+  selectedIndex,
+  disabled = false,
+  onSelect,
+}: {
+  foods: FatSecretFoodRef[]
+  /** 1-based food index, or null for None. */
+  selectedIndex: number | null
+  disabled?: boolean
+  onSelect: (foodIndex: number | null) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const selectedFood = selectedIndex != null ? foods[selectedIndex - 1] : undefined
+
+  const pick = (index: number | null) => {
+    if (index === selectedIndex) {
+      setExpanded(false)
+      return
+    }
+    onSelect(index)
+    setExpanded(false)
+  }
+
+  const renderOption = (index: number | null, key: string, interactive = true) => {
+    const selected = selectedIndex === index
+    const className = interactive
+      ? databaseMatchCardClass(selected, disabled)
+      : `w-full text-left rounded-2xl border p-5 ${selected ? databaseMatchCardSelectedClass : databaseMatchCardIdleClass}`
+    const body =
+      index === null ? (
+        <DatabaseMatchOptionContent title="None" subtitle="Estimate without a database match" />
+      ) : (
+        (() => {
+          const food = foods[index - 1]
+          if (!food) return null
+          return <DatabaseMatchOptionContent title={fatSecretFoodLabel(food)} servings={food.servings} />
+        })()
+      )
+    if (!body) return null
+
+    if (!interactive) {
+      return (
+        <div key={key} className={className}>
+          {body}
+        </div>
+      )
+    }
+
+    return (
+      <button key={key} type="button" disabled={disabled} onClick={() => pick(index)} className={className}>
+        {body}
+      </button>
+    )
+  }
+
+  return (
+    <div className="px-4 py-4 border-t border-white/10 bg-black/15">
+      {disabled ? (
+        <div className="flex items-center justify-center gap-2 py-3 text-[11px] font-bold uppercase tracking-widest text-emerald-400 opacity-70">
+          <Loader2 size={14} className="animate-spin" aria-hidden />
+          Updating macros…
+        </div>
+      ) : null}
+
+      {expanded ? (
+        <div className="space-y-3">
+          {renderOption(null, 'none')}
+          {foods.map((f, i) => renderOption(i + 1, f.foodId || String(i)))}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setExpanded(false)}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-white opacity-45 hover:opacity-70 hover:bg-white/[0.04] transition-opacity"
+          >
+            <ChevronUp size={14} strokeWidth={2.5} />
+            Show less
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {selectedIndex === null
+            ? renderOption(null, 'none-collapsed', false)
+            : selectedFood
+              ? renderOption(selectedIndex, selectedFood.foodId || 'selected', false)
+              : renderOption(null, 'none-fallback', false)}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setExpanded(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-white/15 text-[11px] font-black uppercase tracking-widest text-white opacity-50 hover:opacity-90 hover:text-emerald-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.04] transition-opacity"
+          >
+            <ChevronDown size={14} strokeWidth={2.5} />
+            {foods.length} other match{foods.length === 1 ? '' : 'es'}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -375,7 +516,7 @@ function MacroEditCloseButton({ disabled, onClick }: { disabled?: boolean; onCli
         e.stopPropagation()
         onClick()
       }}
-      className="self-center p-1.5 text-white/50 hover:text-white/90 disabled:opacity-40 rounded-lg transition-colors shrink-0"
+      className="self-center p-1.5 text-white opacity-50 hover:opacity-90 disabled:opacity-40 rounded-lg transition-opacity shrink-0"
       aria-label="Close"
     >
       <X size={18} strokeWidth={2.5} />
@@ -426,7 +567,7 @@ function MacroEditActionsToolbar({
             className={`${macroEditToolbarIconClass} ${
               infoExpanded
                 ? 'text-emerald-300 bg-emerald-400/15 ring-1 ring-emerald-400/40'
-                : 'text-white/50 hover:text-white/80 hover:bg-white/10'
+                : 'text-white opacity-50 hover:opacity-80 hover:bg-white/10'
             }`}
             aria-label={infoExpanded ? 'Hide details' : 'Show details'}
             aria-pressed={infoExpanded}
@@ -482,6 +623,10 @@ export function MacroFoodEditCard({
   onInfoToggle,
   audit,
   auditCustomFoods,
+  fatSecretResults,
+  selectedFatSecretIndex = null,
+  fatSecretSelecting = false,
+  onSelectFatSecret,
   toolbar = 'day',
 }: {
   fieldId: string
@@ -497,12 +642,17 @@ export function MacroFoodEditCard({
   onInfoToggle?: () => void
   audit?: MacroFoodAuditTrail
   auditCustomFoods?: MacroCustomFood[]
+  fatSecretResults?: FatSecretFoodRef[]
+  selectedFatSecretIndex?: number | null
+  fatSecretSelecting?: boolean
+  onSelectFatSecret?: (foodIndex: number | null) => void
   /** `library`: trash + log. `library-add`: full-width Save + Save & Log. `day`: trash + info + refresh. */
   toolbar?: 'day' | 'library' | 'library-add'
 }) {
   const proteinInputId = `macro-protein-${fieldId}`
   const servingLabelEditable = toolbar === 'library' || toolbar === 'library-add'
   const showCloseButton = toolbar === 'library' || toolbar === 'day'
+  const showDatabaseMatch = toolbar === 'day' && Boolean(fatSecretResults?.length && onSelectFatSecret)
 
   return (
     <div className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-white/10 overflow-hidden shadow-2xl flex flex-col gap-px">
@@ -601,6 +751,25 @@ export function MacroFoodEditCard({
             Save & Log
           </button>
         </div>
+      ) : showDatabaseMatch ? (
+        <>
+          <MacroDatabaseMatchPicker
+            foods={fatSecretResults!}
+            selectedIndex={selectedFatSecretIndex}
+            disabled={fatSecretSelecting}
+            onSelect={onSelectFatSecret!}
+          />
+          <MacroEditActionsToolbar
+            toolbar="day"
+            saveDisabled={saveDisabled}
+            onDelete={onDelete}
+            onReset={onReset}
+            onLog={onLog}
+            showAudit={showAudit}
+            infoExpanded={infoExpanded}
+            onInfoToggle={onInfoToggle}
+          />
+        </>
       ) : (
         <MacroEditActionsToolbar
           toolbar={toolbar === 'library' ? 'library' : 'day'}
@@ -646,8 +815,8 @@ export function MacroFoodViewCard({
       className={`relative bg-white/5 hover:bg-white/10 p-4 rounded-[var(--radius-card)] border border-white/5 transition-all cursor-pointer group ${pending ? 'opacity-80' : ''}`}
     >
       {pending && (
-        <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-[var(--radius-card)] z-10">
-          <Loader2 className="animate-spin text-emerald-500 opacity-60" size={20} aria-hidden />
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-[var(--radius-card)] z-10 opacity-60">
+          <Loader2 className="animate-spin text-emerald-500" size={20} aria-hidden />
         </div>
       )}
       <div className="relative flex items-center gap-3 w-full">

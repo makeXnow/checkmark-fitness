@@ -318,7 +318,7 @@ function WorkoutEditor({
                         warmupSets: d.warmupSets.filter((_, i) => i !== idx),
                       }))
                     }
-                    className="mt-5 p-2 text-red-500/80 transition-colors hover:text-red-400 disabled:opacity-40"
+                    className="mt-5 p-2 text-red-500 opacity-80 transition-opacity hover:opacity-100 hover:text-red-400 disabled:opacity-40"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

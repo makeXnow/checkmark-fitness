@@ -1305,10 +1305,9 @@ export function LiftScreen({
                       } relative flex min-h-[72px] items-center justify-center sm:min-h-[85px]`}
                     >
                       {!set.isWarmup && onPersist ? (
-                        <Pencil
-                          className="pointer-events-none absolute right-2.5 top-2.5 h-3.5 w-3.5 text-emerald-700/45"
-                          aria-hidden
-                        />
+                        <span className="pointer-events-none absolute right-2.5 top-2.5 text-emerald-700 opacity-45">
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        </span>
                       ) : null}
                       <div className="flex flex-wrap items-center justify-center px-4 py-3">
                           {set.plates.length > 0 ? (

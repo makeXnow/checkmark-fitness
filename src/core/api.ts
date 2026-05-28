@@ -4,6 +4,7 @@ import type {
   BootstrapResponse,
   FatSecretFoodRef,
   MacroEstimateSnapshot,
+  MacroParseSnapshot,
 } from '../types/domain'
 import { apiFetch, apiFetchForProfile } from './apiPaths'
 
@@ -276,6 +277,12 @@ export async function macroEstimateItem(body: {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
+  aiFatSecretResults?: FatSecretFoodRef[]
+  fatSecretSelectedIndex?: number
+  skipFatSecretForAi?: boolean
+  userDatabasePick?: boolean
+  parseSnapshot?: MacroParseSnapshot
+  userInput?: string
   skipFatSecretFetch?: boolean
   customFoods?: { id: string; name: string; emoji?: string; baseAmount?: string; calories: number; protein: number }[]
   extraCtx?: string

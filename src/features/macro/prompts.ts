@@ -59,6 +59,13 @@ Priority (first match wins):
 3. If FATSECRET RESULTS match: fatSecretIndex (1-based food), servingIndex (1-based serving for that food), multiplier. Do not guess calories/protein.
 4. Otherwise: libraryIndex null, fatSecretIndex null, return calories, protein, servingType, and multiplier.
 
+USER-CONFIRMED FATSECRET (when the prompt says so, or only one FatSecret result is listed):
+- Treat that food as the match. Use fatSecretIndex 1, pick the best servingIndex and multiplier for the user's portion, and do not use library or direct AI estimate instead.
+- Use the classification serving/notes to choose servingIndex and multiplier, then derive calories and protein from that database serving.
+
+USER-REJECTED FATSECRET (when the prompt says the user rejected database matches):
+- Do not use FatSecret. Use direct AI estimate only (libraryIndex null, fatSecretIndex null, return calories, protein, servingType, multiplier).
+
 LIBRARY / FATSECRET RULES:
 - Only match when the item is essentially the same product — not a shared ingredient (e.g. "orange chicken" ≠ library "chicken").
 

@@ -94,6 +94,42 @@ export function buildMacroEstimatePrompt(
   return `Estimate calories and protein for this food serving:\nItem: ${name}\nServing: ${amount}${notesLine}${extraCtx}`
 }
 
+/** Parser classification + original input for user-confirmed database re-estimates. */
+export function formatClassificationContext(item: {
+  userInput?: string
+  rawText?: string
+  parseSnapshot?: MacroParseSnapshot
+}): string {
+  const lines: string[] = []
+  const userInput = item.userInput?.trim() || item.rawText?.trim()
+  if (userInput) lines.push(`Original user input: ${userInput}`)
+  const snap = item.parseSnapshot
+  if (snap) {
+    lines.push('Classification (parser output):')
+    if (snap.emoji?.trim()) lines.push(`Emoji: ${snap.emoji.trim()}`)
+    if (snap.name?.trim()) lines.push(`Name: ${snap.name.trim()}`)
+    if (snap.amount?.trim()) lines.push(`Serving: ${snap.amount.trim()}`)
+    if (snap.notes?.trim()) lines.push(`Notes: ${snap.notes.trim()}`)
+    if (snap.fatSecretSearch?.trim()) lines.push(`Database search: ${snap.fatSecretSearch.trim()}`)
+  }
+  if (lines.length === 0) return ''
+  return `\n\n${lines.join('\n')}`
+}
+
+export function macroEstimateInputFields(item: {
+  name: string
+  amount: string
+  notes?: string
+  parseSnapshot?: MacroParseSnapshot
+}): { name: string; amount: string; notes?: string } {
+  const snap = item.parseSnapshot
+  return {
+    name: snap?.name?.trim() || item.name,
+    amount: snap?.amount?.trim() || item.amount,
+    notes: snap?.notes?.trim() || item.notes,
+  }
+}
+
 export function scaleLibraryMacros(food: MacroCustomFood, multiplier: number): { calories: number; protein: number } {
   const m = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
   return {
@@ -172,6 +208,11 @@ function parseIndex(raw: unknown): number | null {
     if (Number.isFinite(n)) return n
   }
   return null
+}
+
+/** 1-based FatSecret food index from a macro estimate snapshot, if any. */
+export function macroEstimateFatSecretIndex(snap?: MacroEstimateSnapshot | null): number | null {
+  return parseIndex(snap?.fatSecretIndex)
 }
 
 export function resolveMacroEstimate(
@@ -352,7 +393,10 @@ export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayIte
   const fatSecretSearch = base.fatSecretSearch ?? a.fatSecretSearch ?? b.fatSecretSearch
   const userInput = base.userInput ?? a.userInput ?? b.userInput
   const parseSnapshot = base.parseSnapshot ?? a.parseSnapshot ?? b.parseSnapshot
-  const macroEstimateSnapshot = base.macroEstimateSnapshot ?? a.macroEstimateSnapshot ?? b.macroEstimateSnapshot
+  const macroEstimateSnapshot =
+    (b.timestamp ?? 0) >= (a.timestamp ?? 0)
+      ? b.macroEstimateSnapshot ?? a.macroEstimateSnapshot
+      : a.macroEstimateSnapshot ?? b.macroEstimateSnapshot
   return {
     ...base,
     fatSecretResults,

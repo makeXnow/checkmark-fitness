@@ -1,3 +1,5 @@
+import { hasLiftHistoryForDayOnDate } from '../src/features/lift/liftHistory'
+
 export const LIFT_OPEN_MIN_MS = 10_000
 export const LIFT_ASSUMPTION_OPEN_COUNT = 3
 export const LIFT_ASSUMPTION_SUBMIT_GRACE_MS = 2 * 60 * 60 * 1000
@@ -140,8 +142,6 @@ export function clearLiftAssumption(
   }
   return { ...payload, pending: null }
 }
-
-export { hasLiftHistoryForDayOnDate } from '../src/features/lift/liftHistory'
 
 export function resolveLiftAssumptionPrompt(
   assumptionPayload: LiftAssumptionPayload,

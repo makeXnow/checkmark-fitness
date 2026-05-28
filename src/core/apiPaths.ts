@@ -95,6 +95,16 @@ async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
   if (typeof window !== 'undefined' && isLocalDevHost()) {
     const remote = remoteWorkerOrigin()
 
+    // Prefer local wrangler via Vite proxy when it is running (even without VITE_USE_LOCAL_API).
+    try {
+      const base = getBasename()
+      const localPath = base === '/' ? path : `${base.replace(/\/$/, '')}${path}`
+      const local = await fetch(localPath, init)
+      if (local.ok) return local
+    } catch {
+      /* local wrangler unavailable */
+    }
+
     if (useLocalWorkerApi()) {
       try {
         const local = await fetch(apiUrl(path), init)

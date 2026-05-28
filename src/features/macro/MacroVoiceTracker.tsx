@@ -24,6 +24,7 @@ import { proteinGramsFromPct } from './macroCalculator'
 import type { MacroCustomFood, MacroDayItem, MacroGoals, ProteinTrackMode } from '../../types/domain'
 import {
   formatServingDisplay,
+  macroEstimateFatSecretIndex,
   macroItemDisplayEmoji,
   macroItemDisplayName,
   macroItemServingFields,
@@ -155,6 +156,16 @@ export function MacroVoiceTracker({
   const customFoodsRef = useRef(customFoods)
   customFoodsRef.current = customFoods
   const estimatingIdsRef = useRef(new Set<string>())
+  const [databasePickLoadingIds, setDatabasePickLoadingIds] = useState<Set<string>>(() => new Set())
+
+  const setDatabasePickLoading = useCallback((id: string, loading: boolean) => {
+    setDatabasePickLoadingIds((prev) => {
+      const next = new Set(prev)
+      if (loading) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
 
   const [inputText, setInputText] = useState('')
   const [recording, setRecording] = useState(false)
@@ -259,7 +270,13 @@ export function MacroVoiceTracker({
       id: string,
       item: MacroDayItem,
       extraCtx = '',
-      options?: { skipFatSecretFetch?: boolean },
+      options?: {
+        skipFatSecretFetch?: boolean
+        aiFatSecretResults?: MacroDayItem['fatSecretResults']
+        fatSecretSelectedIndex?: number
+        skipFatSecretForAi?: boolean
+        userDatabasePick?: boolean
+      },
     ) => {
       estimatingIdsRef.current.add(id)
       try {
@@ -269,7 +286,13 @@ export function MacroVoiceTracker({
           notes: item.notes,
           fatSecretSearch: item.fatSecretSearch,
           fatSecretResults: item.fatSecretResults,
-          skipFatSecretFetch: options?.skipFatSecretFetch,
+          aiFatSecretResults: options?.aiFatSecretResults,
+          fatSecretSelectedIndex: options?.fatSecretSelectedIndex,
+          skipFatSecretForAi: options?.skipFatSecretForAi,
+          userDatabasePick: options?.userDatabasePick,
+          parseSnapshot: item.parseSnapshot,
+          userInput: item.userInput ?? item.rawText,
+          skipFatSecretFetch: options?.skipFatSecretFetch ?? Boolean(options?.aiFatSecretResults?.length),
           customFoods: customFoodsRef.current,
           extraCtx,
         })
@@ -278,6 +301,7 @@ export function MacroVoiceTracker({
             if (i.id !== id) return i
             return {
               ...i,
+              timestamp: Date.now(),
               calories: result.calories,
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
@@ -296,6 +320,7 @@ export function MacroVoiceTracker({
           }),
         )
       } catch (e) {
+        console.error('[macro] database match re-estimate failed', e)
         const fs = e instanceof MacroEstimateError ? e.fatSecretResults : undefined
         replaceDay((prev) =>
           prev.map((i) => {
@@ -323,13 +348,70 @@ export function MacroVoiceTracker({
   )
 
   const estimateMacrosForItem = useCallback(
-    (item: MacroDayItem, extraCtx = '', options?: { skipFatSecretFetch?: boolean }) => {
+    (
+      item: MacroDayItem,
+      extraCtx = '',
+      options?: {
+        skipFatSecretFetch?: boolean
+        aiFatSecretResults?: MacroDayItem['fatSecretResults']
+        fatSecretSelectedIndex?: number
+        skipFatSecretForAi?: boolean
+        userDatabasePick?: boolean
+      },
+    ) => {
       if (estimatingIdsRef.current.has(item.id)) return
       const day = logsRef.current[dateKey] || []
       const latest = day.find((i) => i.id === item.id) ?? item
       void calculateMacros(latest.id, latest, extraCtx, options)
     },
     [calculateMacros, dateKey],
+  )
+
+  const reestimateWithDatabaseMatch = useCallback(
+    (item: MacroDayItem, foodIndex: number | null) => {
+      const foods = item.fatSecretResults
+      if (!foods?.length) return
+      if (estimatingIdsRef.current.has(item.id)) return
+      const currentFs = macroEstimateFatSecretIndex(item.macroEstimateSnapshot)
+      if (foodIndex === null && currentFs === null) return
+      if (foodIndex !== null && currentFs === foodIndex) return
+      if (foodIndex !== null && (foodIndex < 1 || foodIndex > foods.length)) return
+
+      const nextSnapshot =
+        foodIndex === null
+          ? { libraryIndex: null, fatSecretIndex: null }
+          : { libraryIndex: null, fatSecretIndex: foodIndex }
+
+      const estimateItem: MacroDayItem = {
+        ...item,
+        timestamp: Date.now(),
+        macroEstimateSnapshot: nextSnapshot,
+      }
+
+      replaceDay((prev) => prev.map((i) => (i.id === item.id ? estimateItem : i)))
+
+      void (async () => {
+        setDatabasePickLoading(item.id, true)
+        try {
+          if (foodIndex === null) {
+            await calculateMacros(estimateItem.id, estimateItem, '', {
+              skipFatSecretFetch: true,
+              skipFatSecretForAi: true,
+              userDatabasePick: true,
+            })
+            return
+          }
+          await calculateMacros(estimateItem.id, estimateItem, '', {
+            aiFatSecretResults: [foods[foodIndex - 1]!],
+            fatSecretSelectedIndex: foodIndex,
+            userDatabasePick: true,
+          })
+        } finally {
+          setDatabasePickLoading(item.id, false)
+        }
+      })()
+    },
+    [calculateMacros, replaceDay, setDatabasePickLoading],
   )
 
   const refreshItemMacros = useCallback(
@@ -757,6 +839,11 @@ export function MacroVoiceTracker({
                 onRemove={() => removeItem(item.id)}
                 onUpdate={(fields) => updateItem(item.id, fields)}
                 onReestimate={() => refreshItemMacros(item)}
+                onSelectFatSecret={(foodIndex) => {
+                  const latest = logsRef.current[dateKey]?.find((i) => i.id === item.id) ?? item
+                  reestimateWithDatabaseMatch(latest, foodIndex)
+                }}
+                databasePickLoading={databasePickLoadingIds.has(item.id)}
                 onCancelProcessing={() => cancelProcessing(item.id)}
                 onReprocess={(raw) => {
                   replaceDay((prev) =>
@@ -954,6 +1041,8 @@ function FoodRow({
   onRemove,
   onUpdate,
   onReestimate,
+  onSelectFatSecret,
+  databasePickLoading = false,
   onCancelProcessing,
   onReprocess,
   onCancelTranscription,
@@ -967,6 +1056,8 @@ function FoodRow({
   onRemove: () => void
   onUpdate: (fields: MacroFoodEditFields) => void
   onReestimate: () => void
+  onSelectFatSecret: (foodIndex: number | null) => void
+  databasePickLoading?: boolean
   onCancelProcessing: () => void
   onReprocess: (raw: string) => void
   onCancelTranscription: () => void
@@ -1001,6 +1092,39 @@ function FoodRow({
     setEditData(fields)
   }, [isEditing, item.id])
 
+  const wasPendingRef = useRef(item.status === 'pending')
+  const wasDatabasePickRef = useRef(databasePickLoading)
+  useEffect(() => {
+    if (!isEditing) {
+      wasPendingRef.current = item.status === 'pending'
+      wasDatabasePickRef.current = databasePickLoading
+      return
+    }
+    const wasPending = wasPendingRef.current
+    wasPendingRef.current = item.status === 'pending'
+    const wasDatabasePick = wasDatabasePickRef.current
+    wasDatabasePickRef.current = databasePickLoading
+    if ((wasPending && item.status === 'ready') || (wasDatabasePick && !databasePickLoading)) {
+      const fields = itemToEditFields(item)
+      editDataRef.current = fields
+      setEditData(fields)
+    }
+  }, [
+    isEditing,
+    databasePickLoading,
+    item.status,
+    item.calories,
+    item.protein,
+    item.servingType,
+    item.servingMultiplier,
+    item.amount,
+    item.macroEstimateSnapshot,
+  ])
+
+  useEffect(() => {
+    if (databasePickLoading) cancelMacroAutosave()
+  }, [databasePickLoading, cancelMacroAutosave])
+
   const endEdit = () => {
     setInfoExpanded(false)
     onEndEdit()
@@ -1009,13 +1133,13 @@ function FoodRow({
   if (item.status === 'transcribing') {
     return (
       <div className="bg-white/5 p-4 rounded-[var(--radius-card)] border border-white/5 flex items-center gap-4 animate-pulse">
-        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-          <Mic className="text-emerald-500 opacity-60" size={20} />
+        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 opacity-60">
+          <Mic className="text-emerald-500" size={20} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-white/50 text-sm truncate">Transcribing...</p>
         </div>
-        <button type="button" onClick={onCancelTranscription} className="p-2 text-white/40 hover:text-red-400 shrink-0">
+        <button type="button" onClick={onCancelTranscription} className="p-2 text-white opacity-40 hover:opacity-100 hover:text-red-400 shrink-0 transition-opacity">
           <X size={18} strokeWidth={2.5} />
         </button>
       </div>
@@ -1034,7 +1158,9 @@ function FoodRow({
           <p className="font-bold text-white text-sm line-clamp-2">&quot;{item.rawText}&quot;</p>
           <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-1">Processing… Tap to edit</p>
         </div>
-        <Pencil size={12} className="text-white/50 shrink-0" />
+        <span className="text-white opacity-50 shrink-0">
+          <Pencil size={12} />
+        </span>
       </button>
     )
   }
@@ -1085,6 +1211,10 @@ function FoodRow({
           onInfoToggle={() => setInfoExpanded((v) => !v)}
           audit={macroItemAuditTrail(item)}
           auditCustomFoods={customFoods}
+          fatSecretResults={item.fatSecretResults}
+          selectedFatSecretIndex={macroEstimateFatSecretIndex(item.macroEstimateSnapshot)}
+          fatSecretSelecting={databasePickLoading}
+          onSelectFatSecret={onSelectFatSecret}
           onReset={() => {
             endEdit()
             onReestimate()
@@ -1161,7 +1291,9 @@ function InteractionDock({
                 {quickScan.nutritionPreview ? (
                   <img src={quickScan.nutritionPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
                 ) : (
-                  <Camera size={24} className="opacity-30 mb-2" />
+                  <span className="mb-2 flex text-white opacity-30">
+                    <Camera size={24} />
+                  </span>
                 )}
                 {quickScan.nutritionStatus === 'processing' && (
                   <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
@@ -1175,7 +1307,9 @@ function InteractionDock({
                 {quickScan.frontPreview ? (
                   <img src={quickScan.frontPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
                 ) : (
-                  <Camera size={24} className="opacity-30 mb-2" />
+                  <span className="mb-2 flex text-white opacity-30">
+                    <Camera size={24} />
+                  </span>
                 )}
                 {quickScan.frontStatus === 'processing' && (
                   <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
@@ -1216,11 +1350,13 @@ function InteractionDock({
                   : { ...p, isOpen: true, addToDatabase: true },
               )
             }
-            className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 ${
-              quickScan.isOpen ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50' : 'bg-[var(--color-surface)] text-white hover:bg-white/10'
+            className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-opacity ${
+              quickScan.isOpen
+                ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50'
+                : 'bg-[var(--color-surface)] text-white opacity-40 hover:opacity-100 hover:bg-white/10'
             }`}
           >
-            <ScanText size={22} className={quickScan.isOpen ? '' : 'opacity-40'} strokeWidth={2.5} />
+            <ScanText size={22} strokeWidth={2.5} />
           </button>
           <div
             className="flex-grow bg-[var(--color-surface)] min-h-[3.5rem] rounded-[var(--radius-card)] flex flex-col justify-center px-4 relative border border-[var(--color-border)] shadow-xl cursor-text"
@@ -1254,11 +1390,13 @@ function InteractionDock({
               else if (inputText.trim() || isQuickReady) onSend()
               else onMic()
             }}
-            className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 ${
-              showSend ? 'bg-emerald-600 text-white' : 'bg-[var(--color-surface)] text-white hover:bg-white/10'
+            className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-opacity ${
+              showSend
+                ? 'bg-emerald-600 text-white'
+                : 'bg-[var(--color-surface)] text-white opacity-40 hover:opacity-100 hover:bg-white/10'
             }`}
           >
-            {showSend ? <ArrowUp size={22} strokeWidth={3} /> : <Mic size={22} className="opacity-40" strokeWidth={2.5} />}
+            {showSend ? <ArrowUp size={22} strokeWidth={3} /> : <Mic size={22} strokeWidth={2.5} />}
           </button>
         </div>
       </div>
@@ -1386,7 +1524,11 @@ function DatabaseModal({
         <div className="grid grid-cols-2 gap-4">
           <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setNutritionImage)} />
-            {nutritionImage ? <img src={nutritionImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
+            {nutritionImage ? <img src={nutritionImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : (
+              <span className="mb-2 flex text-white opacity-30">
+                <Camera size={28} />
+              </span>
+            )}
             <span className="relative z-10 text-[10px] font-black uppercase text-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] flex items-center gap-1.5">
               Nutrition
               {analyzingNutrition && <Loader2 size={12} className="animate-spin text-emerald-400" />}
@@ -1394,7 +1536,11 @@ function DatabaseModal({
           </label>
           <label className="relative flex flex-col items-center justify-center h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-[2rem] cursor-pointer overflow-hidden">
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e, setFrontImage)} />
-            {frontImage ? <img src={frontImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <Camera size={28} className="opacity-30 mb-2" />}
+            {frontImage ? <img src={frontImage.preview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" /> : (
+              <span className="mb-2 flex text-white opacity-30">
+                <Camera size={28} />
+              </span>
+            )}
             <span className="relative z-10 text-[10px] font-black uppercase text-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] flex items-center gap-1.5">
               Front
               {analyzingFront && <Loader2 size={12} className="animate-spin text-emerald-400" />}

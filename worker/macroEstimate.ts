@@ -1,11 +1,14 @@
 import {
   buildMacroEstimatePrompt,
+  formatClassificationContext,
   formatNumberedFatSecret,
   formatNumberedFoodLibrary,
+  macroEstimateInputFields,
   resolveMacroEstimate,
   type MacroEstimateResponse,
 } from '../src/features/macro/macroLib'
 import type { FatSecretFoodRef } from './fatsecret'
+import type { MacroParseSnapshot } from '../src/types/domain'
 import { fatSecretSearchFoods } from './fatsecret'
 import { getMacroPrompt } from './macroPromptsStore'
 import { callOpenAiJson } from './openaiJson'
@@ -25,6 +28,16 @@ export type MacroEstimateApiBody = {
   notes?: string
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
+  /** When set, only these foods are sent to the AI (full cache stays in fatSecretResults). */
+  aiFatSecretResults?: FatSecretFoodRef[]
+  /** 1-based index into fatSecretResults for remapping AI fatSecretIndex after a user pick. */
+  fatSecretSelectedIndex?: number
+  /** Omit FatSecret from the AI prompt (user chose None). */
+  skipFatSecretForAi?: boolean
+  /** User changed the database match — use classification + chosen option only. */
+  userDatabasePick?: boolean
+  parseSnapshot?: MacroParseSnapshot
+  userInput?: string
   skipFatSecretFetch?: boolean
   customFoods?: MacroEstimateApiFood[]
   extraCtx?: string
@@ -74,12 +87,51 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
     throw err
   }
 
-  const user = `${buildMacroEstimatePrompt(body.name, body.amount, body.notes)}${formatNumberedFoodLibrary(customFoods)}${formatNumberedFatSecret(fatSecretResults)}${body.extraCtx ?? ''}`
+  const fatSecretForAi = body.skipFatSecretForAi ? [] : (body.aiFatSecretResults ?? fatSecretResults)
+  const userDatabasePick = Boolean(body.userDatabasePick)
+  const userConfirmedFatSecret =
+    userDatabasePick && !body.skipFatSecretForAi && fatSecretForAi.length > 0
+  const estimateFields = macroEstimateInputFields({
+    name: body.name,
+    amount: body.amount,
+    notes: body.notes,
+    parseSnapshot: body.parseSnapshot,
+  })
+  const classificationCtx = userDatabasePick
+    ? formatClassificationContext({
+        userInput: body.userInput,
+        parseSnapshot: body.parseSnapshot,
+      })
+    : ''
+  const foodLibraryBlock =
+    userDatabasePick && userConfirmedFatSecret ? '' : formatNumberedFoodLibrary(customFoods)
+  const user = `${buildMacroEstimatePrompt(estimateFields.name, estimateFields.amount, estimateFields.notes)}${classificationCtx}${foodLibraryBlock}${formatNumberedFatSecret(fatSecretForAi)}${
+    userConfirmedFatSecret
+      ? '\n\nUser confirmed this database match. Use fatSecretIndex 1, pick the best servingIndex and multiplier for the user\'s portion, and do not use library or direct AI estimate instead.'
+      : ''
+  }${
+    body.skipFatSecretForAi
+      ? '\n\nUser rejected database matches. Do not use FatSecret — use direct AI estimate (libraryIndex null, fatSecretIndex null).'
+      : ''
+  }${body.extraCtx ?? ''}`
 
   try {
     const macrosPrompt = await getMacroPrompt(env.DB, 'MACROS')
     const json = (await callOpenAiJson(key, macrosPrompt, user)) as MacroEstimateResponse
-    const result = resolveMacroEstimate(json, customFoods, fatSecretResults)
+    const result = resolveMacroEstimate(
+      json,
+      userConfirmedFatSecret ? [] : customFoods,
+      fatSecretForAi,
+    )
+    const selectedIdx =
+      typeof body.fatSecretSelectedIndex === 'number' && body.fatSecretSelectedIndex >= 1
+        ? Math.trunc(body.fatSecretSelectedIndex)
+        : null
+    const macroEstimateSnapshot: MacroEstimateResponse = body.skipFatSecretForAi
+      ? { ...json, libraryIndex: null, fatSecretIndex: null }
+      : selectedIdx != null
+        ? { ...json, libraryIndex: null, fatSecretIndex: selectedIdx, servingIndex: json.servingIndex ?? 1 }
+        : json
 
     return {
       calories: result.calories,
@@ -91,7 +143,7 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
       baseProtein: result.baseProtein,
       fatSecretResults,
       fatSecretSource,
-      macroEstimateSnapshot: json,
+      macroEstimateSnapshot,
     }
   } catch (e) {
     if (fatSecretResults.length > 0) {
