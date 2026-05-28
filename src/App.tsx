@@ -22,6 +22,7 @@ import {
   cementMacroSnapshots,
   recordHabitsGoalChange,
   recordMacroGoalChange,
+  resolveHabitsWeekGoals,
   resolveMacroDayTargets,
   type HabitsGoalsBundleData,
   type MacroGoalsBundleData,
@@ -30,6 +31,7 @@ import {
   normalizeLiftHistoryOnLoad,
   reconcileWorkoutMainWeightsFromHistory,
 } from './features/lift/liftHistory'
+import { computeWeekPercentageRange, getWeekDatesFor } from './features/habits/habitsUi'
 import { localDateISO } from './lib/localDate'
 import { scrollAppMainToTop } from './lib/scrollAppMain'
 import type {
@@ -298,6 +300,27 @@ export default function App() {
   )
 
   const isTodaySelected = selectedDateStr === todayDateStr
+
+  const habitsWeekPercentRange = useMemo(() => {
+    if (!boot || !isTodaySelected || !habitsGoals) return null
+    const weekDates = getWeekDatesFor(currentDate, habitsSettings.firstDayOfWeek)
+    const weekGoals = resolveHabitsWeekGoals(
+      weekDates[0]!,
+      habitsGoalsBundle,
+      habitsSettings.firstDayOfWeek,
+      todayDateStr,
+    )
+    return computeWeekPercentageRange(weekDates, habitsLogs, weekGoals, todayDateStr)
+  }, [
+    boot,
+    currentDate,
+    habitsGoals,
+    habitsGoalsBundle,
+    habitsLogs,
+    habitsSettings.firstDayOfWeek,
+    isTodaySelected,
+    todayDateStr,
+  ])
 
   const goToToday = useCallback(() => {
     persistAppState({ selected_date: todayDateStr })
@@ -725,9 +748,15 @@ export default function App() {
           </div>
 
           <div className="flex min-w-0 items-center justify-self-end justify-end">
-            {!settingsOpen &&
-            (selectedTab === 'habits' || selectedTab === 'macro') &&
-            !isTodaySelected ? (
+            {!settingsOpen && selectedTab === 'habits' && isTodaySelected && habitsWeekPercentRange ? (
+              <span className="shrink-0 font-black text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+                {habitsWeekPercentRange.min === habitsWeekPercentRange.max
+                  ? `${habitsWeekPercentRange.min}%`
+                  : `${habitsWeekPercentRange.min}-${habitsWeekPercentRange.max}%`}
+              </span>
+            ) : !settingsOpen &&
+              (selectedTab === 'habits' || selectedTab === 'macro') &&
+              !isTodaySelected ? (
               <AppAccentTextButton onClick={() => void goToToday()}>Today</AppAccentTextButton>
             ) : (
               <div className="h-10 w-12 shrink-0" aria-hidden />

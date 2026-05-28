@@ -26,7 +26,8 @@ export function getAppBaseFromPathname(pathname: string): string | null {
 export function getBasename(): string {
   if (typeof window !== 'undefined') {
     const fromProfilePath = getAppBaseFromPathname(window.location.pathname)
-    if (fromProfilePath !== null) return fromProfilePath || '/'
+    // Profile at site root (/u/name) → ''; subpath deploy (/apps/foo/u/name) → '/apps/foo'
+    if (fromProfilePath !== null) return fromProfilePath
   }
 
   const scripts = document.getElementsByTagName('script')

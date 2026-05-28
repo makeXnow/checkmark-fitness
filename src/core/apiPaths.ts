@@ -58,7 +58,7 @@ export function apiUrl(path: string): string {
     // Vite proxies /api → local wrangler (8787) or use VITE_API_URL / deployed origin.
     if (useLocalWorkerApi()) {
       const base = getBasename()
-      if (base === '/') return apiPath
+      if (!base || base === '/') return apiPath
       return `${base.replace(/\/$/, '')}${apiPath}`
     }
     const explicit = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
@@ -77,7 +77,7 @@ export function apiUrl(path: string): string {
 
   if (typeof window !== 'undefined') {
     const base = getBasename()
-    if (base === '/') return apiPath
+    if (!base || base === '/') return apiPath
     return `${base.replace(/\/$/, '')}${apiPath}`
   }
 
@@ -98,7 +98,7 @@ async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
     // Prefer local wrangler via Vite proxy when it is running (even without VITE_USE_LOCAL_API).
     try {
       const base = getBasename()
-      const localPath = base === '/' ? path : `${base.replace(/\/$/, '')}${path}`
+      const localPath = !base || base === '/' ? path : `${base.replace(/\/$/, '')}${path}`
       const local = await fetch(localPath, init)
       if (local.ok) return local
     } catch {

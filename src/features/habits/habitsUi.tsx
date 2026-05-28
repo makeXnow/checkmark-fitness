@@ -181,6 +181,9 @@ export function GoalCard({
     const isFilled = index < weeklyCount
     const isWaterActiveDay = isWater && !todayDone && index === weeklyCount && waterToday > 0
     const waterPercent = isWaterActiveDay ? (waterToday / target) * 100 : 0
+    /** Slots at or past min use 75% diameter (e.g. min 4 / max 6 → 4 full + 2 smaller). */
+    const dotSizeClass = isOptional ? 'h-[15px] w-[15px]' : 'h-5 w-5'
+    const waterInnerSizeClass = isOptional ? 'h-[10.5px] w-[10.5px]' : 'h-[14px] w-[14px]'
 
     /** No “next slot” outline once this habit is done for the selected day (water partial already requires !todayDone). */
     const showHabitOutline =
@@ -205,12 +208,16 @@ export function GoalCard({
         <div
           key={index}
           className={[
-            'relative box-border h-5 w-5 shrink-0 rounded-full border-[3px] transition-all duration-500',
+            'relative box-border shrink-0 rounded-full border-[3px] transition-all duration-500',
+            dotSizeClass,
             waterPartialBorder,
           ].join(' ')}
         >
           <div
-            className="absolute left-1/2 top-1/2 h-[14px] w-[14px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full"
+            className={[
+              'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full',
+              waterInnerSizeClass,
+            ].join(' ')}
             style={{
               background: `conic-gradient(${fillHex} 0%, ${fillHex} ${waterPercent}%, ${trackHex} ${waterPercent}%, ${trackHex} 100%)`,
             }}
@@ -223,7 +230,8 @@ export function GoalCard({
       <div
         key={index}
         className={[
-          'w-5 h-5 rounded-full border-[3px] transition-all duration-500',
+          'rounded-full border-[3px] transition-all duration-500',
+          dotSizeClass,
           isFilled ? `${config.color} border-transparent scale-110 shadow-lg shadow-black/40` : '',
           !isFilled ? emptyBorder : '',
         ]
@@ -262,11 +270,11 @@ export function GoalCard({
         </span>
       </div>
       <div className="z-10 flex flex-col items-center gap-2 pb-1">
-        <div className="flex justify-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           {Array.from({ length: row1Count }).map((_, i) => renderCircle(i))}
         </div>
         {row2Count > 0 && (
-          <div className="flex justify-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             {Array.from({ length: row2Count }).map((_, i) => renderCircle(row1Count + i))}
           </div>
         )}
@@ -300,6 +308,91 @@ export function computeWeeklyProgress(
     if ((l.water || 0) >= dt) waterWeekly++
   }
   return { cardio, lift, diet, waterWeekly }
+}
+
+/** Total completed days ÷ sum of weekly `min` targets (capped at 100%). `max` is UI-only. */
+export function weekPercentageFromCounts(
+  cardioCount: number,
+  liftCount: number,
+  dietCount: number,
+  waterCount: number,
+  goals: HabitsGoals,
+): number {
+  const totalMin =
+    goals.water.min + goals.diet.min + goals.cardio.min + goals.lift.min
+  if (totalMin <= 0) return 0
+  const totalDone = waterCount + dietCount + cardioCount + liftCount
+  return Math.round(Math.min(totalDone / totalMin, 1) * 100) || 0
+}
+
+function habitCountsThroughDate(
+  weekDates: string[],
+  logs: Record<string, DayLog>,
+  waterTarget: number,
+  throughDate: string,
+): { cardio: number; lift: number; diet: number; water: number } {
+  let cardio = 0
+  let lift = 0
+  let diet = 0
+  let water = 0
+  for (const d of weekDates) {
+    if (d > throughDate) continue
+    const l = logs[d] || {}
+    if (l.cardio) cardio++
+    if (l.lift) lift++
+    if (l.diet) diet++
+    if ((l.water || 0) >= waterTarget) water++
+  }
+  return { cardio, lift, diet, water }
+}
+
+function habitCountsAssumingPerfectFromToday(
+  weekDates: string[],
+  logs: Record<string, DayLog>,
+  waterTarget: number,
+  todayISO: string,
+): { cardio: number; lift: number; diet: number; water: number } {
+  let cardio = 0
+  let lift = 0
+  let diet = 0
+  let water = 0
+  for (const d of weekDates) {
+    if (d < todayISO) {
+      const l = logs[d] || {}
+      if (l.cardio) cardio++
+      if (l.lift) lift++
+      if (l.diet) diet++
+      if ((l.water || 0) >= waterTarget) water++
+    } else {
+      cardio++
+      lift++
+      diet++
+      water++
+    }
+  }
+  return { cardio, lift, diet, water }
+}
+
+/** Min = no more checks; max = perfect today through end of week (past days use actual logs only). */
+export function computeWeekPercentageRange(
+  weekDates: string[],
+  logs: Record<string, DayLog>,
+  goals: HabitsGoals,
+  todayISO: string,
+): { min: number; max: number } {
+  const waterTarget = goals.water.dailyTarget ?? 4
+  const current = habitCountsThroughDate(weekDates, logs, waterTarget, todayISO)
+  const optimistic = habitCountsAssumingPerfectFromToday(weekDates, logs, waterTarget, todayISO)
+  return {
+    min: weekPercentageFromCounts(current.cardio, current.lift, current.diet, current.water, goals),
+    max: weekPercentageFromCounts(
+      optimistic.cardio,
+      optimistic.lift,
+      optimistic.diet,
+      optimistic.water,
+      goals,
+    ),
+  }
 }
 
 export function getWeekDatesFor(anchor: Date, firstDayOfWeek: number): string[] {
@@ -381,11 +474,7 @@ export function computePastWeeks(
       if ((dayLog.water || 0) >= waterTarget) waterCount++
     }
 
-    const cardioScore = Math.min(cardioCount / weekGoals.cardio.min, 1)
-    const liftScore = Math.min(liftCount / weekGoals.lift.min, 1)
-    const dietScore = Math.min(dietCount / weekGoals.diet.min, 1)
-    const waterScore = Math.min(waterCount / weekGoals.water.min, 1)
-    const percentage = Math.round(((cardioScore + liftScore + dietScore + waterScore) / 4) * 100) || 0
+    const percentage = weekPercentageFromCounts(cardioCount, liftCount, dietCount, waterCount, weekGoals)
 
     weeks.push({
       id: weekDates[0],

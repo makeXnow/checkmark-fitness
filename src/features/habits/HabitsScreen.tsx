@@ -107,12 +107,9 @@ export function HabitsScreen({
 
           {pastWeeks.length > 0 && (
             <section className="space-y-3">
-              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest px-1">History</p>
-              <div className="space-y-3">
-                {pastWeeks.map((week) => (
-                  <HabitsWeekHistoryCard key={week.id} week={week} />
-                ))}
-              </div>
+              {pastWeeks.map((week) => (
+                <HabitsWeekHistoryCard key={week.id} week={week} />
+              ))}
             </section>
           )}
         </div>

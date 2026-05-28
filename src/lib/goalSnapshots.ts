@@ -185,6 +185,24 @@ function latestHabitsHistoryOnOrBefore(
   return best?.goals ?? null
 }
 
+/** Frozen targets for a completed week (never uses live `current` unless no history exists). */
+function habitsGoalsForCompletedWeek(weekStart: string, bundle: HabitsGoalsBundleData): HabitsGoals {
+  const cemented = bundle.snapshotsByWeek[weekStart]
+  if (cemented) return cemented
+
+  const weekEntry = bundle.goalHistory.find((e) => e.effectiveWeekStart === weekStart)
+  if (weekEntry) return weekEntry.goals
+
+  const weekEnd = addDaysISO(weekStart, 6)
+  const throughWeekEnd = latestHabitsHistoryOnOrBefore(weekEnd, bundle.goalHistory)
+  if (throughWeekEnd) return throughWeekEnd
+
+  const atWeekStart = latestHabitsHistoryOnOrBefore(weekStart, bundle.goalHistory)
+  if (atWeekStart) return atWeekStart
+
+  return structuredClone(bundle.current)
+}
+
 /** Goals for a week: current week uses live goals; past weeks use cemented snapshot or history. */
 export function resolveHabitsWeekGoals(
   weekStart: string,
@@ -194,11 +212,7 @@ export function resolveHabitsWeekGoals(
 ): HabitsGoals {
   const currentWeekStart = getWeekStartISO(todayISO, firstDayOfWeek)
   if (weekStart >= currentWeekStart) return bundle.current
-  const cemented = bundle.snapshotsByWeek[weekStart]
-  if (cemented) return cemented
-  const fromHistory = latestHabitsHistoryOnOrBefore(weekStart, bundle.goalHistory)
-  if (fromHistory) return fromHistory
-  return bundle.current
+  return habitsGoalsForCompletedWeek(weekStart, bundle)
 }
 
 function listPastWeekStarts(
@@ -242,9 +256,7 @@ export function cementHabitsSnapshots(
   for (const weekStart of weekStarts) {
     if (compareISO(weekStart, currentWeekStart) >= 0) continue
     if (snapshots[weekStart]) continue
-    const resolved =
-      latestHabitsHistoryOnOrBefore(weekStart, bundle.goalHistory) ?? structuredClone(bundle.current)
-    snapshots[weekStart] = resolved
+    snapshots[weekStart] = habitsGoalsForCompletedWeek(weekStart, { ...bundle, snapshotsByWeek: snapshots })
     changed = true
   }
 
@@ -263,6 +275,12 @@ export function recordHabitsGoalChange(
   }
 
   const weekStart = getWeekStartISO(todayISO, firstDayOfWeek)
+  const snapshots = { ...bundle.snapshotsByWeek }
+  const prevWeekStart = addDaysISO(weekStart, -7)
+  if (!snapshots[prevWeekStart]) {
+    snapshots[prevWeekStart] = structuredClone(bundle.current)
+  }
+
   const history = [...bundle.goalHistory]
   const existingIdx = history.findIndex((e) => e.effectiveWeekStart === weekStart)
   const entry: HabitsGoalHistoryEntry = { effectiveWeekStart: weekStart, goals: structuredClone(nextGoals) }
@@ -270,5 +288,5 @@ export function recordHabitsGoalChange(
   else history.push(entry)
   history.sort((a, b) => compareISO(a.effectiveWeekStart, b.effectiveWeekStart))
 
-  return { ...bundle, current: nextGoals, goalHistory: history }
+  return { ...bundle, current: nextGoals, goalHistory: history, snapshotsByWeek: snapshots }
 }
