@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { fireConfettiFromElement } from '../../lib/confetti'
 import { createPortal } from 'react-dom'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
 import {
@@ -74,12 +75,14 @@ function StatusDashboard({
   proteinConsumed,
   proteinGoal,
   proteinTrackMode,
+  proteinCardRef,
 }: {
   consumed: number
   goal: number
   proteinConsumed: number
   proteinGoal: number
   proteinTrackMode: ProteinTrackMode
+  proteinCardRef: RefObject<HTMLDivElement>
 }) {
   const isOver = consumed > goal
   const trackByGrams = proteinTrackMode === 'grams'
@@ -105,7 +108,10 @@ function StatusDashboard({
           />
         </div>
       </div>
-      <div className="bg-[var(--color-surface)] p-4 rounded-[var(--radius-card)] border border-[var(--color-border)]">
+      <div
+        ref={proteinCardRef}
+        className="bg-[var(--color-surface)] p-4 rounded-[var(--radius-card)] border border-[var(--color-border)]"
+      >
         <div className="flex items-center gap-2 mb-2 text-[10px] font-black opacity-40 uppercase tracking-widest text-white">
           <div className="text-blue-400 opacity-60">
             <BicepsFlexed size={12} strokeWidth={3} />
@@ -237,6 +243,28 @@ export function MacroVoiceTracker({
   const proteinTrackMode = goals.proteinTrackMode ?? 'percent'
   const proteinGramsGoal =
     goals.proteinGramsGoal ?? proteinGramsFromPct(goals.calorieGoal, goals.proteinPctGoal)
+  const proteinCardRef = useRef<HTMLDivElement>(null)
+  const prevProteinGramsRef = useRef(totals.pro)
+
+  useEffect(() => {
+    prevProteinGramsRef.current = totals.pro
+  }, [dateKey])
+
+  useEffect(() => {
+    const goalGrams = proteinGramsGoal
+    if (goalGrams <= 0) {
+      prevProteinGramsRef.current = totals.pro
+      return
+    }
+
+    const wasBelow = prevProteinGramsRef.current < goalGrams
+    const nowAtOrAbove = totals.pro >= goalGrams
+    if (wasBelow && nowAtOrAbove && proteinCardRef.current) {
+      fireConfettiFromElement(proteinCardRef.current)
+    }
+
+    prevProteinGramsRef.current = totals.pro
+  }, [totals.pro, proteinGramsGoal])
 
   const replaceDay = useCallback(
     (fn: (prev: MacroDayItem[]) => MacroDayItem[]) => {
@@ -814,6 +842,7 @@ export function MacroVoiceTracker({
         proteinConsumed={proteinTrackMode === 'grams' ? totals.pro : proteinPct}
         proteinGoal={proteinTrackMode === 'grams' ? proteinGramsGoal : goals.proteinPctGoal}
         proteinTrackMode={proteinTrackMode}
+        proteinCardRef={proteinCardRef}
       />
 
       <section className="space-y-3">
