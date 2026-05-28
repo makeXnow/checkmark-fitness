@@ -3,6 +3,46 @@ import { useEffect, type RefObject } from 'react'
 /** Matches InteractionDock gradient (`h-6`) — treated as obscuring the scroll viewport bottom. */
 export const MACRO_DIET_BOTTOM_GRADIENT_INSET_PX = 24
 
+export const MACRO_DIET_SCROLL_TO_TOP_MS = 300
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Animate `container` scrollTop to 0 over `durationMs` (instant when reduced motion). */
+export function scrollContainerToTop(container: HTMLElement, durationMs = MACRO_DIET_SCROLL_TO_TOP_MS): void {
+  const startTop = container.scrollTop
+  if (startTop <= 0) return
+
+  if (prefersReducedMotion() || durationMs <= 0) {
+    container.scrollTop = 0
+    return
+  }
+
+  const startTime = performance.now()
+  const easeOutCubic = (t: number) => 1 - (1 - t) ** 3
+
+  const tick = (now: number) => {
+    const progress = Math.min((now - startTime) / durationMs, 1)
+    container.scrollTop = Math.round(startTop * (1 - easeOutCubic(progress)))
+    if (progress < 1) requestAnimationFrame(tick)
+  }
+
+  requestAnimationFrame(tick)
+}
+
+/** Scroll `container` to top after layout, once React has painted new list items. */
+export function scheduleScrollContainerToTop(
+  container: HTMLElement,
+  durationMs = MACRO_DIET_SCROLL_TO_TOP_MS,
+): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scrollContainerToTop(container, durationMs)
+    })
+  })
+}
+
 export function scrollIntoViewWithin(
   target: HTMLElement,
   container: HTMLElement,

@@ -16,7 +16,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
-import { useScrollIntoViewWithin } from '../../lib/scrollIntoViewWithin'
+import {
+  scheduleScrollContainerToTop,
+  useScrollIntoViewWithin,
+} from '../../lib/scrollIntoViewWithin'
 import { proteinGramsFromPct } from './macroCalculator'
 import type { MacroCustomFood, MacroDayItem, MacroGoals, ProteinTrackMode } from '../../types/domain'
 import {
@@ -181,6 +184,12 @@ export function MacroVoiceTracker({
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editingLibraryFoodId, setEditingLibraryFoodId] = useState<string | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const scrollDietListToTop = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    scheduleScrollContainerToTop(container)
+  }, [])
 
   useEffect(() => {
     setEditingItemId(null)
@@ -539,6 +548,7 @@ export function MacroVoiceTracker({
     const tempId = crypto.randomUUID()
     const logText = quickWasOpen || fp || np ? `Scanning: ${text}` : text
     replaceDay((prev) => [...prev, { id: tempId, status: 'processing_cancellable', rawText: logText, timestamp: Date.now(), name: '', amount: '' }])
+    scrollDietListToTop()
     let baseFood: Record<string, unknown> | null = null
     if (fp && np) {
       try {
@@ -550,7 +560,7 @@ export function MacroVoiceTracker({
       }
     }
     void startParsingFlow(tempId, logText, baseFood)
-  }, [inputText, quickScan, replaceDay, startParsingFlow])
+  }, [inputText, quickScan, replaceDay, scrollDietListToTop, startParsingFlow])
 
   const handleQuickFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>, kind: 'front' | 'nutrition') => {
@@ -703,8 +713,9 @@ export function MacroVoiceTracker({
         },
       ])
       setEditingLibraryFoodId(null)
+      scrollDietListToTop()
     },
-    [replaceDay],
+    [replaceDay, scrollDietListToTop],
   )
 
   return (
@@ -820,6 +831,7 @@ export function MacroVoiceTracker({
             onSave={(entry) => {
               onSaveFoods([...customFoods, { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }])
               setDbModalOpen(false)
+              scrollDietListToTop()
             }}
             onSaveAndLog={(entry) => {
               const food: MacroCustomFood = { ...entry, id: crypto.randomUUID(), createdAt: Date.now() }
