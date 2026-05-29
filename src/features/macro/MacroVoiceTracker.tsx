@@ -24,6 +24,7 @@ import {
 import { proteinGramsFromPct } from './macroCalculator'
 import type { MacroCustomFood, MacroDayItem, MacroGoals, ProteinTrackMode } from '../../types/domain'
 import {
+  buildDayItemServingFields,
   formatServingDisplay,
   macroEstimateFatSecretIndex,
   macroItemDisplayEmoji,
@@ -334,6 +335,8 @@ export function MacroVoiceTracker({
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
               servingType: result.servingType,
+              servingSize: result.servingSize,
+              servingUnit: result.servingUnit,
               servingMultiplier: result.servingMultiplier,
               baseCalories: result.baseCalories,
               baseProtein: result.baseProtein,
@@ -737,7 +740,11 @@ export function MacroVoiceTracker({
             typeof fields.servingMultiplier === 'number' && fields.servingMultiplier > 0
               ? fields.servingMultiplier
               : (i.servingMultiplier ?? 1)
-          const servingType = fields.servingType ?? i.servingType ?? 'serving'
+          const serving = buildDayItemServingFields(mult, {
+            servingType: fields.servingType ?? i.servingType,
+            servingSize: fields.servingSize ?? i.servingSize,
+            servingUnit: fields.servingUnit ?? i.servingUnit,
+          })
           const prevMult = i.servingMultiplier ?? 1
           const servingChanged = mult !== prevMult
           let calories = fields.calories
@@ -758,9 +765,7 @@ export function MacroVoiceTracker({
             ...i,
             emoji: fields.emoji || '🍱',
             name: fields.name,
-            amount: formatServingDisplay(mult, servingType),
-            servingType,
-            servingMultiplier: mult,
+            ...serving,
             calories,
             protein,
             baseCalories,
@@ -805,19 +810,18 @@ export function MacroVoiceTracker({
   const logLibraryFood = useCallback(
     (libraryFoodId: string, fields: MacroFoodEditFields) => {
       if (!fields.name.trim()) return
-      const servingType = fields.amount.trim() || '1 serving'
+      const baseLabel = fields.amount.trim() || '1 serving'
       const mult =
         typeof fields.servingMultiplier === 'number' && fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
       const scaled = scaleFatSecretServing({ calories: fields.calories, protein: fields.protein }, mult)
+      const serving = buildDayItemServingFields(mult, { servingType: baseLabel })
       replaceDay((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           emoji: fields.emoji || '🍱',
           name: fields.name,
-          amount: formatServingDisplay(mult, servingType),
-          servingType,
-          servingMultiplier: mult,
+          ...serving,
           baseCalories: fields.calories,
           baseProtein: fields.protein,
           calories: scaled.calories,
@@ -1145,6 +1149,8 @@ function FoodRow({
     item.calories,
     item.protein,
     item.servingType,
+    item.servingSize,
+    item.servingUnit,
     item.servingMultiplier,
     item.amount,
     item.macroEstimateSnapshot,

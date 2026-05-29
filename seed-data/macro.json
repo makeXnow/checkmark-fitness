@@ -121,10 +121,12 @@
         "calories": 510,
         "protein": 38,
         "fat": 24,
-        "servingType": "sandwich",
+        "servingType": "1 sandwich",
         "servingMultiplier": 1,
         "baseCalories": 510,
-        "baseProtein": 38
+        "baseProtein": 38,
+        "servingSize": 1,
+        "servingUnit": "sandwich"
       },
       {
         "amount": "1 serving",
@@ -137,10 +139,12 @@
         "fat": 5,
         "protein": 9,
         "calories": 170,
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 170,
-        "baseProtein": 9
+        "baseProtein": 9,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "calories": 105,
@@ -153,10 +157,12 @@
         "status": "ready",
         "amount": "3 serving",
         "carbs": 22.5,
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 3,
         "baseCalories": 35,
-        "baseProtein": 0.7
+        "baseProtein": 0.7,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "calories": 200,
@@ -169,10 +175,12 @@
         "status": "ready",
         "carbs": 16,
         "amount": "1 serving",
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 200,
-        "baseProtein": 20
+        "baseProtein": 20,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "status": "ready",
@@ -185,10 +193,12 @@
         "fat": 3,
         "calories": 160,
         "protein": 18,
-        "servingType": "oz",
+        "servingType": "1 oz",
         "servingMultiplier": 2,
         "baseCalories": 80,
-        "baseProtein": 9
+        "baseProtein": 9,
+        "servingSize": 1,
+        "servingUnit": "oz"
       },
       {
         "protein": 33,
@@ -201,10 +211,12 @@
         "carbs": 0,
         "amount": "1 can",
         "status": "ready",
-        "servingType": "can",
+        "servingType": "1 can",
         "servingMultiplier": 1,
         "baseCalories": 165,
-        "baseProtein": 33
+        "baseProtein": 33,
+        "servingSize": 1,
+        "servingUnit": "can"
       },
       {
         "calories": 102.5,
@@ -217,10 +229,12 @@
         "amount": "0.5 cup",
         "carbs": 22.5,
         "status": "ready",
-        "servingType": "cup",
+        "servingType": "1 cup",
         "servingMultiplier": 0.5,
         "baseCalories": 205,
-        "baseProtein": 4.3
+        "baseProtein": 4.3,
+        "servingSize": 1,
+        "servingUnit": "cup"
       },
       {
         "protein": 10.2,
@@ -233,10 +247,12 @@
         "carbs": 22.8,
         "amount": "4 oz",
         "status": "ready",
-        "servingType": "oz",
+        "servingType": "1 oz",
         "servingMultiplier": 4,
         "baseCalories": 33,
-        "baseProtein": 2.6
+        "baseProtein": 2.6,
+        "servingSize": 1,
+        "servingUnit": "oz"
       }
     ],
     "2026-05-17": [
@@ -260,10 +276,12 @@
           "calories": 300,
           "protein": 15
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 300,
-        "baseProtein": 15
+        "baseProtein": 15,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "8aa432c7-4f51-42c7-bf9a-45dc992cd077",
@@ -285,10 +303,12 @@
           "calories": 180,
           "protein": 20
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 180,
-        "baseProtein": 20
+        "baseProtein": 20,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "31c021a1-8245-460e-96db-3071dca78857",
@@ -310,16 +330,18 @@
           "calories": 300,
           "protein": 10
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 300,
-        "baseProtein": 10
+        "baseProtein": 10,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "70ba5375-2c66-4b83-a749-b755a9eac3b9",
         "emoji": "🥩",
         "name": "Peppered Beef Jerky",
-        "amount": "1 1 oz (28g)",
+        "amount": "1 oz (28g)",
         "calories": 80,
         "protein": 9,
         "libraryFoodId": "61d3b1e5-f7bf-4fe9-92d3-9641060c028e",
@@ -328,7 +350,9 @@
         "servingType": "1 oz (28g)",
         "servingMultiplier": 1,
         "baseCalories": 80,
-        "baseProtein": 9
+        "baseProtein": 9,
+        "servingSize": 1,
+        "servingUnit": "oz (28g)"
       }
     ],
     "2026-05-18": [
@@ -358,10 +382,12 @@
           "calories": 180,
           "protein": 4
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 180,
-        "baseProtein": 4
+        "baseProtein": 4,
+        "servingSize": 1,
+        "servingUnit": "serving"
       }
     ],
     "2026-05-19": [
@@ -369,7 +395,7 @@
         "id": "a96b21ad-7bd7-473f-848a-322c5cac9371",
         "emoji": "🍗",
         "name": "Canned Chicken",
-        "amount": "1 5 oz",
+        "amount": "5 oz",
         "fatSecretSearch": "canned chicken",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -514,13 +540,15 @@
         "servingMultiplier": 1,
         "servingType": "5 oz",
         "baseCalories": 110,
-        "baseProtein": 22
+        "baseProtein": 22,
+        "servingSize": 5,
+        "servingUnit": "oz"
       },
       {
         "id": "17422ef7-216c-4e98-a477-5c6025f858e7",
         "emoji": "🥫",
         "name": "Mayonnaise",
-        "amount": "1 1 tbsp",
+        "amount": "1 tbsp",
         "fatSecretSearch": "mayonnaise",
         "parseSnapshot": {
           "emoji": "🥫",
@@ -664,13 +692,15 @@
         "servingMultiplier": 1,
         "servingType": "1 tbsp",
         "baseCalories": 90,
-        "baseProtein": 0
+        "baseProtein": 0,
+        "servingSize": 1,
+        "servingUnit": "tbsp"
       },
       {
         "id": "cd7b7afa-ddd3-4cc4-a62b-653d305d9233",
         "emoji": "🍋",
         "name": "Built Bar",
-        "amount": "1 1 bar",
+        "amount": "1 bar",
         "notes": "lemon meringue flavor",
         "fatSecretSearch": "Built Bar lemon meringue",
         "parseSnapshot": {
@@ -813,13 +843,15 @@
         "servingMultiplier": 1,
         "servingType": "1 bar",
         "baseCalories": 140,
-        "baseProtein": 17
+        "baseProtein": 17,
+        "servingSize": 1,
+        "servingUnit": "bar"
       },
       {
         "id": "e0a42871-9b27-412a-a462-320b02cd3da9",
         "emoji": "🍞",
         "name": "Sourdough Bread",
-        "amount": "1 1 slice",
+        "amount": "1 slice",
         "fatSecretSearch": "sourdough bread",
         "parseSnapshot": {
           "emoji": "🍞",
@@ -963,13 +995,15 @@
         "servingMultiplier": 1,
         "servingType": "1 slice",
         "baseCalories": 100,
-        "baseProtein": 3
+        "baseProtein": 3,
+        "servingSize": 1,
+        "servingUnit": "slice"
       },
       {
         "id": "58023493-4b03-4f9d-a33e-a39d498c99b5",
         "emoji": "🍘",
         "name": "Rice Cracker",
-        "amount": "1 1 serving",
+        "amount": "1 serving",
         "fatSecretSearch": "rice cracker",
         "parseSnapshot": {
           "emoji": "🍘",
@@ -1113,13 +1147,15 @@
         "servingMultiplier": 1,
         "servingType": "1 serving",
         "baseCalories": 80,
-        "baseProtein": 2.2
+        "baseProtein": 2.2,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "157f87a0-c130-4824-888c-def66e77e47a",
         "emoji": "🍗",
         "name": "Chicken",
-        "amount": "1.5 101g",
+        "amount": "151.5 g",
         "fatSecretSearch": "chicken cooked",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -1256,13 +1292,15 @@
         "servingMultiplier": 1.5,
         "servingType": "101g",
         "baseCalories": 197,
-        "baseProtein": 29.8
+        "baseProtein": 29.8,
+        "servingSize": 101,
+        "servingUnit": "g"
       },
       {
         "id": "b187227a-9cb1-4eb6-9a7f-1540f36f1760",
         "emoji": "🥔",
         "name": "Mashed Potatoes",
-        "amount": "0.4 100g",
+        "amount": "40 g",
         "fatSecretSearch": "mashed potatoes",
         "parseSnapshot": {
           "emoji": "🥔",
@@ -1403,13 +1441,15 @@
         "servingMultiplier": 0.4,
         "servingType": "100g",
         "baseCalories": 100,
-        "baseProtein": 1.8
+        "baseProtein": 1.8,
+        "servingSize": 100,
+        "servingUnit": "g"
       },
       {
         "id": "26c85abe-c9d5-4bc8-83fd-47aab2a718ad",
         "emoji": "🍚",
         "name": "Rice",
-        "amount": "1.14 100g",
+        "amount": "113.6 g",
         "fatSecretSearch": "rice cooked",
         "parseSnapshot": {
           "emoji": "🍚",
@@ -1548,7 +1588,9 @@
         "servingMultiplier": 1.136,
         "servingType": "100g",
         "baseCalories": 130,
-        "baseProtein": 2.69
+        "baseProtein": 2.69,
+        "servingSize": 100,
+        "servingUnit": "g"
       }
     ],
     "2026-05-20": [
@@ -1578,10 +1620,12 @@
           "calories": 276,
           "protein": 52
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 6,
         "baseCalories": 46,
-        "baseProtein": 8.7
+        "baseProtein": 8.7,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "966271f9-8f62-4351-b14e-30572152de9e",
@@ -1609,10 +1653,12 @@
           "calories": 120,
           "protein": 3
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 4,
         "baseCalories": 30,
-        "baseProtein": 0.8
+        "baseProtein": 0.8,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "d40f3e0e-dbc6-4334-9bfb-b08991639f40",
@@ -1640,10 +1686,12 @@
           "calories": 20,
           "protein": 0.5
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 2,
         "baseCalories": 10,
-        "baseProtein": 0.3
+        "baseProtein": 0.3,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "5d147b2c-c642-443a-abb5-6a56cc8ab917",
@@ -1671,10 +1719,12 @@
           "calories": 60,
           "protein": 2
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 2,
         "baseCalories": 30,
-        "baseProtein": 1
+        "baseProtein": 1,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "dcba586e-ecbf-40ea-89d8-38196ca0cf85",
@@ -1702,10 +1752,12 @@
           "calories": 10,
           "protein": 1
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 2,
         "baseCalories": 5,
-        "baseProtein": 0.5
+        "baseProtein": 0.5,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "bc967878-6dcb-40cc-8b9a-62311611616e",
@@ -1733,16 +1785,18 @@
           "calories": 80,
           "protein": 4
         },
-        "servingType": "bar",
+        "servingType": "1 bar",
         "servingMultiplier": 1,
         "baseCalories": 80,
-        "baseProtein": 4
+        "baseProtein": 4,
+        "servingSize": 1,
+        "servingUnit": "bar"
       },
       {
         "id": "42732aa2-94ec-447f-9d5b-a875de94aa4a",
         "emoji": "🍞",
         "name": "Whole Wheat",
-        "amount": "2 1 slice (26g)",
+        "amount": "2 slice (26g)",
         "fatSecretSearch": "whole wheat bread",
         "parseSnapshot": {
           "emoji": "🍞",
@@ -1766,7 +1820,9 @@
         "servingMultiplier": 2,
         "servingType": "1 slice (26g)",
         "baseCalories": 60,
-        "baseProtein": 3
+        "baseProtein": 3,
+        "servingSize": 1,
+        "servingUnit": "slice (26g)"
       },
       {
         "id": "a5b797fb-b545-482e-a67e-5880fb23172a",
@@ -1794,10 +1850,12 @@
           "calories": 60,
           "protein": 12
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 2,
         "baseCalories": 30,
-        "baseProtein": 6
+        "baseProtein": 6,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "77c30022-f363-434a-971f-a3a9d63e6171",
@@ -1825,10 +1883,12 @@
           "calories": 140,
           "protein": 12
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 2,
         "baseCalories": 70,
-        "baseProtein": 6
+        "baseProtein": 6,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "ea162b90-ec46-4f70-b1ad-ddf54a9c7730",
@@ -1856,10 +1916,12 @@
           "calories": 40,
           "protein": 0.5
         },
-        "servingType": "ounce",
+        "servingType": "1 ounce",
         "servingMultiplier": 1,
         "baseCalories": 40,
-        "baseProtein": 0.5
+        "baseProtein": 0.5,
+        "servingSize": 1,
+        "servingUnit": "ounce"
       },
       {
         "id": "22dc86bc-4ac7-4a8a-a555-bab8edbc0fa0",
@@ -1887,10 +1949,12 @@
           "calories": 30,
           "protein": 1
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 3,
         "baseCalories": 10,
-        "baseProtein": 0.3
+        "baseProtein": 0.3,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "019649c2-7c57-41ac-b534-438ba9fa18f4",
@@ -1918,10 +1982,12 @@
           "calories": 80,
           "protein": 20
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 80,
-        "baseProtein": 20
+        "baseProtein": 20,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "6e92c390-c222-4b38-bdd6-6299ddc58b5f",
@@ -1949,10 +2015,12 @@
           "calories": 640,
           "protein": 48
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 8,
         "baseCalories": 80,
-        "baseProtein": 6
+        "baseProtein": 6,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "b325aef8-43e3-4acf-b039-b3b3be4bc51b",
@@ -1980,10 +2048,12 @@
           "calories": 95,
           "protein": 0.5
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 95,
-        "baseProtein": 0.5
+        "baseProtein": 0.5,
+        "servingSize": 1,
+        "servingUnit": "serving"
       }
     ],
     "2026-05-21": [
@@ -2013,10 +2083,12 @@
           "calories": 480,
           "protein": 12
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 4,
         "baseCalories": 120,
-        "baseProtein": 3
+        "baseProtein": 3,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "3afc5b46-d921-4b13-8e9b-fead17b9861f",
@@ -2044,10 +2116,12 @@
           "calories": 350,
           "protein": 60
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 7,
         "baseCalories": 50,
-        "baseProtein": 8.6
+        "baseProtein": 8.6,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "0402d0ec-4482-44cf-a880-a9f5cebde299",
@@ -2075,10 +2149,12 @@
           "calories": 105,
           "protein": 2
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 3,
         "baseCalories": 35,
-        "baseProtein": 0.7
+        "baseProtein": 0.7,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "461717c5-bc08-42ae-bee5-81ed239e9213",
@@ -2106,16 +2182,18 @@
           "calories": 30,
           "protein": 1
         },
-        "servingType": "ounces",
+        "servingType": "1 ounces",
         "servingMultiplier": 3,
         "baseCalories": 10,
-        "baseProtein": 0.3
+        "baseProtein": 0.3,
+        "servingSize": 1,
+        "servingUnit": "ounces"
       },
       {
         "id": "a38b18b1-5ced-409e-8f9a-798ef3302780",
         "emoji": "🥤",
         "name": "Protein Powder",
-        "amount": "1 1 Scoop (24g)",
+        "amount": "1 Scoop (24g)",
         "fatSecretSearch": "protein powder",
         "parseSnapshot": {
           "emoji": "🥤",
@@ -2139,13 +2217,15 @@
         "servingMultiplier": 1,
         "servingType": "1 Scoop (24g)",
         "baseCalories": 80,
-        "baseProtein": 20
+        "baseProtein": 20,
+        "servingSize": 1,
+        "servingUnit": "Scoop (24g)"
       },
       {
         "id": "c84a1d28-62ef-40cb-82d8-6841a43c2708",
         "emoji": "🍝",
         "name": "Goodles Pasta",
-        "amount": "1.5 servings",
+        "amount": "1.5 serving",
         "fatSecretSearch": "Goodles Pasta",
         "parseSnapshot": {
           "emoji": "🍝",
@@ -2167,10 +2247,12 @@
           "calories": 315,
           "protein": 12
         },
-        "servingType": "servings",
+        "servingType": "1 serving",
         "servingMultiplier": 1.5,
         "baseCalories": 210,
-        "baseProtein": 8
+        "baseProtein": 8,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "1321411f-b1e1-43cc-a4ca-dbe73875215b",
@@ -2198,10 +2280,12 @@
           "calories": 70,
           "protein": 2
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 70,
-        "baseProtein": 2
+        "baseProtein": 2,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "f90302f9-aeae-4898-a0f1-6814c7c0340c",
@@ -2229,16 +2313,18 @@
           "calories": 120,
           "protein": 0
         },
-        "servingType": "tablespoon",
+        "servingType": "1 tablespoon",
         "servingMultiplier": 1,
         "baseCalories": 120,
-        "baseProtein": 0
+        "baseProtein": 0,
+        "servingSize": 1,
+        "servingUnit": "tablespoon"
       },
       {
         "id": "d3a64d0d-501d-4566-a791-f7ecb04ad13d",
         "emoji": "🍗",
         "name": "Chicken Breast",
-        "amount": "1 1/3 can",
+        "amount": "0.33 can",
         "fatSecretSearch": "canned chicken breast",
         "parseSnapshot": {
           "emoji": "🍗",
@@ -2263,7 +2349,9 @@
         "servingType": "1/3 can",
         "servingMultiplier": 1,
         "baseCalories": 23,
-        "baseProtein": 4.3
+        "baseProtein": 4.3,
+        "servingSize": 0.3333333333333333,
+        "servingUnit": "can"
       }
     ],
     "2026-05-22": [
@@ -2295,10 +2383,12 @@
           "calories": 240,
           "protein": 30
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1.2,
         "baseCalories": 200,
-        "baseProtein": 25
+        "baseProtein": 25,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "8e1c2935-5378-4904-a718-cad8879b1ccb",
@@ -2326,10 +2416,12 @@
           "calories": 250,
           "protein": 3
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 250,
-        "baseProtein": 3
+        "baseProtein": 3,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "92897188-89c0-44aa-a108-3e11abb36056",
@@ -2357,10 +2449,12 @@
           "calories": 120,
           "protein": 11
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 120,
-        "baseProtein": 11
+        "baseProtein": 11,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "15d5aa6f-9299-48ed-aa2b-a4e6283cd014",
@@ -2388,10 +2482,12 @@
           "calories": 150,
           "protein": 7
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 150,
-        "baseProtein": 7
+        "baseProtein": 7,
+        "servingSize": 1,
+        "servingUnit": "serving"
       },
       {
         "id": "b93493c2-4ca1-4519-a4b6-c1b403c2ecaa",
@@ -2419,10 +2515,12 @@
           "calories": 300,
           "protein": 25
         },
-        "servingType": "serving",
+        "servingType": "1 serving",
         "servingMultiplier": 1,
         "baseCalories": 300,
-        "baseProtein": 25
+        "baseProtein": 25,
+        "servingSize": 1,
+        "servingUnit": "serving"
       }
     ]
   }

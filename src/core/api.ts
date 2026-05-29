@@ -258,6 +258,8 @@ export type MacroEstimateApiResult = {
   protein: number
   libraryFoodId?: string
   servingType?: string
+  servingSize?: number
+  servingUnit?: string
   servingMultiplier?: number
   baseCalories?: number
   baseProtein?: number

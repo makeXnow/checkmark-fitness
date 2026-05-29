@@ -30,6 +30,8 @@ export type MacroEstimateResult = {
   protein: number
   libraryFoodId?: string
   servingType?: string
+  servingSize?: number
+  servingUnit?: string
   servingMultiplier?: number
   baseCalories?: number
   baseProtein?: number
@@ -154,11 +156,96 @@ export function formatMultiplier(m: number): string {
   return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
 }
 
-/** Display string for a quantity + unit (e.g. "0.8 can", "2 cups"). */
+export type ServingDefinition = {
+  servingSize: number
+  servingUnit: string
+  /** Human-readable label for one base portion (e.g. "1/2 cup prepared"). */
+  label: string
+}
+
+function parseFractionToken(raw: string): number | null {
+  const m = raw.replace(/\s/g, '').match(/^(\d+)\/(\d+)$/)
+  if (!m) return null
+  const num = parseInt(m[1]!, 10)
+  const den = parseInt(m[2]!, 10)
+  if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return null
+  return num / den
+}
+
+/** Split a base serving string into numeric size, unit, and display label. */
+export function parseServingDefinition(text: string): ServingDefinition {
+  const trimmed = text.trim()
+  if (!trimmed) return { servingSize: 1, servingUnit: 'serving', label: '1 serving' }
+
+  const fracMatch = trimmed.match(/^(\d+\s*\/\s*\d+)\s+(.*)$/i)
+  if (fracMatch) {
+    const size = parseFractionToken(fracMatch[1]!)
+    const unit = fracMatch[2]!.trim() || 'serving'
+    if (size != null && size > 0) {
+      return { servingSize: size, servingUnit: unit, label: trimmed }
+    }
+  }
+
+  const numMatch = trimmed.match(/^([\d.]+)\s+(.*)$/)
+  if (numMatch) {
+    const size = parseFloat(numMatch[1]!)
+    const unit = numMatch[2]!.trim()
+    if (Number.isFinite(size) && size > 0 && unit) {
+      return { servingSize: size, servingUnit: unit, label: trimmed }
+    }
+  }
+
+  const compact = trimmed.match(/^([\d.]+)(oz|g|lb|lbs|ml|l)$/i)
+  if (compact) {
+    const size = parseFloat(compact[1]!)
+    if (Number.isFinite(size) && size > 0) {
+      const unit = compact[2]!.toLowerCase()
+      return { servingSize: size, servingUnit: unit, label: trimmed }
+    }
+  }
+
+  if (/^servings?$/i.test(trimmed)) {
+    return { servingSize: 1, servingUnit: 'serving', label: '1 serving' }
+  }
+
+  return { servingSize: 1, servingUnit: trimmed, label: `1 ${trimmed}` }
+}
+
+/** Collapsed-card total: count × base size + unit (e.g. "0.63 cup prepared"). */
+export function formatServingTotal(count: number, servingSize: number, servingUnit: string): string {
+  const mult = Number.isFinite(count) && count > 0 ? count : 1
+  const size = Number.isFinite(servingSize) && servingSize > 0 ? servingSize : 1
+  const unit = servingUnit.trim() || 'serving'
+  return `${formatMultiplier(mult * size)} ${unit}`
+}
+
+/** Expanded-card read-only base serving label. */
+export function formatServingDefinitionLabel(def: ServingDefinition): string {
+  return def.label.trim() || formatServingTotal(1, def.servingSize, def.servingUnit)
+}
+
+export function servingDefinitionFromFields(item: {
+  servingType?: string
+  servingSize?: number
+  servingUnit?: string
+}): ServingDefinition {
+  const hasSize = typeof item.servingSize === 'number' && item.servingSize > 0
+  const unit = item.servingUnit?.trim()
+  if (hasSize && unit) {
+    const label = item.servingType?.trim() || formatServingDefinitionLabel({
+      servingSize: item.servingSize!,
+      servingUnit: unit,
+      label: '',
+    })
+    return { servingSize: item.servingSize!, servingUnit: unit, label }
+  }
+  return parseServingDefinition(item.servingType?.trim() || '1 serving')
+}
+
+/** Display string for total consumed amount (count × base serving). */
 export function formatServingDisplay(multiplier: number, servingType: string): string {
-  const type = servingType.trim() || 'serving'
-  const m = formatMultiplier(Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1)
-  return `${m} ${type}`
+  const def = parseServingDefinition(servingType)
+  return formatServingTotal(multiplier, def.servingSize, def.servingUnit)
 }
 
 /** Parse legacy free-text amount into quantity + unit. */
@@ -184,21 +271,68 @@ export function parseLegacyServing(amount: string): { multiplier: number; servin
 export function macroItemServingFields(item: {
   amount?: string
   servingType?: string
+  servingSize?: number
+  servingUnit?: string
   servingMultiplier?: number
-}): { servingType: string; servingMultiplier: number; amount: string } {
-  if (item.servingType?.trim()) {
-    const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
+}): {
+  servingType: string
+  servingSize: number
+  servingUnit: string
+  servingMultiplier: number
+  amount: string
+} {
+  const mult =
+    typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
+
+  if (item.servingType?.trim() || (typeof item.servingSize === 'number' && item.servingUnit?.trim())) {
+    const def = servingDefinitionFromFields(item)
     return {
-      servingType: item.servingType.trim(),
+      servingType: def.label,
+      servingSize: def.servingSize,
+      servingUnit: def.servingUnit,
       servingMultiplier: mult,
-      amount: formatServingDisplay(mult, item.servingType),
+      amount: formatServingTotal(mult, def.servingSize, def.servingUnit),
     }
   }
+
   const legacy = parseLegacyServing(item.amount || '')
+  const def = parseServingDefinition(legacy.servingType)
   return {
-    servingType: legacy.servingType,
+    servingType: def.label,
+    servingSize: def.servingSize,
+    servingUnit: def.servingUnit,
     servingMultiplier: legacy.multiplier,
-    amount: item.amount?.trim() ? item.amount : formatServingDisplay(legacy.multiplier, legacy.servingType),
+    amount: formatServingTotal(legacy.multiplier, def.servingSize, def.servingUnit),
+  }
+}
+
+function applyStructuredServingFields(
+  item: MacroDayItem,
+  mult: number,
+  def: ServingDefinition,
+): MacroDayItem {
+  return {
+    ...item,
+    servingType: def.label,
+    servingSize: def.servingSize,
+    servingUnit: def.servingUnit,
+    servingMultiplier: mult,
+    amount: formatServingTotal(mult, def.servingSize, def.servingUnit),
+  }
+}
+
+export function buildDayItemServingFields(
+  multiplier: number,
+  source: { servingType?: string; servingSize?: number; servingUnit?: string },
+): Pick<MacroDayItem, 'amount' | 'servingType' | 'servingSize' | 'servingUnit' | 'servingMultiplier'> {
+  const def = servingDefinitionFromFields(source)
+  const mult = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
+  return {
+    servingType: def.label,
+    servingSize: def.servingSize,
+    servingUnit: def.servingUnit,
+    servingMultiplier: mult,
+    amount: formatServingTotal(mult, def.servingSize, def.servingUnit),
   }
 }
 
@@ -236,11 +370,14 @@ export function resolveMacroEstimate(
     const food = foods[libIdx - 1]!
     const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
     const scaled = scaleLibraryMacros(food, multiplier)
+    const def = parseServingDefinition(food.baseAmount || '1 serving')
     return {
       calories: scaled.calories,
       protein: scaled.protein,
       libraryFoodId: food.id,
-      servingType: food.baseAmount || '1 serving',
+      servingType: def.label,
+      servingSize: def.servingSize,
+      servingUnit: def.servingUnit,
       servingMultiplier: multiplier,
       baseCalories: food.calories,
       baseProtein: food.protein,
@@ -257,10 +394,13 @@ export function resolveMacroEstimate(
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
     const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
     const scaled = scaleFatSecretServing(serving, multiplier)
+    const def = parseServingDefinition(serving.description)
     return {
       calories: scaled.calories,
       protein: scaled.protein,
-      servingType: serving.description,
+      servingType: def.label,
+      servingSize: def.servingSize,
+      servingUnit: def.servingUnit,
       servingMultiplier: multiplier,
       baseCalories: serving.calories,
       baseProtein: serving.protein,
@@ -270,11 +410,13 @@ export function resolveMacroEstimate(
   const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
   const calories = Math.round(adjusted.calories ?? 0)
   const protein = Math.round((adjusted.protein ?? 0) * 10) / 10
-  const servingType = adjusted.servingType?.trim() || 'serving'
+  const def = parseServingDefinition(adjusted.servingType?.trim() || 'serving')
   return {
     calories,
     protein,
-    servingType,
+    servingType: def.label,
+    servingSize: def.servingSize,
+    servingUnit: def.servingUnit,
     servingMultiplier: multiplier,
     baseCalories: Math.round(calories / multiplier),
     baseProtein: Math.round((protein / multiplier) * 10) / 10,
@@ -444,11 +586,8 @@ export function backfillMacroItemServingFields(
 ): MacroDayItem {
   if (item.baseCalories != null && item.baseProtein != null && item.servingType?.trim()) {
     const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
-    return {
-      ...item,
-      servingMultiplier: mult,
-      amount: formatServingDisplay(mult, item.servingType),
-    }
+    const def = servingDefinitionFromFields(item)
+    return applyStructuredServingFields(item, mult, def)
   }
 
   const foodsById = new Map(customFoods.map((f) => [f.id, f]))
@@ -460,14 +599,11 @@ export function backfillMacroItemServingFields(
         typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
           ? item.servingMultiplier
           : legacy.multiplier
-      const servingType = food.baseAmount || '1 serving'
+      const def = parseServingDefinition(food.baseAmount || '1 serving')
       return {
-        ...item,
-        servingType,
-        servingMultiplier: mult,
+        ...applyStructuredServingFields(item, mult, def),
         baseCalories: food.calories,
         baseProtein: food.protein,
-        amount: formatServingDisplay(mult, servingType),
       }
     }
   }
@@ -488,14 +624,11 @@ export function backfillMacroItemServingFields(
         : typeof snap.multiplier === 'number' && snap.multiplier > 0
           ? snap.multiplier
           : legacy.multiplier
-    const servingType = serving.description
+    const def = parseServingDefinition(serving.description)
     return {
-      ...item,
-      servingType,
-      servingMultiplier: mult,
+      ...applyStructuredServingFields(item, mult, def),
       baseCalories: serving.calories,
       baseProtein: serving.protein,
-      amount: formatServingDisplay(mult, servingType),
     }
   }
 
@@ -506,7 +639,7 @@ export function backfillMacroItemServingFields(
       : typeof snap?.multiplier === 'number' && snap.multiplier > 0
         ? snap.multiplier
         : legacy.multiplier
-  const servingType = snap?.servingType?.trim() || legacy.servingType
+  const def = parseServingDefinition(snap?.servingType?.trim() || legacy.servingType)
   const calories = item.calories ?? 0
   const protein = item.protein ?? 0
 
@@ -514,26 +647,20 @@ export function backfillMacroItemServingFields(
     const baseCalories = mult > 0 ? Math.round(calories / mult) : calories
     const baseProtein = mult > 0 ? Math.round((protein / mult) * 10) / 10 : protein
     return {
-      ...item,
-      servingType,
-      servingMultiplier: mult,
+      ...applyStructuredServingFields(item, mult, def),
       baseCalories,
       baseProtein,
-      amount: formatServingDisplay(mult, servingType),
     }
   }
 
-  return {
-    ...item,
-    servingType,
-    servingMultiplier: mult,
-    amount: formatServingDisplay(mult, servingType),
-  }
+  return applyStructuredServingFields(item, mult, def)
 }
 
 function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayItem): boolean {
   return (
     before.servingType !== after.servingType ||
+    before.servingSize !== after.servingSize ||
+    before.servingUnit !== after.servingUnit ||
     before.servingMultiplier !== after.servingMultiplier ||
     before.baseCalories !== after.baseCalories ||
     before.baseProtein !== after.baseProtein ||

@@ -57,7 +57,7 @@ export default defineConfig({
   // Use relative paths so the app works when hosted at /apps/your-app/
   base: './',
   server: {
-    port: 9024,
+    port: Number(process.env.PORT) || 9024,
     strictPort: true,
     proxy: {
       '/api': {

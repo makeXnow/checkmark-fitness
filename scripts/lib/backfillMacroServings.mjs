@@ -13,10 +13,81 @@ function formatMultiplier(m) {
   return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
 }
 
-function formatServingDisplay(multiplier, servingType) {
-  const type = String(servingType || '').trim() || 'serving'
-  const m = formatMultiplier(Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1)
-  return `${m} ${type}`
+function parseFractionToken(raw) {
+  const m = String(raw).replace(/\s/g, '').match(/^(\d+)\/(\d+)$/)
+  if (!m) return null
+  const num = parseInt(m[1], 10)
+  const den = parseInt(m[2], 10)
+  if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return null
+  return num / den
+}
+
+export function parseServingDefinition(text) {
+  const trimmed = String(text || '').trim()
+  if (!trimmed) return { servingSize: 1, servingUnit: 'serving', label: '1 serving' }
+
+  const fracMatch = trimmed.match(/^(\d+\s*\/\s*\d+)\s+(.*)$/i)
+  if (fracMatch) {
+    const size = parseFractionToken(fracMatch[1])
+    const unit = fracMatch[2].trim() || 'serving'
+    if (size != null && size > 0) {
+      return { servingSize: size, servingUnit: unit, label: trimmed }
+    }
+  }
+
+  const numMatch = trimmed.match(/^([\d.]+)\s+(.*)$/)
+  if (numMatch) {
+    const size = parseFloat(numMatch[1])
+    const unit = numMatch[2].trim()
+    if (Number.isFinite(size) && size > 0 && unit) {
+      return { servingSize: size, servingUnit: unit, label: trimmed }
+    }
+  }
+
+  const compact = trimmed.match(/^([\d.]+)(oz|g|lb|lbs|ml|l)$/i)
+  if (compact) {
+    const size = parseFloat(compact[1])
+    if (Number.isFinite(size) && size > 0) {
+      const unit = compact[2].toLowerCase()
+      return { servingSize: size, servingUnit: unit, label: trimmed }
+    }
+  }
+
+  if (/^servings?$/i.test(trimmed)) {
+    return { servingSize: 1, servingUnit: 'serving', label: '1 serving' }
+  }
+
+  return { servingSize: 1, servingUnit: trimmed, label: `1 ${trimmed}` }
+}
+
+export function formatServingTotal(count, servingSize, servingUnit) {
+  const mult = Number.isFinite(count) && count > 0 ? count : 1
+  const size = Number.isFinite(servingSize) && servingSize > 0 ? servingSize : 1
+  const unit = String(servingUnit || '').trim() || 'serving'
+  return `${formatMultiplier(mult * size)} ${unit}`
+}
+
+function servingDefinitionFromFields(item) {
+  const hasSize = typeof item.servingSize === 'number' && item.servingSize > 0
+  const unit = item.servingUnit?.trim()
+  if (hasSize && unit) {
+    const label =
+      item.servingType?.trim() ||
+      (item.servingSize === 1 ? `1 ${unit}` : `${formatMultiplier(item.servingSize)} ${unit}`)
+    return { servingSize: item.servingSize, servingUnit: unit, label }
+  }
+  return parseServingDefinition(item.servingType?.trim() || '1 serving')
+}
+
+function applyStructuredServingFields(item, mult, def) {
+  return {
+    ...item,
+    servingType: def.label,
+    servingSize: def.servingSize,
+    servingUnit: def.servingUnit,
+    servingMultiplier: mult,
+    amount: formatServingTotal(mult, def.servingSize, def.servingUnit),
+  }
 }
 
 export function parseLegacyServing(amount) {
@@ -40,11 +111,8 @@ export function parseLegacyServing(amount) {
 export function backfillMacroItemServingFields(item, customFoods = []) {
   if (item.baseCalories != null && item.baseProtein != null && item.servingType?.trim()) {
     const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
-    return {
-      ...item,
-      servingMultiplier: mult,
-      amount: formatServingDisplay(mult, item.servingType),
-    }
+    const def = servingDefinitionFromFields(item)
+    return applyStructuredServingFields(item, mult, def)
   }
 
   const foodsById = new Map(customFoods.map((f) => [f.id, f]))
@@ -56,14 +124,11 @@ export function backfillMacroItemServingFields(item, customFoods = []) {
         typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
           ? item.servingMultiplier
           : legacy.multiplier
-      const servingType = food.baseAmount || '1 serving'
+      const def = parseServingDefinition(food.baseAmount || '1 serving')
       return {
-        ...item,
-        servingType,
-        servingMultiplier: mult,
+        ...applyStructuredServingFields(item, mult, def),
         baseCalories: food.calories,
         baseProtein: food.protein,
-        amount: formatServingDisplay(mult, servingType),
       }
     }
   }
@@ -84,14 +149,11 @@ export function backfillMacroItemServingFields(item, customFoods = []) {
         : typeof snap.multiplier === 'number' && snap.multiplier > 0
           ? snap.multiplier
           : legacy.multiplier
-    const servingType = serving.description
+    const def = parseServingDefinition(serving.description)
     return {
-      ...item,
-      servingType,
-      servingMultiplier: mult,
+      ...applyStructuredServingFields(item, mult, def),
       baseCalories: serving.calories,
       baseProtein: serving.protein,
-      amount: formatServingDisplay(mult, servingType),
     }
   }
 
@@ -102,7 +164,7 @@ export function backfillMacroItemServingFields(item, customFoods = []) {
       : typeof snap?.multiplier === 'number' && snap.multiplier > 0
         ? snap.multiplier
         : legacy.multiplier
-  const servingType = snap?.servingType?.trim() || legacy.servingType
+  const def = parseServingDefinition(snap?.servingType?.trim() || legacy.servingType)
   const calories = item.calories ?? 0
   const protein = item.protein ?? 0
 
@@ -110,21 +172,13 @@ export function backfillMacroItemServingFields(item, customFoods = []) {
     const baseCalories = mult > 0 ? Math.round(calories / mult) : calories
     const baseProtein = mult > 0 ? Math.round((protein / mult) * 10) / 10 : protein
     return {
-      ...item,
-      servingType,
-      servingMultiplier: mult,
+      ...applyStructuredServingFields(item, mult, def),
       baseCalories,
       baseProtein,
-      amount: formatServingDisplay(mult, servingType),
     }
   }
 
-  return {
-    ...item,
-    servingType,
-    servingMultiplier: mult,
-    amount: formatServingDisplay(mult, servingType),
-  }
+  return applyStructuredServingFields(item, mult, def)
 }
 
 export function backfillMacroLogs(logs, customFoods = []) {

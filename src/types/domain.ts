@@ -170,9 +170,13 @@ export interface MacroDayItem {
   macroEstimateSnapshot?: MacroEstimateSnapshot
   /** Set when macros were scaled from the food library. */
   libraryFoodId?: string
-  /** AI-assigned unit label for one base portion (e.g. "can", "1 cup", "slice"). */
+  /** Human-readable label for one base portion (e.g. "1/2 cup", "2 tablespoons"). */
   servingType?: string
-  /** User-editable count multiplier applied to servingType base macros. */
+  /** Numeric quantity in one base portion (e.g. 0.5 for "1/2 cup", 2 for "2 tbsp"). */
+  servingSize?: number
+  /** Unit for one base portion (e.g. "cup prepared", "tablespoon", "slice"). */
+  servingUnit?: string
+  /** User-editable count of base portions consumed. */
   servingMultiplier?: number
   /** Calories per one servingType unit; used to recalc when servingMultiplier changes. */
   baseCalories?: number

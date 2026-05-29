@@ -319,9 +319,11 @@ export type MacroFoodEditFields = {
   name: string
   /** Library base serving label (e.g. "1 cup"). */
   amount: string
-  /** AI-assigned unit label for day-log items (e.g. "slice"). */
+  /** Human-readable base serving label for day-log items (e.g. "1/2 cup prepared"). */
   servingType?: string
-  /** Numeric serving multiplier shown in the serving field. */
+  servingSize?: number
+  servingUnit?: string
+  /** Count of base portions consumed (editable in day log). */
   servingMultiplier?: number
   calories: number
   protein: number
@@ -449,8 +451,9 @@ function MacroEditFieldColumn({ label, children }: { label: ReactNode; children:
 }
 
 function servingUnitLabel(data: MacroFoodEditFields): string {
-  const type = data.servingType?.trim() || 'serving'
-  return /^\d/.test(type) ? type : `1 ${type}`
+  if (data.servingType?.trim()) return data.servingType.trim()
+  const unit = data.servingUnit?.trim() || 'serving'
+  return /^\d/.test(unit) ? unit : `1 ${unit}`
 }
 
 function MacroFieldInput({
@@ -843,6 +846,8 @@ function itemToEditFields(item: {
   name: string
   amount: string
   servingType?: string
+  servingSize?: number
+  servingUnit?: string
   servingMultiplier?: number
   calories?: number
   protein?: number
@@ -854,6 +859,8 @@ function itemToEditFields(item: {
     name: macroItemDisplayName(item),
     amount: serving.amount,
     servingType: serving.servingType,
+    servingSize: serving.servingSize,
+    servingUnit: serving.servingUnit,
     servingMultiplier: serving.servingMultiplier,
     calories: item.calories ?? 0,
     protein: item.protein ?? 0,

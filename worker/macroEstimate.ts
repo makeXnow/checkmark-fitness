@@ -48,6 +48,8 @@ export type MacroEstimateApiResult = {
   protein: number
   libraryFoodId?: string
   servingType?: string
+  servingSize?: number
+  servingUnit?: string
   servingMultiplier?: number
   baseCalories?: number
   baseProtein?: number
@@ -141,6 +143,8 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
       protein: result.protein,
       libraryFoodId: result.libraryFoodId,
       servingType: result.servingType,
+      servingSize: result.servingSize,
+      servingUnit: result.servingUnit,
       servingMultiplier: result.servingMultiplier,
       baseCalories: result.baseCalories,
       baseProtein: result.baseProtein,
