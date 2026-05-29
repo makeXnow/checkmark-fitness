@@ -152,8 +152,56 @@ export function scaleFatSecretServing(
   }
 }
 
+function trimTrailingZeros(s: string): string {
+  return s.replace(/\.?0+$/, '')
+}
+
+function isNearInteger(n: number, epsilon = 0.001): boolean {
+  return Math.abs(n - Math.round(n)) < epsilon
+}
+
+type ServingUnitKind = 'gram' | 'ounce' | 'pound' | 'milliliter' | 'liter' | 'volume' | 'count'
+
+function servingUnitKind(unit: string): ServingUnitKind {
+  const u = unit.toLowerCase().trim()
+  if (/^(g|grams?)$/.test(u)) return 'gram'
+  if (/^(oz|ounces?)$/.test(u) || /\boz\b/.test(u)) return 'ounce'
+  if (/^(lb|lbs|pounds?)$/.test(u) || /\blb\b/.test(u)) return 'pound'
+  if (/^(ml|milliliters?)$/.test(u)) return 'milliliter'
+  if (/^(l|liters?)$/.test(u)) return 'liter'
+  if (/\b(cups?|tbsp|tablespoons?|tsp|teaspoons?|fl\s*oz)\b/.test(u)) return 'volume'
+  return 'count'
+}
+
+/** Format a quantity for display; rounding depends on the unit (grams → whole numbers, etc.). */
+export function formatServingQuantity(value: number, unit: string): string {
+  if (!Number.isFinite(value) || value <= 0) return '1'
+
+  switch (servingUnitKind(unit)) {
+    case 'gram':
+    case 'milliliter':
+      return String(Math.round(value))
+    case 'ounce':
+    case 'pound':
+      if (isNearInteger(value)) return String(Math.round(value))
+      return trimTrailingZeros(value.toFixed(1))
+    case 'liter':
+      if (value >= 10 || isNearInteger(value)) return String(Math.round(value))
+      return trimTrailingZeros(value.toFixed(2))
+    case 'volume':
+      if (isNearInteger(value)) return String(Math.round(value))
+      if (value < 1) return trimTrailingZeros(value.toFixed(2))
+      return trimTrailingZeros(value.toFixed(1))
+    case 'count':
+    default:
+      if (isNearInteger(value)) return String(Math.round(value))
+      return trimTrailingZeros(value.toFixed(2))
+  }
+}
+
+/** Format a serving count multiplier (e.g. 1.25 servings) — not unit-aware. */
 export function formatMultiplier(m: number): string {
-  return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
+  return formatServingQuantity(m, 'serving')
 }
 
 export type ServingDefinition = {
@@ -216,7 +264,7 @@ export function formatServingTotal(count: number, servingSize: number, servingUn
   const mult = Number.isFinite(count) && count > 0 ? count : 1
   const size = Number.isFinite(servingSize) && servingSize > 0 ? servingSize : 1
   const unit = servingUnit.trim() || 'serving'
-  return `${formatMultiplier(mult * size)} ${unit}`
+  return `${formatServingQuantity(mult * size, unit)} ${unit}`
 }
 
 /** Expanded-card read-only base serving label. */

@@ -1250,6 +1250,7 @@ function FoodRow({
           selectedFatSecretIndex={macroEstimateFatSecretIndex(item.macroEstimateSnapshot)}
           fatSecretSelecting={databasePickLoading}
           onSelectFatSecret={onSelectFatSecret}
+          scrollContainerRef={scrollContainerRef}
           onReset={() => {
             endEdit()
             onReestimate()
@@ -1311,7 +1312,10 @@ function InteractionDock({
   const showSend = Boolean(inputText.trim() || isQuickReady || recording)
 
   return (
-    <div className="relative z-20 shrink-0 pointer-events-none pb-[calc(var(--app-nav-offset)+0.5rem)]">
+    <div
+      data-macro-diet-dock
+      className="relative z-20 shrink-0 pointer-events-none pb-[calc(var(--app-nav-offset)+0.5rem)]"
+    >
       <div
         data-macro-diet-gradient
         className="pointer-events-none absolute inset-x-0 bottom-full h-6 bg-gradient-to-t from-black/80 to-transparent"

@@ -9,8 +9,50 @@ function parseIndex(raw) {
   return null
 }
 
+function trimTrailingZeros(s) {
+  return s.replace(/\.?0+$/, '')
+}
+
+function isNearInteger(n, epsilon = 0.001) {
+  return Math.abs(n - Math.round(n)) < epsilon
+}
+
+function servingUnitKind(unit) {
+  const u = String(unit || '').toLowerCase().trim()
+  if (/^(g|grams?)$/.test(u)) return 'gram'
+  if (/^(oz|ounces?)$/.test(u) || /\boz\b/.test(u)) return 'ounce'
+  if (/^(lb|lbs|pounds?)$/.test(u) || /\blb\b/.test(u)) return 'pound'
+  if (/^(ml|milliliters?)$/.test(u)) return 'milliliter'
+  if (/^(l|liters?)$/.test(u)) return 'liter'
+  if (/\b(cups?|tbsp|tablespoons?|tsp|teaspoons?|fl\s*oz)\b/.test(u)) return 'volume'
+  return 'count'
+}
+
+function formatServingQuantity(value, unit) {
+  if (!Number.isFinite(value) || value <= 0) return '1'
+  switch (servingUnitKind(unit)) {
+    case 'gram':
+    case 'milliliter':
+      return String(Math.round(value))
+    case 'ounce':
+    case 'pound':
+      if (isNearInteger(value)) return String(Math.round(value))
+      return trimTrailingZeros(value.toFixed(1))
+    case 'liter':
+      if (value >= 10 || isNearInteger(value)) return String(Math.round(value))
+      return trimTrailingZeros(value.toFixed(2))
+    case 'volume':
+      if (isNearInteger(value)) return String(Math.round(value))
+      if (value < 1) return trimTrailingZeros(value.toFixed(2))
+      return trimTrailingZeros(value.toFixed(1))
+    default:
+      if (isNearInteger(value)) return String(Math.round(value))
+      return trimTrailingZeros(value.toFixed(2))
+  }
+}
+
 function formatMultiplier(m) {
-  return Number.isInteger(m) ? String(m) : m.toFixed(2).replace(/\.?0+$/, '')
+  return formatServingQuantity(m, 'serving')
 }
 
 function parseFractionToken(raw) {
@@ -64,7 +106,7 @@ export function formatServingTotal(count, servingSize, servingUnit) {
   const mult = Number.isFinite(count) && count > 0 ? count : 1
   const size = Number.isFinite(servingSize) && servingSize > 0 ? servingSize : 1
   const unit = String(servingUnit || '').trim() || 'serving'
-  return `${formatMultiplier(mult * size)} ${unit}`
+  return `${formatServingQuantity(mult * size, unit)} ${unit}`
 }
 
 function servingDefinitionFromFields(item) {

@@ -1,5 +1,9 @@
-import { useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronUp, Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type ReactNode } from 'react'
+import {
+  macroDietBandMaxHeight,
+  scheduleScrollCenterInMacroDietBand,
+} from '../../lib/scrollIntoViewWithin'
+import { ChevronUp, Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
 import type {
   FatSecretFoodRef,
   MacroCustomFood,
@@ -121,6 +125,12 @@ function databaseMatchCardClass(selected: boolean, disabled: boolean) {
   } ${disabled ? 'opacity-60 pointer-events-none' : ''}`
 }
 
+function primaryServingLine(servings?: FatSecretFoodRef['servings']): string | undefined {
+  const s = servings?.[0]
+  if (!s) return undefined
+  return `${s.description}: ${s.calories} cal, ${s.protein}g protein`
+}
+
 function DatabaseMatchOptionContent({
   title,
   subtitle,
@@ -147,35 +157,73 @@ function DatabaseMatchOptionContent({
   )
 }
 
+function DatabaseMatchCollapsedCard({
+  title,
+  detail,
+  disabled,
+  onOpen,
+}: {
+  title: string
+  detail?: string
+  disabled?: boolean
+  onOpen: () => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onOpen}
+      className={databaseMatchCardClass(true, Boolean(disabled))}
+    >
+      <span className="block text-sm font-bold text-white/90 leading-snug">{title}</span>
+      <div className="flex items-center justify-between gap-3 mt-2.5 min-w-0">
+        {detail ? (
+          <span className="text-xs text-white/55 truncate min-w-0">{detail}</span>
+        ) : (
+          <span className="text-xs text-white/40 italic">No serving info</span>
+        )}
+        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400/90 shrink-0">
+          Change
+        </span>
+      </div>
+    </button>
+  )
+}
+
 function MacroDatabaseMatchPicker({
   foods,
   selectedIndex,
   disabled = false,
   onSelect,
+  onExpandedChange,
 }: {
   foods: FatSecretFoodRef[]
   /** 1-based food index, or null for None. */
   selectedIndex: number | null
   disabled?: boolean
   onSelect: (foodIndex: number | null) => void
+  onExpandedChange?: (expanded: boolean) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const selectedFood = selectedIndex != null ? foods[selectedIndex - 1] : undefined
 
+  const setExpandedState = (next: boolean) => {
+    setExpanded(next)
+    onExpandedChange?.(next)
+  }
+
   const pick = (index: number | null) => {
     if (index === selectedIndex) {
-      setExpanded(false)
+      setExpandedState(false)
       return
     }
     onSelect(index)
-    setExpanded(false)
+    setExpandedState(false)
   }
 
-  const renderOption = (index: number | null, key: string, interactive = true) => {
+  const renderOption = (index: number | null, key: string) => {
     const selected = selectedIndex === index
-    const className = interactive
-      ? databaseMatchCardClass(selected, disabled)
-      : `w-full text-left rounded-2xl border p-5 ${selected ? databaseMatchCardSelectedClass : databaseMatchCardIdleClass}`
+    const className = databaseMatchCardClass(selected, disabled)
     const body =
       index === null ? (
         <DatabaseMatchOptionContent title="None" subtitle="Estimate without a database match" />
@@ -188,20 +236,25 @@ function MacroDatabaseMatchPicker({
       )
     if (!body) return null
 
-    if (!interactive) {
-      return (
-        <div key={key} className={className}>
-          {body}
-        </div>
-      )
-    }
-
     return (
       <button key={key} type="button" disabled={disabled} onClick={() => pick(index)} className={className}>
         {body}
       </button>
     )
   }
+
+  const collapsedTitle =
+    selectedIndex === null
+      ? 'None'
+      : selectedFood
+        ? fatSecretFoodLabel(selectedFood)
+        : 'None'
+  const collapsedDetail =
+    selectedIndex === null
+      ? 'Estimate without a database match'
+      : selectedFood
+        ? primaryServingLine(selectedFood.servings)
+        : undefined
 
   return (
     <div className="px-4 py-4 border-t border-white/10 bg-black/15">
@@ -219,30 +272,20 @@ function MacroDatabaseMatchPicker({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => setExpanded(false)}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-white opacity-45 hover:opacity-70 hover:bg-white/[0.04] transition-opacity"
+            onClick={() => setExpandedState(false)}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-white opacity-45 hover:opacity-70 hover:bg-white/[0.04] transition-opacity shrink-0"
           >
             <ChevronUp size={14} strokeWidth={2.5} />
             Show less
           </button>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {selectedIndex === null
-            ? renderOption(null, 'none-collapsed', false)
-            : selectedFood
-              ? renderOption(selectedIndex, selectedFood.foodId || 'selected', false)
-              : renderOption(null, 'none-fallback', false)}
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => setExpanded(true)}
-            className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-white/15 text-[11px] font-black uppercase tracking-widest text-white opacity-50 hover:opacity-90 hover:text-emerald-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.04] transition-opacity"
-          >
-            <ChevronDown size={14} strokeWidth={2.5} />
-            {foods.length} other match{foods.length === 1 ? '' : 'es'}
-          </button>
-        </div>
+        <DatabaseMatchCollapsedCard
+          title={collapsedTitle}
+          detail={collapsedDetail}
+          disabled={disabled}
+          onOpen={() => setExpandedState(true)}
+        />
       )}
     </div>
   )
@@ -547,7 +590,10 @@ function MacroEditActionsToolbar({
   onInfoToggle?: () => void
 }) {
   return (
-    <div className="flex justify-between items-center px-4 py-2 bg-white/[0.04]">
+    <div
+      data-macro-edit-toolbar
+      className="flex shrink-0 justify-between items-center px-4 py-2 bg-white/[0.04] border-t border-white/10"
+    >
       <div className="flex gap-2">
         <button
           type="button"
@@ -630,6 +676,7 @@ export function MacroFoodEditCard({
   selectedFatSecretIndex = null,
   fatSecretSelecting = false,
   onSelectFatSecret,
+  scrollContainerRef,
   toolbar = 'day',
 }: {
   fieldId: string
@@ -649,6 +696,7 @@ export function MacroFoodEditCard({
   selectedFatSecretIndex?: number | null
   fatSecretSelecting?: boolean
   onSelectFatSecret?: (foodIndex: number | null) => void
+  scrollContainerRef?: RefObject<HTMLElement | null>
   /** `library`: trash + log. `library-add`: full-width Save + Save & Log. `day`: trash + info + refresh. */
   toolbar?: 'day' | 'library' | 'library-add'
 }) {
@@ -656,138 +704,174 @@ export function MacroFoodEditCard({
   const servingLabelEditable = toolbar === 'library' || toolbar === 'library-add'
   const showCloseButton = toolbar === 'library' || toolbar === 'day'
   const showDatabaseMatch = toolbar === 'day' && Boolean(fatSecretResults?.length && onSelectFatSecret)
+  const constrainToViewportBand = Boolean(scrollContainerRef)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [cardMaxHeight, setCardMaxHeight] = useState<number | undefined>()
+  const [databasePickerExpanded, setDatabasePickerExpanded] = useState(false)
+
+  const remeasureCardMaxHeight = useCallback(() => {
+    if (!constrainToViewportBand) return
+    setCardMaxHeight(macroDietBandMaxHeight())
+  }, [constrainToViewportBand])
+
+  useLayoutEffect(() => {
+    if (!constrainToViewportBand) {
+      setCardMaxHeight(undefined)
+      return
+    }
+    remeasureCardMaxHeight()
+    window.addEventListener('resize', remeasureCardMaxHeight)
+    return () => window.removeEventListener('resize', remeasureCardMaxHeight)
+  }, [constrainToViewportBand, remeasureCardMaxHeight])
+
+  useEffect(() => {
+    if (!constrainToViewportBand) return
+    const target = cardRef.current
+    const container = scrollContainerRef?.current
+    if (!target || !container) return
+    return scheduleScrollCenterInMacroDietBand(target, container)
+  }, [constrainToViewportBand, scrollContainerRef, databasePickerExpanded, infoExpanded, cardMaxHeight])
+
+  const bottomBar =
+    toolbar === 'library-add' ? (
+      <div
+        data-macro-edit-toolbar
+        className="flex shrink-0 gap-2 px-4 py-3 bg-white/[0.04] border-t border-white/10"
+      >
+        <button
+          type="button"
+          disabled={saveDisabled}
+          onClick={(e) => {
+            e.stopPropagation()
+            onSave()
+          }}
+          className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 text-white/80 hover:bg-white/15 disabled:opacity-40 transition-colors"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          disabled={saveDisabled || !onLog}
+          onClick={(e) => {
+            e.stopPropagation()
+            onLog?.()
+          }}
+          className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-40 shadow-lg active:scale-95 transition-all"
+        >
+          Save & Log
+        </button>
+      </div>
+    ) : (
+      <MacroEditActionsToolbar
+        toolbar={toolbar === 'library' ? 'library' : 'day'}
+        saveDisabled={saveDisabled}
+        onDelete={onDelete}
+        onReset={onReset}
+        onLog={onLog}
+        showAudit={showAudit}
+        infoExpanded={infoExpanded}
+        onInfoToggle={onInfoToggle}
+      />
+    )
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-white/10 overflow-hidden shadow-2xl flex flex-col gap-px">
-      <div className="p-3 bg-white/[0.02] flex flex-col gap-3">
-        <div className="flex gap-2 items-center">
-          <MacroEditTextBox
-            value={data.emoji}
-            onChange={(v) => onChange({ ...data, emoji: v })}
-            placeholder="🍱"
-            shellClassName="w-12 shrink-0"
-            inputClassName="text-xl"
-            ariaLabel="Emoji"
-          />
-          <MacroEditTextBox
-            value={data.name}
-            onChange={(v) => onChange({ ...data, name: v })}
-            placeholder="Food name"
-            shellClassName="flex-1 min-w-0"
-            align="left"
-            ariaLabel="Food name"
-          />
-          {showCloseButton ? <MacroEditCloseButton disabled={saveDisabled} onClick={onSave} /> : null}
+    <div
+      ref={cardRef}
+      className="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-white/10 shadow-2xl flex flex-col overflow-hidden"
+      style={cardMaxHeight != null ? { maxHeight: cardMaxHeight } : undefined}
+    >
+      <div
+        data-macro-edit-scroll
+        className={
+          constrainToViewportBand
+            ? 'flex-1 min-h-0 overflow-y-auto overscroll-y-contain flex flex-col gap-px'
+            : 'flex flex-col gap-px overflow-hidden'
+        }
+      >
+        <div className="p-3 bg-white/[0.02] flex flex-col gap-3 shrink-0">
+          <div className="flex gap-2 items-center">
+            <MacroEditTextBox
+              value={data.emoji}
+              onChange={(v) => onChange({ ...data, emoji: v })}
+              placeholder="🍱"
+              shellClassName="w-12 shrink-0"
+              inputClassName="text-xl"
+              ariaLabel="Emoji"
+            />
+            <MacroEditTextBox
+              value={data.name}
+              onChange={(v) => onChange({ ...data, name: v })}
+              placeholder="Food name"
+              shellClassName="flex-1 min-w-0"
+              align="left"
+              ariaLabel="Food name"
+            />
+            {showCloseButton ? <MacroEditCloseButton disabled={saveDisabled} onClick={onSave} /> : null}
+          </div>
+
+          <div className="flex gap-2 w-full">
+            <MacroEditFieldColumn
+              label={
+                servingLabelEditable ? (
+                  <input
+                    value={data.amount}
+                    onChange={(e) => onChange({ ...data, amount: e.target.value })}
+                    className={`${fieldLabelClass} bg-transparent outline-none focus:opacity-70 w-full`}
+                    placeholder="1 serving"
+                    aria-label="Serving size"
+                  />
+                ) : (
+                  servingUnitLabel(data)
+                )
+              }
+            >
+              <MacroFieldInput
+                value={data.servingMultiplier ?? 1}
+                onChange={(v) => {
+                  const n = v === '' ? 0 : parseFloat(v)
+                  onChange({ ...data, servingMultiplier: Number.isFinite(n) ? n : 0 })
+                }}
+                placeholder="1"
+                type="number"
+              />
+            </MacroEditFieldColumn>
+            <MacroEditFieldColumn label="Calories">
+              <MacroFieldInput
+                value={data.calories}
+                onChange={(v) => onChange({ ...data, calories: parseFloat(v) || 0 })}
+                placeholder="0"
+                colorClass="text-emerald-400"
+                type="number"
+              />
+            </MacroEditFieldColumn>
+            <MacroEditFieldColumn label="Protein">
+              <MacroFieldInput
+                value={data.protein}
+                onChange={(v) => onChange({ ...data, protein: parseFloat(v) || 0 })}
+                placeholder="0"
+                colorClass="text-blue-400"
+                type="number"
+                proteinSplit
+                inputId={proteinInputId}
+              />
+            </MacroEditFieldColumn>
+          </div>
         </div>
 
-        <div className="flex gap-2 w-full">
-          <MacroEditFieldColumn
-            label={
-              servingLabelEditable ? (
-                <input
-                  value={data.amount}
-                  onChange={(e) => onChange({ ...data, amount: e.target.value })}
-                  className={`${fieldLabelClass} bg-transparent outline-none focus:opacity-70 w-full`}
-                  placeholder="1 serving"
-                  aria-label="Serving size"
-                />
-              ) : (
-                servingUnitLabel(data)
-              )
-            }
-          >
-            <MacroFieldInput
-              value={data.servingMultiplier ?? 1}
-              onChange={(v) => {
-                const n = v === '' ? 0 : parseFloat(v)
-                onChange({ ...data, servingMultiplier: Number.isFinite(n) ? n : 0 })
-              }}
-              placeholder="1"
-              type="number"
-            />
-          </MacroEditFieldColumn>
-          <MacroEditFieldColumn label="Calories">
-            <MacroFieldInput
-              value={data.calories}
-              onChange={(v) => onChange({ ...data, calories: parseFloat(v) || 0 })}
-              placeholder="0"
-              colorClass="text-emerald-400"
-              type="number"
-            />
-          </MacroEditFieldColumn>
-          <MacroEditFieldColumn label="Protein">
-            <MacroFieldInput
-              value={data.protein}
-              onChange={(v) => onChange({ ...data, protein: parseFloat(v) || 0 })}
-              placeholder="0"
-              colorClass="text-blue-400"
-              type="number"
-              proteinSplit
-              inputId={proteinInputId}
-            />
-          </MacroEditFieldColumn>
-        </div>
-      </div>
-
-      {toolbar === 'library-add' ? (
-        <div className="flex gap-2 px-4 py-3 bg-white/[0.04]">
-          <button
-            type="button"
-            disabled={saveDisabled}
-            onClick={(e) => {
-              e.stopPropagation()
-              onSave()
-            }}
-            className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 text-white/80 hover:bg-white/15 disabled:opacity-40 transition-colors"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            disabled={saveDisabled || !onLog}
-            onClick={(e) => {
-              e.stopPropagation()
-              onLog?.()
-            }}
-            className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-40 shadow-lg active:scale-95 transition-all"
-          >
-            Save & Log
-          </button>
-        </div>
-      ) : showDatabaseMatch ? (
-        <>
+        {showDatabaseMatch ? (
           <MacroDatabaseMatchPicker
             foods={fatSecretResults!}
             selectedIndex={selectedFatSecretIndex}
             disabled={fatSecretSelecting}
             onSelect={onSelectFatSecret!}
+            onExpandedChange={setDatabasePickerExpanded}
           />
-          <MacroEditActionsToolbar
-            toolbar="day"
-            saveDisabled={saveDisabled}
-            onDelete={onDelete}
-            onReset={onReset}
-            onLog={onLog}
-            showAudit={showAudit}
-            infoExpanded={infoExpanded}
-            onInfoToggle={onInfoToggle}
-          />
-        </>
-      ) : (
-        <MacroEditActionsToolbar
-          toolbar={toolbar === 'library' ? 'library' : 'day'}
-          saveDisabled={saveDisabled}
-          onDelete={onDelete}
-          onReset={onReset}
-          onLog={onLog}
-          showAudit={showAudit}
-          infoExpanded={infoExpanded}
-          onInfoToggle={onInfoToggle}
-        />
-      )}
-      {showAudit && infoExpanded && audit && (
-        <MacroFoodAuditPanel audit={audit} customFoods={auditCustomFoods} />
-      )}
+        ) : null}
+        {showAudit && infoExpanded && audit ? (
+          <MacroFoodAuditPanel audit={audit} customFoods={auditCustomFoods} />
+        ) : null}
+      </div>
+      {bottomBar}
     </div>
   )
 }
