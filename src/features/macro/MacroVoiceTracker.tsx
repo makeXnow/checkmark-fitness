@@ -26,6 +26,7 @@ import type { MacroCustomFood, MacroDayItem, MacroGoals, ProteinTrackMode } from
 import {
   buildDayItemServingFields,
   formatServingDisplay,
+  isBarcodeFatSecretItem,
   macroEstimateFatSecretIndex,
   macroItemDisplayEmoji,
   macroItemDisplayName,
@@ -34,7 +35,9 @@ import {
   parseAiDiaryName,
   parseAiEmoji,
   parsedItemsToDayItems,
+  macrosForServingCount,
   parseServingDefinition,
+  resolveCanonicalBaseMacros,
   scaleFatSecretServing,
   sortCustomFoodsByUsage,
   type ParsedFoodItem,
@@ -828,6 +831,7 @@ export function MacroVoiceTracker({
                     baseCalories: defaultServing.calories,
                     baseProtein: defaultServing.protein,
                     fatSecretResults: [food],
+                    fromBarcode: true,
                     macroEstimateSnapshot: {
                       fatSecretIndex: 1,
                       servingIndex,
@@ -890,13 +894,14 @@ export function MacroVoiceTracker({
           const servingChanged = mult !== prevMult
           let calories = fields.calories
           let protein = fields.protein
-          let baseCalories = i.baseCalories
-          let baseProtein = i.baseProtein
-          if (i.baseCalories != null && i.baseProtein != null && fields.servingMultiplier != null) {
+          const canonical = resolveCanonicalBaseMacros(i, customFoodsRef.current)
+          let baseCalories = canonical?.baseCalories ?? i.baseCalories
+          let baseProtein = canonical?.baseProtein ?? i.baseProtein
+          if (baseCalories != null && baseProtein != null) {
             if (servingChanged) {
-              const scaled = scaleFatSecretServing({ calories: i.baseCalories, protein: i.baseProtein }, mult)
-              calories = scaled.calories
-              protein = scaled.protein
+              const synced = macrosForServingCount(baseCalories, baseProtein, mult)
+              calories = synced.calories
+              protein = synced.protein
             } else {
               baseCalories = mult > 0 ? Math.round(fields.calories / mult) : fields.calories
               baseProtein = mult > 0 ? Math.round((fields.protein / mult) * 10) / 10 : fields.protein
@@ -1415,7 +1420,7 @@ function FoodRow({
     )
   }
   const handleEditChange = (fields: MacroFoodEditFields) => {
-    const next = applyDayMacroEditChange(item, editDataRef.current, fields)
+    const next = applyDayMacroEditChange(item, editDataRef.current, fields, customFoods)
     const macroChanged = shouldAutosaveMacroFields(editDataRef.current, next, 'day')
     editDataRef.current = next
     setEditData(next)
@@ -1438,7 +1443,7 @@ function FoodRow({
           fatSecretResults={item.fatSecretResults}
           selectedFatSecretIndex={macroEstimateFatSecretIndex(item.macroEstimateSnapshot)}
           fatSecretSelecting={databasePickLoading}
-          onSelectFatSecret={onSelectFatSecret}
+          onSelectFatSecret={isBarcodeFatSecretItem(item) ? undefined : onSelectFatSecret}
           scrollContainerRef={scrollContainerRef}
           onReset={() => {
             endEdit()

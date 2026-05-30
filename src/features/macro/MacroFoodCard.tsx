@@ -7,10 +7,18 @@ import { ChevronUp, Info, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
 import type {
   FatSecretFoodRef,
   MacroCustomFood,
+  MacroDayItem,
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { describeMacroEstimate, macroItemDisplayEmoji, macroItemDisplayName, macroItemServingFields, scaleFatSecretServing } from './macroLib'
+import {
+  describeMacroEstimate,
+  macroItemDisplayEmoji,
+  macroItemDisplayName,
+  macroItemServingFields,
+  macrosForServingCount,
+  resolveCanonicalBaseMacros,
+} from './macroLib'
 
 export type MacroFoodAuditTrail = {
   userInput?: string
@@ -390,19 +398,20 @@ export function shouldAutosaveMacroFields(
 }
 
 export function applyDayMacroEditChange(
-  item: { baseCalories?: number; baseProtein?: number },
+  item: MacroDayItem,
   prev: MacroFoodEditFields,
   fields: MacroFoodEditFields,
+  customFoods: MacroCustomFood[] = [],
 ): MacroFoodEditFields {
-  if (
-    item.baseCalories != null &&
-    item.baseProtein != null &&
-    fields.servingMultiplier != null &&
-    fields.servingMultiplier !== prev.servingMultiplier
-  ) {
-    const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
-    const scaled = scaleFatSecretServing({ calories: item.baseCalories, protein: item.baseProtein }, mult)
-    return { ...fields, calories: scaled.calories, protein: scaled.protein }
+  if (fields.servingMultiplier != null && fields.servingMultiplier !== prev.servingMultiplier) {
+    const base = resolveCanonicalBaseMacros(item, customFoods)
+    const baseCalories = base?.baseCalories ?? item.baseCalories
+    const baseProtein = base?.baseProtein ?? item.baseProtein
+    if (baseCalories != null && baseProtein != null) {
+      const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
+      const scaled = macrosForServingCount(baseCalories, baseProtein, mult)
+      return { ...fields, calories: scaled.calories, protein: scaled.protein }
+    }
   }
   return fields
 }

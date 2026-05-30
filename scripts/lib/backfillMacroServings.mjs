@@ -150,77 +150,87 @@ export function parseLegacyServing(amount) {
   return { multiplier: 1, servingType: trimmed }
 }
 
-export function backfillMacroItemServingFields(item, customFoods = []) {
-  if (item.baseCalories != null && item.baseProtein != null && item.servingType?.trim()) {
-    const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
-    const def = servingDefinitionFromFields(item)
-    return applyStructuredServingFields(item, mult, def)
+function scaleMacros(baseCalories, baseProtein, mult) {
+  const m = Number.isFinite(mult) && mult > 0 ? mult : 1
+  return {
+    baseCalories,
+    baseProtein,
+    calories: Math.round(baseCalories * m),
+    protein: Math.round(baseProtein * m * 10) / 10,
   }
+}
 
-  const foodsById = new Map(customFoods.map((f) => [f.id, f]))
+function resolveItemServingMultiplier(item) {
+  if (typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0) return item.servingMultiplier
+  const snap = item.macroEstimateSnapshot
+  if (typeof snap?.multiplier === 'number' && snap.multiplier > 0) return snap.multiplier
+  return parseLegacyServing(item.amount || '').multiplier
+}
+
+function fatSecretServingFromItem(item) {
+  const snap = item.macroEstimateSnapshot
+  const fsIdx = snap ? parseIndex(snap.fatSecretIndex) : null
+  if (fsIdx == null || !item.fatSecretResults?.length || fsIdx < 1 || fsIdx > item.fatSecretResults.length) {
+    return null
+  }
+  const food = item.fatSecretResults[fsIdx - 1]
+  const servIdx = parseIndex(snap?.servingIndex)
+  if (servIdx != null && servIdx >= 1 && servIdx <= food.servings.length) return food.servings[servIdx - 1]
+  return food.servings.find((s) => s.isDefault) ?? food.servings[0] ?? null
+}
+
+function resolveCanonicalBaseMacros(item, customFoods = []) {
   if (item.libraryFoodId) {
-    const food = foodsById.get(item.libraryFoodId)
-    if (food) {
-      const legacy = parseLegacyServing(item.amount || '')
-      const mult =
-        typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
-          ? item.servingMultiplier
-          : legacy.multiplier
-      const def = parseServingDefinition(food.baseAmount || '1 serving')
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food) return { baseCalories: food.calories, baseProtein: food.protein }
+  }
+  const serving = fatSecretServingFromItem(item)
+  if (serving) return { baseCalories: serving.calories, baseProtein: serving.protein }
+  if (item.baseCalories != null && item.baseProtein != null) {
+    const mult = resolveItemServingMultiplier(item)
+    const synced = scaleMacros(item.baseCalories, item.baseProtein, mult)
+    const storedCal = item.calories ?? 0
+    if (storedCal <= 0 || Math.abs(storedCal - synced.calories) <= 1) {
+      return { baseCalories: item.baseCalories, baseProtein: item.baseProtein }
+    }
+  }
+  const cal = item.calories ?? 0
+  const pro = item.protein ?? 0
+  if (cal > 0 || pro > 0) {
+    const mult = resolveItemServingMultiplier(item)
+    if (mult > 0) {
       return {
-        ...applyStructuredServingFields(item, mult, def),
-        baseCalories: food.calories,
-        baseProtein: food.protein,
+        baseCalories: Math.round(cal / mult),
+        baseProtein: Math.round((pro / mult) * 10) / 10,
       }
     }
   }
+  return null
+}
 
-  const snap = item.macroEstimateSnapshot
-  const fsIdx = snap ? parseIndex(snap.fatSecretIndex) : null
-  if (snap && fsIdx != null && item.fatSecretResults?.length && fsIdx >= 1 && fsIdx <= item.fatSecretResults.length) {
-    const food = item.fatSecretResults[fsIdx - 1]
-    const servIdx = parseIndex(snap.servingIndex)
-    const serving =
-      servIdx != null && servIdx >= 1 && servIdx <= food.servings.length
-        ? food.servings[servIdx - 1]
-        : food.servings.find((s) => s.isDefault) ?? food.servings[0]
-    const legacy = parseLegacyServing(item.amount || '')
-    const mult =
-      typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
-        ? item.servingMultiplier
-        : typeof snap.multiplier === 'number' && snap.multiplier > 0
-          ? snap.multiplier
-          : legacy.multiplier
-    const def = parseServingDefinition(serving.description)
-    return {
-      ...applyStructuredServingFields(item, mult, def),
-      baseCalories: serving.calories,
-      baseProtein: serving.protein,
-    }
+function servingDefinitionForBackfill(item, customFoods) {
+  if (item.servingType?.trim() || (typeof item.servingSize === 'number' && item.servingUnit?.trim())) {
+    return servingDefinitionFromFields(item)
   }
-
+  const serving = fatSecretServingFromItem(item)
+  if (serving) return parseServingDefinition(serving.description)
+  if (item.libraryFoodId) {
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food) return parseServingDefinition(food.baseAmount || '1 serving')
+  }
   const legacy = parseLegacyServing(item.amount || '')
-  const mult =
-    typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
-      ? item.servingMultiplier
-      : typeof snap?.multiplier === 'number' && snap.multiplier > 0
-        ? snap.multiplier
-        : legacy.multiplier
-  const def = parseServingDefinition(snap?.servingType?.trim() || legacy.servingType)
-  const calories = item.calories ?? 0
-  const protein = item.protein ?? 0
+  return parseServingDefinition(item.macroEstimateSnapshot?.servingType?.trim() || legacy.servingType)
+}
 
-  if (calories > 0 || protein > 0) {
-    const baseCalories = mult > 0 ? Math.round(calories / mult) : calories
-    const baseProtein = mult > 0 ? Math.round((protein / mult) * 10) / 10 : protein
-    return {
-      ...applyStructuredServingFields(item, mult, def),
-      baseCalories,
-      baseProtein,
-    }
+export function backfillMacroItemServingFields(item, customFoods = []) {
+  const mult = resolveItemServingMultiplier(item)
+  const def = servingDefinitionForBackfill(item, customFoods)
+  const structured = applyStructuredServingFields(item, mult, def)
+  const base = resolveCanonicalBaseMacros(item, customFoods)
+  if (base) {
+    return { ...structured, ...scaleMacros(base.baseCalories, base.baseProtein, mult) }
   }
-
-  return applyStructuredServingFields(item, mult, def)
+  return structured
 }
 
 export function backfillMacroLogs(logs, customFoods = []) {

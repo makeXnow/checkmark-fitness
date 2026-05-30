@@ -188,6 +188,8 @@ export interface MacroDayItem {
   fatSecretResults?: FatSecretFoodRef[]
   /** Card is waiting on FatSecret barcode lookup (no code shown in UI). */
   barcodeLookup?: boolean
+  /** Macros came from a barcode scan (single fixed FatSecret match). */
+  fromBarcode?: boolean
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

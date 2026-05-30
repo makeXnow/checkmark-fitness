@@ -5,7 +5,7 @@ import type {
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { applyMassMultiplierCorrection } from './macroMass'
+import { applyMassMultiplierCorrection, parseMassGrams, parseServingBaseGrams } from './macroMass'
 
 export type ParsedFoodItem = {
   emoji?: string
@@ -403,6 +403,96 @@ export type ResolveMacroEstimateOptions = {
   userAmount?: string
 }
 
+/** How many base portions the user ate (editable count in the day log). */
+export function resolveItemServingMultiplier(item: MacroDayItem): number {
+  if (typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0) {
+    return item.servingMultiplier
+  }
+  const snap = item.macroEstimateSnapshot
+  if (typeof snap?.multiplier === 'number' && snap.multiplier > 0) return snap.multiplier
+  return parseLegacyServing(item.amount || '').multiplier
+}
+
+/** Total macros = per-serving base × portion count. */
+export function macrosForServingCount(
+  baseCalories: number,
+  baseProtein: number,
+  servingMultiplier: number,
+): { calories: number; protein: number; baseCalories: number; baseProtein: number } {
+  const mult = Number.isFinite(servingMultiplier) && servingMultiplier > 0 ? servingMultiplier : 1
+  const scaled = scaleFatSecretServing({ calories: baseCalories, protein: baseProtein }, mult)
+  return {
+    baseCalories,
+    baseProtein,
+    calories: scaled.calories,
+    protein: scaled.protein,
+  }
+}
+
+function fatSecretServingFromItem(item: MacroDayItem) {
+  const snap = item.macroEstimateSnapshot
+  const fsIdx = snap ? parseIndex(snap.fatSecretIndex) : null
+  if (fsIdx == null || !item.fatSecretResults?.length || fsIdx < 1 || fsIdx > item.fatSecretResults.length) {
+    return null
+  }
+  const food = item.fatSecretResults[fsIdx - 1]!
+  const servIdx = parseIndex(snap?.servingIndex)
+  if (servIdx != null && servIdx >= 1 && servIdx <= food.servings.length) {
+    return food.servings[servIdx - 1]!
+  }
+  return food.servings.find((s) => s.isDefault) ?? food.servings[0] ?? null
+}
+
+/** Per-serving macros from food library or FatSecret when available. */
+export function resolveCanonicalBaseMacros(
+  item: MacroDayItem,
+  customFoods: MacroCustomFood[] = [],
+): { baseCalories: number; baseProtein: number } | null {
+  if (item.libraryFoodId) {
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food) return { baseCalories: food.calories, baseProtein: food.protein }
+  }
+
+  const serving = fatSecretServingFromItem(item)
+  if (serving) return { baseCalories: serving.calories, baseProtein: serving.protein }
+
+  if (item.baseCalories != null && item.baseProtein != null) {
+    const mult = resolveItemServingMultiplier(item)
+    const synced = macrosForServingCount(item.baseCalories, item.baseProtein, mult)
+    const storedCal = item.calories ?? 0
+    if (storedCal <= 0 || Math.abs(storedCal - synced.calories) <= 1) {
+      return { baseCalories: item.baseCalories, baseProtein: item.baseProtein }
+    }
+  }
+
+  const cal = item.calories ?? 0
+  const pro = item.protein ?? 0
+  if (cal > 0 || pro > 0) {
+    const mult = resolveItemServingMultiplier(item)
+    if (mult > 0) {
+      return {
+        baseCalories: Math.round(cal / mult),
+        baseProtein: Math.round((pro / mult) * 10) / 10,
+      }
+    }
+  }
+
+  return null
+}
+
+/** Portion count for count-based servings (tray, piece); weight servings use mass multiplier. */
+function resolveCountServingMultiplier(
+  userAmount: string | undefined,
+  selectedServingDescription: string,
+  aiMultiplier: number | undefined,
+): number {
+  const ai = typeof aiMultiplier === 'number' && aiMultiplier > 0 ? aiMultiplier : 1
+  if (parseServingBaseGrams(selectedServingDescription) != null) return ai
+  if (userAmount?.trim() && parseMassGrams(userAmount) != null) return ai
+  const legacy = parseLegacyServing(userAmount || '')
+  return legacy.multiplier > 0 ? legacy.multiplier : ai
+}
+
 export function resolveMacroEstimate(
   response: MacroEstimateResponse,
   foods: MacroCustomFood[],
@@ -440,7 +530,11 @@ export function resolveMacroEstimate(
       servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
-    const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
+    const multiplier = resolveCountServingMultiplier(
+      options?.userAmount,
+      serving.description,
+      adjusted.multiplier,
+    )
     const scaled = scaleFatSecretServing(serving, multiplier)
     const def = parseServingDefinition(serving.description)
     return {
@@ -632,6 +726,17 @@ export function parseSnapshotFromItem(it: ParsedFoodItem): MacroParseSnapshot {
   }
 }
 
+/** Barcode lookup yields one fixed FatSecret match — hide the database picker. */
+export function isBarcodeFatSecretItem(item: MacroDayItem): boolean {
+  if (item.fromBarcode) return true
+  return Boolean(
+    item.fatSecretResults?.length === 1 &&
+      !item.parseSnapshot &&
+      !item.fatSecretSearch?.trim() &&
+      !item.rawText?.trim(),
+  )
+}
+
 /** Incoming list defines which items exist (so deletes stick). Per-id fields merge for parallel macro races. */
 export function mergeMacroDayLists(prev: MacroDayItem[], incoming: MacroDayItem[]): MacroDayItem[] {
   const prevById = new Map(prev.map((item) => [item.id, item]))
@@ -641,81 +746,33 @@ export function mergeMacroDayLists(prev: MacroDayItem[], incoming: MacroDayItem[
   })
 }
 
+function servingDefinitionForBackfill(item: MacroDayItem, customFoods: MacroCustomFood[]): ServingDefinition {
+  if (item.servingType?.trim() || (typeof item.servingSize === 'number' && item.servingUnit?.trim())) {
+    return servingDefinitionFromFields(item)
+  }
+  const serving = fatSecretServingFromItem(item)
+  if (serving) return parseServingDefinition(serving.description)
+  if (item.libraryFoodId) {
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food) return parseServingDefinition(food.baseAmount || '1 serving')
+  }
+  const legacy = parseLegacyServing(item.amount || '')
+  return parseServingDefinition(item.macroEstimateSnapshot?.servingType?.trim() || legacy.servingType)
+}
+
 /** Resume macro estimation for items saved before calories were calculated. */
 export function backfillMacroItemServingFields(
   item: MacroDayItem,
   customFoods: MacroCustomFood[] = [],
 ): MacroDayItem {
-  if (item.baseCalories != null && item.baseProtein != null && item.servingType?.trim()) {
-    const mult = typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0 ? item.servingMultiplier : 1
-    const def = servingDefinitionFromFields(item)
-    return applyStructuredServingFields(item, mult, def)
+  const mult = resolveItemServingMultiplier(item)
+  const def = servingDefinitionForBackfill(item, customFoods)
+  const structured = applyStructuredServingFields(item, mult, def)
+  const base = resolveCanonicalBaseMacros(item, customFoods)
+  if (base) {
+    return { ...structured, ...macrosForServingCount(base.baseCalories, base.baseProtein, mult) }
   }
-
-  const foodsById = new Map(customFoods.map((f) => [f.id, f]))
-  if (item.libraryFoodId) {
-    const food = foodsById.get(item.libraryFoodId)
-    if (food) {
-      const legacy = parseLegacyServing(item.amount || '')
-      const mult =
-        typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
-          ? item.servingMultiplier
-          : legacy.multiplier
-      const def = parseServingDefinition(food.baseAmount || '1 serving')
-      return {
-        ...applyStructuredServingFields(item, mult, def),
-        baseCalories: food.calories,
-        baseProtein: food.protein,
-      }
-    }
-  }
-
-  const snap = item.macroEstimateSnapshot
-  const fsIdx = snap ? parseIndex(snap.fatSecretIndex) : null
-  if (snap && fsIdx != null && item.fatSecretResults?.length && fsIdx >= 1 && fsIdx <= item.fatSecretResults.length) {
-    const food = item.fatSecretResults[fsIdx - 1]!
-    const servIdx = parseIndex(snap.servingIndex)
-    const serving =
-      servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
-        ? food.servings[servIdx - 1]!
-        : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
-    const legacy = parseLegacyServing(item.amount || '')
-    const mult =
-      typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
-        ? item.servingMultiplier
-        : typeof snap.multiplier === 'number' && snap.multiplier > 0
-          ? snap.multiplier
-          : legacy.multiplier
-    const def = parseServingDefinition(serving.description)
-    return {
-      ...applyStructuredServingFields(item, mult, def),
-      baseCalories: serving.calories,
-      baseProtein: serving.protein,
-    }
-  }
-
-  const legacy = parseLegacyServing(item.amount || '')
-  const mult =
-    typeof item.servingMultiplier === 'number' && item.servingMultiplier > 0
-      ? item.servingMultiplier
-      : typeof snap?.multiplier === 'number' && snap.multiplier > 0
-        ? snap.multiplier
-        : legacy.multiplier
-  const def = parseServingDefinition(snap?.servingType?.trim() || legacy.servingType)
-  const calories = item.calories ?? 0
-  const protein = item.protein ?? 0
-
-  if (calories > 0 || protein > 0) {
-    const baseCalories = mult > 0 ? Math.round(calories / mult) : calories
-    const baseProtein = mult > 0 ? Math.round((protein / mult) * 10) / 10 : protein
-    return {
-      ...applyStructuredServingFields(item, mult, def),
-      baseCalories,
-      baseProtein,
-    }
-  }
-
-  return applyStructuredServingFields(item, mult, def)
+  return structured
 }
 
 function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayItem): boolean {
@@ -726,6 +783,8 @@ function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayIt
     before.servingMultiplier !== after.servingMultiplier ||
     before.baseCalories !== after.baseCalories ||
     before.baseProtein !== after.baseProtein ||
+    before.calories !== after.calories ||
+    before.protein !== after.protein ||
     before.amount !== after.amount
   )
 }
