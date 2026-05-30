@@ -65,13 +65,28 @@ Handle self-corrections. JSON only:
 
 Priority (first match wins):
 1. If Notes contain explicit calories and/or protein the user stated, use those (libraryIndex null, fatSecretIndex null, return calories and protein).
-2. If FOOD LIBRARY match: libraryIndex (1-based) + multiplier. Do not guess calories/protein.
-3. If FATSECRET RESULTS match: fatSecretIndex (1-based food), servingIndex (1-based serving for that food), multiplier. Do not guess calories/protein.
+2. If FOOD LIBRARY match: libraryIndex (1-based). Do not guess calories/protein.
+3. If FATSECRET RESULTS match: fatSecretIndex (1-based food), servingIndex (1-based serving). Do not guess calories/protein.
 4. Otherwise: libraryIndex null, fatSecretIndex null, return calories, protein, servingType, and multiplier.
 
+RESOLVED AMOUNT (always required — include in every response):
+Output "resolvedAmount" — the user's actual portion as a machine-readable "<number> <unit>" string.
+Rules:
+- Use the user's exact unit when clearly stated: count noun in singular form ("gummy" not "gummies", "slice" not "slices", "sandwich" not "sandwiches", "egg" not "eggs"), or a standard measure ("oz", "g", "lb", "ml", "cup", "tbsp", "tsp").
+- For FatSecret count-based matches (e.g. serving line "7 candies", "3 pieces"), use the FatSecret serving's own unit word in singular form ("candy" not "gummy", "piece" not "nugget") so the app can match quantities precisely.
+- For fractions/halves: use decimal form ("0.5 sandwich" not "half sandwich", "1.5 cup" not "one and a half cups").
+- For vague portions ("small handful", "a few", "large plate", "some"): estimate in grams based on the food type and typical portion — this is the one place where AI judgment on quantity is expected.
+- The app uses resolvedAmount to compute the DB multiplier — do NOT compute multiplier yourself for library or FatSecret matches.
+- Examples: "6 gummy", "4 oz", "0.5 sandwich", "2 slice", "25 g", "1 serving", "1.5 cup", "3 egg", "100 g", "1 bar"
+
+SERVINGINDEX SELECTION FOR FATSECRET MATCHES:
+- Choose the servingIndex whose unit best matches the resolvedAmount unit type.
+- resolvedAmount in grams or ounces → prefer a gram or oz-based DB serving line.
+- resolvedAmount in count ("6 gummy") → prefer a count-based DB serving line ("3 gummies").
+- resolvedAmount in cups/tbsp → prefer a volume-based DB serving line.
+
 USER-CONFIRMED FATSECRET (when the prompt says so, or only one FatSecret result is listed):
-- Treat that food as the match. Use fatSecretIndex 1, pick the best servingIndex and multiplier for the user's portion, and do not use library or direct AI estimate instead.
-- Use the classification serving/notes to choose servingIndex and multiplier, then derive calories and protein from that database serving.
+- Treat that food as the match. Use fatSecretIndex 1, pick the best servingIndex for the unit type. Do not use library or direct AI estimate instead.
 
 USER-REJECTED FATSECRET (when the prompt says the user rejected database matches):
 - Do not use FatSecret. Use direct AI estimate only (libraryIndex null, fatSecretIndex null, return calories, protein, servingType, multiplier).
@@ -79,24 +94,21 @@ USER-REJECTED FATSECRET (when the prompt says the user rejected database matches
 LIBRARY / FATSECRET RULES:
 - Only match when the item is essentially the same product — not a shared ingredient (e.g. "orange chicken" ≠ library "chicken").
 
-SERVING TYPE (servingType):
+SERVING TYPE (servingType) — direct AI estimates (path 4) only:
 - Short unit label for ONE base portion (e.g. "can", "cup", "slice", "tbsp", "serving", "1 pouch").
-- Pick the most appropriate unit from nutrition facts, FatSecret, notes, or context.
-- Required for direct AI estimates (path 4). Omit for library/FatSecret matches — the app derives it.
+- Pick the most appropriate unit from nutrition facts, context, or resolvedAmount unit.
 
-MULTIPLIER:
-- How many of the chosen base serving the user's portion represents (2 for two cookies, 0.8 for four-fifths of a can, 1.25 for a large handful vs "1 oz").
-
-MASS / WEIGHT (oz, g, lb, lbs, pounds):
-- When Serving is a weight (e.g. "4 lbs", "6 oz", "170 g"), convert to grams: 1 oz ≈ 28.35 g, 1 lb ≈ 453.59 g.
-- For FatSecret or library matches: multiplier = (user weight in g) ÷ (chosen database serving weight in g). Never use the quantity digit alone as multiplier (e.g. "4 lbs" with a 100 g FatSecret serving → multiplier ≈ 18.14, not 4).
-- Pick servingIndex for the database line whose unit fits (100g, oz, etc.). If only 100g exists, use that and compute multiplier from grams.
-- Examples: Serving "4 lbs", FatSecret 100g → servingIndex for 100g, multiplier ≈ 18.14. Serving "6 oz", library base "3 oz (84g)" → multiplier = 2 (6÷3 oz), not 6.
+MULTIPLIER — direct AI estimates (path 4) only:
+- How many of the chosen base serving the user's portion represents.
+- For library/FatSecret matches: set to 1 — the app calculates the correct value from resolvedAmount.
 
 JSON only. Examples:
-{ "libraryIndex": 3, "multiplier": 2 }
-{ "fatSecretIndex": 2, "servingIndex": 1, "multiplier": 1 }
-{ "libraryIndex": null, "fatSecretIndex": null, "calories": 180, "protein": 6, "servingType": "can", "multiplier": 1 }`,
+{ "libraryIndex": 3, "resolvedAmount": "2 serving", "multiplier": 1 }
+{ "fatSecretIndex": 2, "servingIndex": 1, "resolvedAmount": "6 gummy", "multiplier": 1 }
+{ "fatSecretIndex": 1, "servingIndex": 2, "resolvedAmount": "4 oz", "multiplier": 1 }
+{ "fatSecretIndex": 1, "servingIndex": 1, "resolvedAmount": "25 g", "multiplier": 1 }
+{ "libraryIndex": null, "fatSecretIndex": null, "calories": 180, "protein": 6, "servingType": "can", "resolvedAmount": "1 can", "multiplier": 1 }
+{ "libraryIndex": null, "fatSecretIndex": null, "calories": 143, "protein": 5, "servingType": "g", "resolvedAmount": "25 g", "multiplier": 25 }`,
   ANALYZE_FRONT: `Analyze this food packaging front label.
 
 ${DIARY_NAME_RULES}

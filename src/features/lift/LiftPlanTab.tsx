@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { FileText, Plus, Trash2 } from 'lucide-react'
 import type { LiftPayload, LiftWarmupSet, LiftWeightUnit, LiftWorkout } from '../../types/domain'
 import { defaultWarmupSets, makeLiftId, newEmptyWorkout } from './liftDefaults'
+import {
+  DEFAULT_LIFT_DURATION_SECONDS,
+  DEFAULT_WARMUP_DURATION_SECONDS,
+} from './liftTimer'
 import { workoutWithSessionWeight } from './plates'
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -85,6 +89,8 @@ interface WorkoutDraft {
   barWeight: string
   hasWarmup: boolean
   warmupSets: { id: string; reps: string; percentage: string }[]
+  warmupDurationSeconds: string
+  liftDurationSeconds: string
 }
 
 function liftToDraft(w: LiftWorkout): WorkoutDraft {
@@ -104,6 +110,8 @@ function liftToDraft(w: LiftWorkout): WorkoutDraft {
       reps: String(wu.reps),
       percentage: String(wu.percentage),
     })),
+    warmupDurationSeconds: String(w.warmupDurationSeconds ?? DEFAULT_WARMUP_DURATION_SECONDS),
+    liftDurationSeconds: String(w.liftDurationSeconds ?? DEFAULT_LIFT_DURATION_SECONDS),
   }
 }
 
@@ -142,6 +150,8 @@ function draftToLift(d: WorkoutDraft, original: LiftWorkout | undefined): LiftWo
     barWeight: num(d.barWeight, orig.barWeight ?? 45),
     hasWarmup: d.hasWarmup,
     warmupSets,
+    warmupDurationSeconds: int(d.warmupDurationSeconds, orig.warmupDurationSeconds ?? DEFAULT_WARMUP_DURATION_SECONDS),
+    liftDurationSeconds: int(d.liftDurationSeconds, orig.liftDurationSeconds ?? DEFAULT_LIFT_DURATION_SECONDS),
   }
 }
 
@@ -342,6 +352,28 @@ function WorkoutEditor({
               </button>
             </div>
           )}
+        </div>
+
+        <div className="mt-6 border-t border-neutral-800 pt-4">
+          <p className="mb-3 text-xs text-neutral-500">
+            Timer block length (rest + lift combined) for this exercise.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <PlanInput
+              label="Warm-up (sec)"
+              value={draft.warmupDurationSeconds}
+              placeholder={String(DEFAULT_WARMUP_DURATION_SECONDS)}
+              disabled={disabled}
+              onChange={(v) => setDraft((d) => ({ ...d, warmupDurationSeconds: v }))}
+            />
+            <PlanInput
+              label="Working set (sec)"
+              value={draft.liftDurationSeconds}
+              placeholder={String(DEFAULT_LIFT_DURATION_SECONDS)}
+              disabled={disabled}
+              onChange={(v) => setDraft((d) => ({ ...d, liftDurationSeconds: v }))}
+            />
+          </div>
         </div>
       </div>
 

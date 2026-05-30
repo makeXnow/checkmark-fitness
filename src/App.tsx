@@ -31,6 +31,9 @@ import {
   normalizeLiftHistoryOnLoad,
   reconcileWorkoutMainWeightsFromHistory,
 } from './features/lift/liftHistory'
+import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
+import { useLiftTimer } from './features/lift/useLiftTimer'
+import { workoutWithSessionWeight } from './features/lift/plates'
 import { computeWeekPercentageRange, getWeekDatesFor } from './features/habits/habitsUi'
 import { localDateISO } from './lib/localDate'
 import { scrollAppMainToTop } from './lib/scrollAppMain'
@@ -268,6 +271,16 @@ export default function App() {
     const n = Number.isFinite(rawLiftDayIndex) ? Math.floor(rawLiftDayIndex) : 0
     return Math.max(0, Math.min(len - 1, n))
   }, [sortedLiftDays.length, rawLiftDayIndex])
+
+  const currentLiftDayId = sortedLiftDays[safeLiftDayIndex]?.id
+
+  const liftDayWorkouts = useMemo(() => {
+    if (!currentLiftDayId) return []
+    const plates = liftPayload.availablePlates || []
+    return liftPayload.workouts
+      .filter((w) => w.dayId === currentLiftDayId)
+      .map((w) => workoutWithSessionWeight(w, liftPayload.history, plates))
+  }, [currentLiftDayId, liftPayload.availablePlates, liftPayload.history, liftPayload.workouts])
 
   const mergeAppState = useCallback((row: AppStateRow) => {
     setBoot((prev) => (prev ? { ...prev, appState: row as AppStateRow } : prev))
@@ -536,6 +549,23 @@ export default function App() {
     return liftSaveSeq.current
   }, [resyncFromServer])
 
+  const liftTimerEnabled =
+    selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout'
+
+  const liftTimer = useLiftTimer({
+    payload: liftPayload,
+    dayId: currentLiftDayId,
+    dayWorkouts: liftDayWorkouts,
+    enabled: liftTimerEnabled,
+    onPersist: (next) => void saveLiftBundle(next),
+  })
+
+  useEffect(() => {
+    if (settingsOpen && liftTimer.isPlaying) {
+      liftTimer.pause()
+    }
+  }, [settingsOpen, liftTimer.isPlaying, liftTimer.pause])
+
   const markLiftHabitIfNeeded = useCallback(
     (localDate: string) => {
       const prev = bootRef.current
@@ -748,7 +778,9 @@ export default function App() {
           </div>
 
           <div className="flex min-w-0 items-center justify-self-end justify-end">
-            {!settingsOpen && selectedTab === 'habits' && isTodaySelected && habitsWeekPercentRange ? (
+            {!settingsOpen && selectedTab === 'lift' && liftSubRoute === 'workout' ? (
+              <LiftTimerHeaderControl timer={liftTimer} />
+            ) : !settingsOpen && selectedTab === 'habits' && isTodaySelected && habitsWeekPercentRange ? (
               <span className="shrink-0 font-black text-[10px] uppercase tracking-[0.2em] text-neutral-500">
                 {habitsWeekPercentRange.min === habitsWeekPercentRange.max
                   ? `${habitsWeekPercentRange.min}%`
@@ -863,6 +895,12 @@ export default function App() {
                     onPersist={(next) => void saveLiftBundle(next)}
                     onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
                     onWorkoutSubmitted={handleLiftWorkoutSubmitted}
+                    liftTimer={{
+                      session: liftTimer.session,
+                      liveElapsedMs: liftTimer.liveElapsedMs,
+                      activeWorkoutId: liftTimer.activeWorkoutId,
+                      displayStatus: liftTimer.displayStatus,
+                    }}
                   />
                 </Suspense>
               ),

@@ -88,6 +88,80 @@ function preferredRecorderMimeType(): string {
   return ''
 }
 
+const MIC_WAVE_BAR_COUNT = 20
+const MIC_WAVE_CALIBRATION_FRAMES = 24
+const MIC_WAVE_LEVEL_MAX = 165
+const MIC_WAVE_SHIFT_MS = 48
+
+function createMicWaveHistory(): number[] {
+  return Array(MIC_WAVE_BAR_COUNT).fill(0)
+}
+
+function advanceMicWaveHistory(history: number[], nextLevel: number): number[] {
+  return [...history.slice(1), nextLevel]
+}
+
+type MicWaveMeter = {
+  noiseFloor: number
+  calibrationFrames: number
+  speechPeak: number
+}
+
+function createMicWaveMeter(): MicWaveMeter {
+  return { noiseFloor: 0, calibrationFrames: 0, speechPeak: 72 }
+}
+
+/** UI-only mic level for the recording waveform (not used for transcription). */
+function measureMicWaveLevel(analyser: AnalyserNode, sampleRate: number, meter: MicWaveMeter): number {
+  const freqBuffer = new Uint8Array(analyser.frequencyBinCount)
+  analyser.getByteFrequencyData(freqBuffer)
+
+  const binHz = sampleRate / analyser.fftSize
+  const lowBin = Math.max(1, Math.floor(140 / binHz))
+  const highBin = Math.min(freqBuffer.length - 1, Math.ceil(3200 / binHz))
+
+  let sum = 0
+  let peak = 0
+  for (let i = lowBin; i <= highBin; i++) {
+    sum += freqBuffer[i]
+    peak = Math.max(peak, freqBuffer[i])
+  }
+  const bandCount = Math.max(1, highBin - lowBin + 1)
+  const avg = sum / bandCount
+  const speechEnergy = peak * 0.15 + avg * 0.85
+
+  if (meter.calibrationFrames < MIC_WAVE_CALIBRATION_FRAMES) {
+    meter.calibrationFrames += 1
+    meter.noiseFloor =
+      meter.calibrationFrames === 1 ? speechEnergy : meter.noiseFloor * 0.8 + speechEnergy * 0.2
+    return 0
+  }
+
+  if (speechEnergy < meter.noiseFloor * 1.15) {
+    meter.noiseFloor = meter.noiseFloor * 0.994 + speechEnergy * 0.006
+  }
+
+  const gate = meter.noiseFloor * 1.5
+  const voiceEnergy = Math.max(0, speechEnergy - gate)
+  if (voiceEnergy <= 0) return 0
+
+  if (voiceEnergy > meter.speechPeak) {
+    meter.speechPeak = meter.speechPeak * 0.996 + voiceEnergy * 0.004
+  } else {
+    meter.speechPeak = Math.max(56, meter.speechPeak * 0.9992)
+  }
+
+  const normalized = Math.min(1, voiceEnergy / meter.speechPeak)
+  const curved = Math.pow(normalized, 2.4)
+  return Math.round(curved * MIC_WAVE_LEVEL_MAX)
+}
+
+function micWaveBarHeight(level: number): number {
+  if (level < 6) return 6
+  const normalized = level / MIC_WAVE_LEVEL_MAX
+  return Math.max(6, Math.min(32, 6 + normalized * 26))
+}
+
 function StatusDashboard({
   consumed,
   goal,
@@ -194,12 +268,14 @@ export function MacroVoiceTracker({
 
   const [inputText, setInputText] = useState('')
   const [recording, setRecording] = useState(false)
-  const [volume, setVolume] = useState(0)
+  const [waveHistory, setWaveHistory] = useState<number[]>(() => createMicWaveHistory())
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const audioCtxRef = useRef<AudioContext | null>(null)
   const rafRef = useRef<number>(0)
+  const micWaveMeterRef = useRef<MicWaveMeter>(createMicWaveMeter())
+  const micWaveShiftAtRef = useRef(0)
   const recordingLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const processingRefs = useRef<Record<string, AbortController>>({})
@@ -363,8 +439,14 @@ export function MacroVoiceTracker({
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
+            const libraryFood = result.libraryFoodId
+              ? customFoodsRef.current.find((f) => f.id === result.libraryFoodId)
+              : undefined
             return {
               ...i,
+              ...(libraryFood
+                ? { name: libraryFood.name, emoji: libraryFood.emoji || '🍱' }
+                : {}),
               calories: result.calories,
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
@@ -449,7 +531,6 @@ export function MacroVoiceTracker({
 
       const estimateItem: MacroDayItem = {
         ...item,
-        timestamp: Date.now(),
         macroEstimateSnapshot: nextSnapshot,
       }
 
@@ -612,14 +693,34 @@ export function MacroVoiceTracker({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const audioCtx = new AudioContext()
       audioCtxRef.current = audioCtx
+      micWaveMeterRef.current = createMicWaveMeter()
+      micWaveShiftAtRef.current = 0
+      setWaveHistory(createMicWaveHistory())
+
+      const source = audioCtx.createMediaStreamSource(stream)
+      const highpass = audioCtx.createBiquadFilter()
+      highpass.type = 'highpass'
+      highpass.frequency.value = 140
+      highpass.Q.value = 0.75
+      const lowpass = audioCtx.createBiquadFilter()
+      lowpass.type = 'lowpass'
+      lowpass.frequency.value = 3200
+      lowpass.Q.value = 0.75
+
       const analyser = audioCtx.createAnalyser()
-      audioCtx.createMediaStreamSource(stream).connect(analyser)
       analyser.fftSize = 256
-      const dataArray = new Uint8Array(analyser.frequencyBinCount)
+      analyser.smoothingTimeConstant = 0.68
+      source.connect(highpass)
+      highpass.connect(lowpass)
+      lowpass.connect(analyser)
+
       const tick = () => {
-        analyser.getByteFrequencyData(dataArray)
-        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
-        setVolume(avg)
+        const now = performance.now()
+        const level = measureMicWaveLevel(analyser, audioCtx.sampleRate, micWaveMeterRef.current)
+        if (now - micWaveShiftAtRef.current >= MIC_WAVE_SHIFT_MS) {
+          micWaveShiftAtRef.current = now
+          setWaveHistory((prev) => advanceMicWaveHistory(prev, level))
+        }
         rafRef.current = requestAnimationFrame(tick)
       }
       tick()
@@ -630,11 +731,9 @@ export function MacroVoiceTracker({
       rec.ondataavailable = (e) => audioChunksRef.current.push(e.data)
       rec.onstop = async () => {
         cancelAnimationFrame(rafRef.current)
+        setWaveHistory(createMicWaveHistory())
         await audioCtx.close()
         if (audioChunksRef.current.length === 0) return
-        const tempId = crypto.randomUUID()
-        replaceDay((prev) => [...prev, { id: tempId, status: 'transcribing', timestamp: Date.now(), name: '', amount: '' }])
-        scrollDietListToTop()
         const mime = rec.mimeType || recorderMime || 'audio/webm'
         const ext = mime.includes('mp4') || mime.includes('aac') ? 'm4a' : 'webm'
         const blob = new Blob(audioChunksRef.current, { type: mime })
@@ -642,24 +741,29 @@ export function MacroVoiceTracker({
         abortRef.current = new AbortController()
         try {
           const text = await transcribeAudio(file)
-          replaceDay((prev) =>
-            prev
-              .filter((i) => i.id !== tempId)
-              .concat({
-                id: tempId,
-                status: 'processing_cancellable',
-                rawText: text.trim(),
-                timestamp: Date.now(),
-                name: '',
-                amount: '',
-              }),
-          )
+          const tempId = crypto.randomUUID()
+          replaceDay((prev) => [
+            ...prev,
+            {
+              id: tempId,
+              status: 'processing_cancellable',
+              rawText: text.trim(),
+              timestamp: Date.now(),
+              name: '',
+              amount: '',
+            },
+          ])
+          scrollDietListToTop()
           void startParsingFlow(tempId, text.trim(), null)
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'Transcription failed'
-          replaceDay((prev) =>
-            prev.map((i) => (i.id === tempId ? { ...i, status: 'editing_raw', rawText: msg } : i)),
-          )
+          if (msg.startsWith('No speech detected')) return
+          const tempId = crypto.randomUUID()
+          replaceDay((prev) => [
+            ...prev,
+            { id: tempId, status: 'editing_raw', rawText: msg, timestamp: Date.now(), name: '', amount: '' },
+          ])
+          scrollDietListToTop()
         }
         stream.getTracks().forEach((t) => t.stop())
       }
@@ -917,7 +1021,6 @@ export function MacroVoiceTracker({
             baseCalories,
             baseProtein,
             status: 'ready',
-            timestamp: Date.now(),
           }
         }),
       )
@@ -1001,13 +1104,7 @@ export function MacroVoiceTracker({
             <p className="opacity-30 font-bold text-[10px] uppercase tracking-widest text-white">No entries yet</p>
           </div>
         ) : (
-          [...items]
-            .map((item, idx) => ({ item, idx }))
-            .sort((a, b) => {
-              const byTime = (b.item.timestamp || 0) - (a.item.timestamp || 0)
-              return byTime !== 0 ? byTime : b.idx - a.idx
-            })
-            .map(({ item }) => (
+          [...items].reverse().map((item) => (
               <FoodRow
                 key={item.id}
                 item={item}
@@ -1100,7 +1197,7 @@ export function MacroVoiceTracker({
         inputText={inputText}
         setInputText={setInputText}
         recording={recording}
-        volume={volume}
+        waveHistory={waveHistory}
         quickScan={quickScan}
         setQuickScan={setQuickScan}
         onMic={handleMicToggle}
@@ -1258,7 +1355,7 @@ function FoodRow({
   onReprocess: (raw: string) => void
   onCancelTranscription: () => void
 }) {
-  const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item))
+  const [editData, setEditData] = useState<MacroFoodEditFields>(() => itemToEditFields(item, customFoods))
   const editDataRef = useRef(editData)
   const [tempRaw, setTempRaw] = useState(item.rawText || '')
   const [infoExpanded, setInfoExpanded] = useState(false)
@@ -1273,20 +1370,20 @@ function FoodRow({
   useEffect(() => {
     if (!isEditing) {
       cancelMacroAutosave()
-      const fields = itemToEditFields(item)
+      const fields = itemToEditFields(item, customFoods)
       editDataRef.current = fields
       setEditData(fields)
       setInfoExpanded(false)
     }
     setTempRaw(item.rawText || '')
-  }, [item, isEditing, cancelMacroAutosave])
+  }, [item, isEditing, cancelMacroAutosave, customFoods])
 
   useEffect(() => {
     if (!isEditing) return
-    const fields = itemToEditFields(item)
+    const fields = itemToEditFields(item, customFoods)
     editDataRef.current = fields
     setEditData(fields)
-  }, [isEditing, item.id])
+  }, [isEditing, item.id, customFoods])
 
   const wasPendingRef = useRef(item.status === 'pending')
   const wasDatabasePickRef = useRef(databasePickLoading)
@@ -1301,13 +1398,14 @@ function FoodRow({
     const wasDatabasePick = wasDatabasePickRef.current
     wasDatabasePickRef.current = databasePickLoading
     if ((wasPending && item.status === 'ready') || (wasDatabasePick && !databasePickLoading)) {
-      const fields = itemToEditFields(item)
+      const fields = itemToEditFields(item, customFoods)
       editDataRef.current = fields
       setEditData(fields)
     }
   }, [
     isEditing,
     databasePickLoading,
+    customFoods,
     item.status,
     item.calories,
     item.protein,
@@ -1466,8 +1564,8 @@ function FoodRow({
 
   return (
     <MacroFoodViewCard
-      emoji={macroItemDisplayEmoji(item)}
-      name={macroItemDisplayName(item)}
+      emoji={macroItemDisplayEmoji(item, customFoods)}
+      name={macroItemDisplayName(item, customFoods)}
       amount={macroItemServingFields(item).amount}
       calories={item.calories || 0}
       protein={item.protein || 0}
@@ -1482,7 +1580,7 @@ function InteractionDock({
   inputText,
   setInputText,
   recording,
-  volume,
+  waveHistory,
   quickScan,
   setQuickScan,
   onMic,
@@ -1495,7 +1593,7 @@ function InteractionDock({
   inputText: string
   setInputText: (s: string) => void
   recording: boolean
-  volume: number
+  waveHistory: number[]
   quickScan: QuickScanState
   setQuickScan: React.Dispatch<React.SetStateAction<QuickScanState>>
   onMic: () => void
@@ -1559,19 +1657,32 @@ function InteractionDock({
           >
             {recording ? (
               <div className="flex items-center justify-around h-[3.5rem] w-full px-2">
-                {[...Array(20)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-[3px] bg-white opacity-40 rounded-full"
-                    style={{ height: `${Math.max(4, (volume / 255) * 44 * (0.6 + Math.random() * 0.4))}px` }}
-                  />
-                ))}
+                {waveHistory.map((level, i) => {
+                  const height = micWaveBarHeight(level)
+                  return (
+                    <div
+                      key={i}
+                      className="w-[3px] bg-white rounded-full transition-[height,opacity] duration-100 ease-linear"
+                      style={{
+                        height: `${height}px`,
+                        opacity: level < 6 ? 0.28 : 0.3 + (level / MIC_WAVE_LEVEL_MAX) * 0.45,
+                      }}
+                    />
+                  )
+                })}
               </div>
             ) : (
               <textarea
                 ref={inputRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' || e.shiftKey) return
+                  e.preventDefault()
+                  if (recording) onMic()
+                  else if (inputText.trim() || isQuickReady) onSend()
+                  else onMic()
+                }}
                 placeholder={quickScan.isOpen ? 'How much?' : 'What did you eat today?'}
                 className="w-full bg-transparent text-white font-medium text-base resize-none placeholder:opacity-30 leading-snug outline-none py-3"
                 rows={1}

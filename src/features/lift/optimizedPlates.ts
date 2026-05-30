@@ -52,8 +52,9 @@ function sideWeightForTarget(targetWeight: number, barWeight: number, smallestPl
   return Math.round(rawPerSide / smallestPlate) * smallestPlate
 }
 
-/** Max count per plate size on one side (matches prototype: pairs for most, many 45s). */
+/** Max count per plate size on one side (optimize mode only). */
 function plateLimit(plate: number, ctx: PlateContext): number {
+  if (Math.abs(plate - 2.5) < 0.001) return 1
   const largest = ctx.availablePlates[0]
   if (plate === largest) return 20
   return 2

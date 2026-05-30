@@ -1,14 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, FileText, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AppAccentTextButton } from '../../core/AppAccentTextButton'
 import { SettingSwitch } from '../../core/SettingSwitch'
 import { localDateISO } from '../../lib/localDate'
-import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit, LiftWorkout } from '../../types/domain'
+import type {
+  LiftHistoryEntry,
+  LiftPayload,
+  LiftSubRoute,
+  LiftTimerSession,
+  LiftTimerStatus,
+  LiftWeightUnit,
+  LiftWorkout,
+} from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
 import { useLiftOpenSession } from './useLiftOpenSession'
 import { historyEntryLocalDate } from './liftHistory'
 import { buildSubmitWorkoutDayPayload, dateAtLocalNoonISO } from './submitWorkoutDay'
+import {
+  DEFAULT_TIMER_WARNING_SECONDS,
+  getWorkoutGroupTimerProgress,
+  getWorkoutTimerProgress,
+  isLiftTimerActive,
+} from './liftTimer'
 import {
   buildDayOptimizedPlateOrders,
   buildGroupedSets,
@@ -57,6 +71,117 @@ function AutoResizeTextarea({
       rows={1}
       className={`resize-none overflow-hidden ${className ?? ''}`}
     />
+  )
+}
+
+type PlateGroup = { weight: number; count: number }
+
+function formatPlatesSummary(plates: PlateGroup[]) {
+  return plates
+    .map((p) => `${formatWeightStr(p.weight)}${p.count > 1 ? `×${p.count}` : ''}`)
+    .join(' · ')
+}
+
+function WorkoutPlateStack({ plates, isWarmup }: { plates: PlateGroup[]; isWarmup: boolean }) {
+  const areaRef = useRef<HTMLDivElement>(null)
+  const fullMeasureRef = useRef<HTMLDivElement>(null)
+  const compactMeasureRef = useRef<HTMLDivElement>(null)
+  const [displayMode, setDisplayMode] = useState<'full' | 'compact' | 'summary'>('full')
+
+  const colorMain = isWarmup ? 'text-emerald-950' : 'text-blue-950'
+  const colorSub = isWarmup ? 'text-emerald-800' : 'text-blue-800'
+
+  useLayoutEffect(() => {
+    const area = areaRef.current
+    const fullMeasure = fullMeasureRef.current
+    const compactMeasure = compactMeasureRef.current
+    if (!area) return
+
+    const updateMode = () => {
+      const fits = (el: HTMLDivElement | null) => {
+        if (!el) return true
+        return el.scrollWidth <= area.clientWidth && el.scrollHeight <= area.clientHeight
+      }
+
+      if (plates.length === 0) {
+        setDisplayMode('full')
+      } else if (fits(fullMeasure)) {
+        setDisplayMode('full')
+      } else if (fits(compactMeasure)) {
+        setDisplayMode('compact')
+      } else {
+        setDisplayMode('summary')
+      }
+    }
+
+    updateMode()
+    const ro = new ResizeObserver(updateMode)
+    ro.observe(area)
+    return () => ro.disconnect()
+  }, [plates])
+
+  if (plates.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center px-4">
+        <span className={`text-[20pt] font-black uppercase leading-none ${colorMain}`}>Bar only</span>
+      </div>
+    )
+  }
+
+  const renderFullPlates = () =>
+    plates.map((p, i) => (
+      <span
+        key={i}
+        className={`mr-4 font-black leading-none text-[32pt] tracking-tighter last:mr-0 ${colorMain}`}
+      >
+        {formatWeightStr(p.weight)}
+        {p.count > 1 && (
+          <sub className={`ml-0.5 text-[18pt] font-black tracking-normal ${colorSub}`}>{p.count}</sub>
+        )}
+      </span>
+    ))
+
+  const renderCompactPlates = () =>
+    plates.map((p, i) => (
+      <span key={i} className={`font-black leading-none text-[16pt] tracking-tight ${colorMain}`}>
+        {formatWeightStr(p.weight)}
+        {p.count > 1 && (
+          <sub className={`ml-0.5 text-[11pt] font-black tracking-normal ${colorSub}`}>{p.count}</sub>
+        )}
+      </span>
+    ))
+
+  return (
+    <div ref={areaRef} className="relative h-full w-full overflow-hidden">
+      <div
+        ref={fullMeasureRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-4 top-0 flex flex-wrap items-center justify-center opacity-0"
+      >
+        {renderFullPlates()}
+      </div>
+      <div
+        ref={compactMeasureRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-4 top-0 flex flex-wrap items-center justify-center gap-x-2 gap-y-0 opacity-0"
+      >
+        {renderCompactPlates()}
+      </div>
+      <div className="flex h-full w-full items-center justify-center px-4">
+        {displayMode === 'full' ? (
+          <div className="flex flex-wrap items-center justify-center">{renderFullPlates()}</div>
+        ) : displayMode === 'compact' ? (
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0">{renderCompactPlates()}</div>
+        ) : (
+          <span
+            className={`line-clamp-2 text-center text-[13pt] font-black leading-tight tracking-tight ${colorMain}`}
+            title={formatPlatesSummary(plates)}
+          >
+            {formatPlatesSummary(plates)}
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -809,6 +934,7 @@ export function LiftScreen({
   onPersist,
   onSeeAllLog,
   onWorkoutSubmitted,
+  liftTimer,
 }: {
   payload: LiftPayload
   subRoute: LiftSubRoute
@@ -822,6 +948,12 @@ export function LiftScreen({
   onSeeAllLog?: () => void
   /** Called after a successful workout-day submit (for assumption cleanup). */
   onWorkoutSubmitted?: (dayId: string, localDate: string) => void
+  liftTimer?: {
+    session: LiftTimerSession | null
+    liveElapsedMs: number
+    activeWorkoutId: string | null
+    displayStatus: LiftTimerStatus
+  }
 }) {
   const sortedDays = useMemo(
     () => [...payload.days].sort((a, b) => (a.order || 0) - (b.order || 0)),
@@ -841,10 +973,18 @@ export function LiftScreen({
   const [openNotesByWorkoutId, setOpenNotesByWorkoutId] = useState<Record<string, boolean>>({})
   const [weightModalWorkoutId, setWeightModalWorkoutId] = useState<string | null>(null)
   const [progressModalWorkoutId, setProgressModalWorkoutId] = useState<string | null>(null)
+  const workoutCardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const timerActive = liftTimer ? isLiftTimerActive(liftTimer.session ?? undefined) : false
 
   useEffect(() => {
     setWorkoutStatusById({})
   }, [currentDayIndex])
+
+  useEffect(() => {
+    if (!liftTimer?.activeWorkoutId) return
+    const el = workoutCardRefs.current[liftTimer.activeWorkoutId]
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [liftTimer?.activeWorkoutId])
 
   useEffect(() => {
     if (addingPlate) addPlateInputRef.current?.focus()
@@ -978,7 +1118,7 @@ export function LiftScreen({
       statusByWorkoutId,
       advanceDayIndex: true,
     })
-    void onPersist(nextPayload)
+    void onPersist({ ...nextPayload, timerSession: null })
     setWorkoutStatusById({})
     if (nextDayIndex !== undefined) onDayIndexChange(nextDayIndex)
     onWorkoutSubmitted?.(currentDay.id, localDateISO(new Date()))
@@ -987,6 +1127,32 @@ export function LiftScreen({
   if (view === 'settings') {
     return (
       <div className="space-y-5 pb-[var(--app-main-pad-bottom)]">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Workout timer</h3>
+          <p className="mb-4 text-xs text-neutral-500">
+            Warning sound plays this many seconds before each set block ends. Warm-up and working-set
+            lengths are set per exercise in the plan editor.
+          </p>
+          <div className="max-w-xs">
+            <FieldLabel>Warning (sec before end)</FieldLabel>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={payload.timerWarningSeconds ?? DEFAULT_TIMER_WARNING_SECONDS}
+              disabled={!onPersist}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10)
+                persist({
+                  ...payload,
+                  timerWarningSeconds: Number.isFinite(n) ? Math.max(0, n) : DEFAULT_TIMER_WARNING_SECONDS,
+                })
+              }}
+              className="w-full rounded-lg border border-neutral-700 bg-black p-3 font-bold text-white outline-none focus:border-emerald-300 disabled:opacity-40"
+            />
+          </div>
+        </div>
+
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-4 text-lg font-black uppercase tracking-tight text-white">Units</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -1298,12 +1464,49 @@ export function LiftScreen({
 
         const hasNotes = Boolean(workout.notes?.trim())
         const isNotesOpen = Boolean(openNotesByWorkoutId[workout.id])
+        const groupStartSetNumbers = groupedSets.map((set) => set.startNum)
+        const groupEndSetNumbers = groupedSets.map((set) => set.endNum)
+        const groupTimerProgress =
+          timerActive && liftTimer?.session
+            ? getWorkoutGroupTimerProgress(
+                workout.id,
+                liftTimer.session,
+                liftTimer.liveElapsedMs,
+                groupStartSetNumbers,
+                groupEndSetNumbers,
+              )
+            : null
+        const workoutTimerProgress =
+          timerActive && liftTimer?.session
+            ? getWorkoutTimerProgress(workout.id, liftTimer.session, liftTimer.liveElapsedMs)
+            : 0
+        const activeWorkoutIndex = activeWorkouts.findIndex((w) => w.id === liftTimer?.activeWorkoutId)
+        const thisWorkoutIndex = activeWorkouts.findIndex((w) => w.id === workout.id)
+        const isActiveWorkout = liftTimer?.activeWorkoutId === workout.id
+        const isPastWorkout =
+          timerActive && activeWorkoutIndex !== -1 && thisWorkoutIndex !== -1 && thisWorkoutIndex < activeWorkoutIndex
 
         return (
           <div
             key={workout.id}
-            className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md"
+            ref={(el) => {
+              workoutCardRefs.current[workout.id] = el
+            }}
+            className={`overflow-hidden rounded-xl border bg-neutral-900 shadow-md transition-all ${
+              isActiveWorkout
+                ? 'border-emerald-400 ring-2 ring-emerald-500/30'
+                : 'border-neutral-800'
+            } ${isPastWorkout ? 'opacity-75' : ''}`}
           >
+            {timerActive && liftTimer?.session ? (
+              <div className="h-1 overflow-hidden bg-neutral-800">
+                <div
+                  className="h-full bg-blue-500"
+                  style={{ width: `${Math.round(workoutTimerProgress * 100)}%` }}
+                />
+              </div>
+            ) : null}
+            <div className="p-4">
             <div className="mb-4 flex items-start justify-between gap-2">
               <h3 className="min-w-0 flex-1 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
                 {workout.name}
@@ -1357,61 +1560,68 @@ export function LiftScreen({
                 const setRangeLabel =
                   set.startNum === set.endNum ? `${set.startNum}` : `${set.startNum}-${set.endNum}`
                 const isFinalSetCard = idx === groupedSets.length - 1
+                const groupState = groupTimerProgress?.[idx]
+                const showTimerSetLabel = timerActive && groupState?.currentSetNumber != null
                 return (
                   <div
                     key={`${workout.id}-${idx}`}
                     onClick={() => {
                       if (isFinalSetCard && onPersist) setWeightModalWorkoutId(workout.id)
                     }}
-                    className={`mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200 ${
+                    className={`relative mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200 ${
                       isFinalSetCard && onPersist ? 'cursor-pointer' : ''
                     }`}
                   >
                     <div
                       className={`${
-                        set.isWarmup ? 'bg-emerald-100' : 'bg-emerald-300'
-                      } relative flex min-h-[72px] items-center justify-center sm:min-h-[85px]`}
+                        set.isWarmup ? 'bg-emerald-200' : 'bg-blue-200'
+                      } relative flex h-[80px] items-center justify-center`}
                     >
+                      {timerActive && groupState && groupState.progress > 0 && groupState.progress < 1 ? (
+                        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1 overflow-hidden bg-blue-950/25">
+                          <div
+                            className="h-full bg-blue-500"
+                            style={{ width: `${Math.round(groupState.progress * 100)}%` }}
+                          />
+                        </div>
+                      ) : null}
                       {isFinalSetCard && onPersist ? (
-                        <span className="pointer-events-none absolute right-2.5 top-2.5 text-emerald-700 opacity-45">
+                        <span
+                          className={`pointer-events-none absolute right-2.5 top-2.5 opacity-45 ${
+                            set.isWarmup ? 'text-emerald-700' : 'text-blue-700'
+                          }`}
+                        >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                         </span>
                       ) : null}
-                      <div className="flex flex-wrap items-center justify-center px-4 py-3">
-                          {set.plates.length > 0 ? (
-                            set.plates.map((p, i) => (
-                              <span
-                                key={i}
-                                className="mr-4 font-black text-[36px] tracking-tighter text-black last:mr-0 sm:text-[42px]"
-                              >
-                                {formatWeightStr(p.weight)}
-                                {p.count > 1 && (
-                                  <sub className="ml-0.5 text-[18px] font-bold tracking-normal text-emerald-800">
-                                    {p.count}
-                                  </sub>
-                                )}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[28px] font-black uppercase text-black sm:text-[32px]">
-                              Bar only
-                            </span>
-                          )}
-                      </div>
+                      <WorkoutPlateStack plates={set.plates} isWarmup={set.isWarmup} />
                     </div>
                     <div
                       className={`${
-                        set.isWarmup ? 'bg-emerald-400' : 'bg-emerald-700'
-                      } flex items-center justify-between px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-emerald-100`}
+                        set.isWarmup ? 'bg-emerald-300' : 'bg-blue-300'
+                      } flex items-center justify-between px-5 py-2 text-xs font-black uppercase tracking-[0.15em] ${
+                        set.isWarmup ? 'text-emerald-950' : 'text-blue-950'
+                      }`}
                     >
-                      <span className="w-1/3 text-left opacity-95">
-                        {set.isWarmup ? 'Set ' : 'Sets '}
-                        {setRangeLabel}
+                      <span className="w-1/3 text-left">
+                        {showTimerSetLabel && groupState ? (
+                          <>
+                            Set {groupState.currentSetNumber}
+                            <span className="ml-0.5 text-[10px] font-black opacity-75">
+                              /{groupState.groupEndSetNumber}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {set.isWarmup ? 'Set ' : 'Sets '}
+                            {setRangeLabel}
+                          </>
+                        )}
                       </span>
-                      <span className="w-1/3 text-center opacity-95">
+                      <span className="w-1/3 text-center">
                         {set.actualWeight} {weightUnit}
                       </span>
-                      <span className="w-1/3 text-right opacity-95">{set.reps} reps</span>
+                      <span className="w-1/3 text-right">{set.reps} reps</span>
                     </div>
                   </div>
                 )
@@ -1470,6 +1680,7 @@ export function LiftScreen({
                   Add statuses in settings
                 </span>
               )}
+            </div>
             </div>
           </div>
         )

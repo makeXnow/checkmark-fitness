@@ -146,6 +146,12 @@ export type MacroEstimateSnapshot = {
   servingType?: string
   calories?: number
   protein?: number
+  /**
+   * Machine-readable portion the AI resolved for the user: "<number> <singular-unit>".
+   * Examples: "6 gummy", "4 oz", "0.5 sandwich", "25 g", "2 slice", "1 serving".
+   * The app uses this to compute the correct multiplier against the DB serving — not the AI.
+   */
+  resolvedAmount?: string
 }
 
 export interface MacroDayItem {
@@ -205,6 +211,34 @@ export interface LiftPayload {
   /** Display and labels; plate math still uses the same numeric rack until kg-specific logic is added. */
   weightUnit?: LiftWeightUnit
   plateUnit?: LiftWeightUnit
+  /** Seconds before each segment ends to play a warning sound. */
+  timerWarningSeconds?: number
+  /** Server-persisted workout timer (timestamp-based for multi-device sync). */
+  timerSession?: LiftTimerSession | null
+}
+
+export interface LiftTimerSegment {
+  workoutId: string
+  setNumber: number
+  groupEndSetNumber: number
+  durationMs: number
+  isWarmup: boolean
+}
+
+export type LiftTimerStatus = 'idle' | 'running' | 'paused' | 'complete'
+
+export interface LiftTimerSession {
+  dayId: string
+  status: LiftTimerStatus
+  /** Elapsed ms at last pause (or at start). */
+  elapsedMs: number
+  /** Epoch ms when the current running stretch started; null when paused/idle/complete. */
+  resumeAt: number | null
+  segments: LiftTimerSegment[]
+  /** Segment index whose warning sound has fired (-1 = none). */
+  warningFiredForSegment: number
+  /** Highest segment index whose end chime has fired (-1 = none). */
+  completeFiredThroughSegment: number
 }
 
 export interface LiftWarmupSet {
@@ -225,6 +259,10 @@ export interface LiftWorkout {
   hasWarmup: boolean
   warmupSets: LiftWarmupSet[]
   notes?: string
+  /** Rest + lift block duration for warm-up sets (seconds). */
+  warmupDurationSeconds?: number
+  /** Rest + lift block duration for working sets (seconds). */
+  liftDurationSeconds?: number
 }
 
 export interface LiftHistoryEntry {

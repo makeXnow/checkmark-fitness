@@ -5,7 +5,7 @@ import type {
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { applyMassMultiplierCorrection, parseMassGrams, parseServingBaseGrams } from './macroMass'
+import { applyMassMultiplierCorrection, parseMassGrams, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier } from './macroMass'
 
 export type ParsedFoodItem = {
   emoji?: string
@@ -23,6 +23,12 @@ export type MacroEstimateResponse = {
   servingType?: string
   calories?: number
   protein?: number
+  /**
+   * Machine-readable portion resolved by AI: "<number> <unit>".
+   * The app uses this to compute the correct DB multiplier instead of asking AI to do math.
+   * Examples: "6 gummy", "4 oz", "0.5 sandwich", "25 g", "1 serving"
+   */
+  resolvedAmount?: string
 }
 
 export type MacroEstimateResult = {
@@ -489,6 +495,16 @@ function resolveCountServingMultiplier(
   const ai = typeof aiMultiplier === 'number' && aiMultiplier > 0 ? aiMultiplier : 1
   if (parseServingBaseGrams(selectedServingDescription) != null) return ai
   if (userAmount?.trim() && parseMassGrams(userAmount) != null) return ai
+
+  // Count path: try resolveDbMultiplier (handles tier-2 unit match + tier-3 unit mismatch)
+  if (userAmount?.trim()) {
+    const userParsed = parseResolvedAmount(userAmount)
+    if (userParsed) {
+      const dbMult = resolveDbMultiplier(userParsed, selectedServingDescription)
+      if (dbMult !== null) return dbMult
+    }
+  }
+
   const legacy = parseLegacyServing(userAmount || '')
   return legacy.multiplier > 0 ? legacy.multiplier : ai
 }
@@ -499,13 +515,54 @@ export function resolveMacroEstimate(
   fatSecretResults: FatSecretFoodRef[] = [],
   options?: ResolveMacroEstimateOptions,
 ): MacroEstimateResult {
-  const adjusted = options?.userAmount?.trim()
+  // Skip mass correction when resolvedAmount is present — the new resolver handles it
+  const hasResolvedAmount = Boolean(response.resolvedAmount?.trim())
+  const adjusted = !hasResolvedAmount && options?.userAmount?.trim()
     ? applyMassMultiplierCorrection(response, options.userAmount, foods, fatSecretResults)
     : response
+
+  // Helper: build the user-honoring return from a resolved amount + macros
+  const resolveFromParsed = (
+    resolvedParsed: { qty: number; unit: string },
+    totalCal: number,
+    totalPro: number,
+  ): MacroEstimateResult => {
+    const displayQty = resolvedParsed.qty
+    const displayUnit = resolvedParsed.unit
+    return {
+      calories: Math.round(totalCal),
+      protein: Math.round(totalPro * 10) / 10,
+      servingType: displayUnit,
+      servingSize: 1,
+      servingUnit: displayUnit,
+      servingMultiplier: displayQty,
+      baseCalories: displayQty > 0 ? Math.round(totalCal / displayQty) : Math.round(totalCal),
+      baseProtein:
+        displayQty > 0
+          ? Math.round((totalPro / displayQty) * 10) / 10
+          : Math.round(totalPro * 10) / 10,
+    }
+  }
 
   const libIdx = parseIndex(adjusted.libraryIndex)
   if (libIdx !== null && libIdx >= 1 && libIdx <= foods.length) {
     const food = foods[libIdx - 1]!
+
+    // Primary: resolvedAmount drives both multiplier and display fields
+    const resolvedStr = adjusted.resolvedAmount?.trim()
+    const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+    if (resolvedParsed) {
+      const dbMult = resolveDbMultiplier(resolvedParsed, food.baseAmount || '1 serving')
+      if (dbMult !== null) {
+        const scaled = scaleLibraryMacros(food, dbMult)
+        return {
+          ...resolveFromParsed(resolvedParsed, scaled.calories, scaled.protein),
+          libraryFoodId: food.id,
+        }
+      }
+    }
+
+    // Fallback: AI multiplier + FS-derived display (existing behavior)
     const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
     const scaled = scaleLibraryMacros(food, multiplier)
     const def = parseServingDefinition(food.baseAmount || '1 serving')
@@ -530,6 +587,20 @@ export function resolveMacroEstimate(
       servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
+
+    // Primary: resolvedAmount drives both multiplier and display fields
+    const resolvedStr = adjusted.resolvedAmount?.trim()
+    const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+    if (resolvedParsed) {
+      const dbMult = resolveDbMultiplier(resolvedParsed, serving.description)
+      if (dbMult !== null) {
+        const totalCal = serving.calories * dbMult
+        const totalPro = serving.protein * dbMult
+        return resolveFromParsed(resolvedParsed, totalCal, totalPro)
+      }
+    }
+
+    // Fallback: count/mass heuristics + AI multiplier
     const multiplier = resolveCountServingMultiplier(
       options?.userAmount,
       serving.description,
@@ -549,9 +620,18 @@ export function resolveMacroEstimate(
     }
   }
 
+  // Path 4: direct AI estimate
   const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
   const calories = Math.round(adjusted.calories ?? 0)
   const protein = Math.round((adjusted.protein ?? 0) * 10) / 10
+
+  // Use resolvedAmount for display when available (handles "small handful → 25 g")
+  const resolvedStr = adjusted.resolvedAmount?.trim()
+  const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+  if (resolvedParsed) {
+    return resolveFromParsed(resolvedParsed, calories, protein)
+  }
+
   const def = parseServingDefinition(adjusted.servingType?.trim() || 'serving')
   return {
     calories,
@@ -606,7 +686,16 @@ export function describeMacroEstimate(
       servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
-    const scaled = scaleFatSecretServing(serving, mult)
+
+    // When resolvedAmount is present, compute actual DB multiplier for accurate audit total
+    const resolvedStr = snap.resolvedAmount?.trim()
+    const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+    const auditMult =
+      resolvedParsed !== null
+        ? (resolveDbMultiplier(resolvedParsed, serving.description) ?? mult)
+        : mult
+
+    const scaled = scaleFatSecretServing(serving, auditMult)
     const label = food.brandName ? `${food.brandName} ${food.name}`.trim() : food.name
     return {
       method: 'FatSecret match',
@@ -616,7 +705,8 @@ export function describeMacroEstimate(
         { label: 'Product', value: label },
         { label: 'Serving #', value: servIdx !== null ? String(servIdx) : 'default' },
         { label: 'Serving type', value: serving.description },
-        { label: 'Quantity', value: formatMultiplier(mult) },
+        ...(resolvedStr ? [{ label: 'Your portion', value: resolvedStr }] : []),
+        { label: 'Quantity', value: formatMultiplier(auditMult) },
         { label: 'Per serving', value: `${serving.calories} cal · ${serving.protein}g protein` },
       ],
     }
@@ -641,18 +731,34 @@ export function describeMacroEstimate(
   }
 }
 
-/** Display name from parser classification; falls back to current item name. */
-export function macroItemDisplayName(item: {
-  name: string
-  parseSnapshot?: MacroParseSnapshot
-}): string {
+/** Display name from parser classification; library match uses the library entry. */
+export function macroItemDisplayName(
+  item: {
+    name: string
+    parseSnapshot?: MacroParseSnapshot
+    libraryFoodId?: string
+  },
+  customFoods: MacroCustomFood[] = [],
+): string {
+  if (item.libraryFoodId) {
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food?.name?.trim()) return food.name
+  }
   return item.parseSnapshot?.name?.trim() || item.name
 }
 
-export function macroItemDisplayEmoji(item: {
-  emoji?: string
-  parseSnapshot?: MacroParseSnapshot
-}): string {
+export function macroItemDisplayEmoji(
+  item: {
+    emoji?: string
+    parseSnapshot?: MacroParseSnapshot
+    libraryFoodId?: string
+  },
+  customFoods: MacroCustomFood[] = [],
+): string {
+  if (item.libraryFoodId) {
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food?.emoji?.trim()) return food.emoji.trim()
+  }
   return item.parseSnapshot?.emoji || item.emoji || '🍱'
 }
 

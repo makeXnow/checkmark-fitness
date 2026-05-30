@@ -459,6 +459,8 @@ function MacroEditTextBox({
   ariaLabel,
   step,
   min,
+  onFocus,
+  onBlur,
 }: {
   value: string | number
   onChange: (v: string) => void
@@ -472,6 +474,8 @@ function MacroEditTextBox({
   ariaLabel?: string
   step?: string | number
   min?: string | number
+  onFocus?: () => void
+  onBlur?: () => void
 }) {
   const display = value === 0 && type === 'number' ? '' : String(value)
   const alignClass = align === 'left' ? 'text-left px-3' : 'text-center'
@@ -482,6 +486,8 @@ function MacroEditTextBox({
         id={inputId}
         value={display}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
         className={`${macroEditInputClass} ${alignClass} ${colorClass} ${inputClassName}`.trim()}
         placeholder={placeholder}
         type={type}
@@ -516,6 +522,7 @@ function MacroFieldInput({
   type = 'text',
   proteinSplit = false,
   inputId,
+  clearOnFocus = true,
 }: {
   value: string | number
   onChange: (v: string) => void
@@ -524,20 +531,49 @@ function MacroFieldInput({
   type?: 'text' | 'number'
   proteinSplit?: boolean
   inputId?: string
+  clearOnFocus?: boolean
 }) {
-  const display = value === 0 && type === 'number' ? '' : String(value)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const snapshotRef = useRef('')
+
+  const formatDisplay = (v: string | number) => (v === 0 && type === 'number' ? '' : String(v))
+  const display = clearOnFocus && isEditing ? draft : formatDisplay(value)
+
+  const handleFocus = () => {
+    if (!clearOnFocus) return
+    snapshotRef.current = formatDisplay(value)
+    setDraft('')
+    setIsEditing(true)
+  }
+
+  const handleChange = (v: string) => {
+    if (clearOnFocus && isEditing) setDraft(v)
+    if (!clearOnFocus || isEditing) onChange(v)
+  }
+
+  const handleBlur = () => {
+    if (!clearOnFocus || !isEditing) return
+    setIsEditing(false)
+    if (draft.trim() === '') onChange(snapshotRef.current)
+    setDraft('')
+  }
 
   if (proteinSplit) {
     return (
       <div
         className={`${macroEditBoxShellClass} cursor-text`}
-        onClick={() => inputId && document.getElementById(inputId)?.focus()}
+        onClick={() => inputRef.current?.focus()}
       >
         <div className="flex-1 flex items-center justify-center min-w-0">
           <input
+            ref={inputRef}
             id={inputId}
             value={display}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             className={`w-1/2 bg-transparent ${colorClass} font-bold text-xs py-2.5 text-right outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pr-0.5`}
             type="number"
             placeholder="0"
@@ -550,8 +586,10 @@ function MacroFieldInput({
 
   return (
     <MacroEditTextBox
-      value={value}
-      onChange={onChange}
+      value={display}
+      onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       placeholder={placeholder}
       type={type}
       colorClass={colorClass}
@@ -934,22 +972,26 @@ export function MacroFoodViewCard({
   )
 }
 
-function itemToEditFields(item: {
-  emoji?: string
-  name: string
-  amount: string
-  servingType?: string
-  servingSize?: number
-  servingUnit?: string
-  servingMultiplier?: number
-  calories?: number
-  protein?: number
-  parseSnapshot?: MacroParseSnapshot
-}): MacroFoodEditFields {
+function itemToEditFields(
+  item: {
+    emoji?: string
+    name: string
+    amount: string
+    servingType?: string
+    servingSize?: number
+    servingUnit?: string
+    servingMultiplier?: number
+    calories?: number
+    protein?: number
+    parseSnapshot?: MacroParseSnapshot
+    libraryFoodId?: string
+  },
+  customFoods: MacroCustomFood[] = [],
+): MacroFoodEditFields {
   const serving = macroItemServingFields(item)
   return {
-    emoji: macroItemDisplayEmoji(item),
-    name: macroItemDisplayName(item),
+    emoji: macroItemDisplayEmoji(item, customFoods),
+    name: macroItemDisplayName(item, customFoods),
     amount: serving.amount,
     servingType: serving.servingType,
     servingSize: serving.servingSize,

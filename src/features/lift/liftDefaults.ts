@@ -1,4 +1,5 @@
 import type { LiftWarmupSet, LiftWorkout } from '../../types/domain'
+import { DEFAULT_LIFT_DURATION_SECONDS, DEFAULT_WARMUP_DURATION_SECONDS } from './liftTimer'
 
 export function makeLiftId(prefix: string) {
   return `${prefix}${crypto.randomUUID()}`
@@ -24,5 +25,7 @@ export function newEmptyWorkout(dayId: string): LiftWorkout {
     hasWarmup: false,
     warmupSets: [],
     notes: '',
+    warmupDurationSeconds: DEFAULT_WARMUP_DURATION_SECONDS,
+    liftDurationSeconds: DEFAULT_LIFT_DURATION_SECONDS,
   }
 }
