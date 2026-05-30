@@ -283,6 +283,33 @@ export function getNextLiftWeight(
   return getOptimalPlates(nextMain, workout.barWeight, availablePlates).actualWeight
 }
 
+/** Best-effort mainWeight so getNextLiftWeight matches desiredNext after plate rounding. */
+export function resolveMainWeightForNextLift(
+  desiredNext: number,
+  workout: LiftWorkout,
+  increment: number,
+  multiplier: number,
+  availablePlates: number[],
+): number {
+  const delta = getProgressDelta(increment, multiplier)
+  const guess = Math.max(0, desiredNext - delta)
+  const sorted = [...(availablePlates || [])].sort((a, b) => a - b)
+  const step = sorted.length ? sorted[0] : 2.5
+  let best = guess
+  let bestDiff = Infinity
+  for (let offset = -40; offset <= 40; offset++) {
+    const candidate = Math.max(0, guess + offset * step)
+    const next = getNextLiftWeight({ ...workout, mainWeight: candidate, increment }, multiplier, availablePlates)
+    const diff = Math.abs(next - desiredNext)
+    if (diff < bestDiff) {
+      bestDiff = diff
+      best = candidate
+      if (diff === 0) break
+    }
+  }
+  return best
+}
+
 export function formatLogDate(dateObj: Date) {
   const weekday = dateObj.toLocaleDateString(undefined, { weekday: 'short' })
   const month = dateObj.toLocaleDateString(undefined, { month: 'short' })

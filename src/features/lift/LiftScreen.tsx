@@ -4,7 +4,7 @@ import { ChevronDown, FileText, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AppAccentTextButton } from '../../core/AppAccentTextButton'
 import { SettingSwitch } from '../../core/SettingSwitch'
 import { localDateISO } from '../../lib/localDate'
-import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit } from '../../types/domain'
+import type { LiftHistoryEntry, LiftPayload, LiftSubRoute, LiftWeightUnit, LiftWorkout } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
 import { useLiftOpenSession } from './useLiftOpenSession'
 import { historyEntryLocalDate } from './liftHistory'
@@ -23,6 +23,7 @@ import {
   groupHistory,
   isNonPositiveProgressionMultiplier,
   parseStatusMultiplier,
+  resolveMainWeightForNextLift,
 } from './plates'
 
 function AutoResizeTextarea({
@@ -196,31 +197,58 @@ function LiftWeightModal({
   )
 }
 
-function LiftIncrementModal({
+function LiftProgressModal({
   workoutName,
-  initialIncrement,
+  workout,
+  initialAddAmount,
+  initialNextWeight,
+  statusMultiplier,
   weightUnit,
+  availablePlates,
   onClose,
   onSave,
 }: {
   workoutName: string
-  initialIncrement: number
+  workout: LiftWorkout
+  initialAddAmount: number
+  initialNextWeight: number
+  statusMultiplier: number
   weightUnit: LiftWeightUnit
+  availablePlates: number[]
   onClose: () => void
-  onSave: (increment: number) => void
+  onSave: (increment: number, nextWeight: number) => void
 }) {
-  const [value, setValue] = useState(String(initialIncrement))
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [addValue, setAddValue] = useState(String(initialAddAmount))
+  const [nextValue, setNextValue] = useState(String(initialNextWeight))
+  const addInputRef = useRef<HTMLInputElement>(null)
+
+  const incrementFromAdd = useCallback(
+    (addStr: string) => {
+      const add = parseFloat(addStr.trim())
+      if (!Number.isFinite(add)) return workout.increment
+      if (statusMultiplier === 0) return add
+      return add / statusMultiplier
+    },
+    [statusMultiplier, workout.increment],
+  )
 
   useEffect(() => {
-    inputRef.current?.focus()
-    inputRef.current?.select()
+    addInputRef.current?.focus()
+    addInputRef.current?.select()
   }, [])
 
+  const syncNextFromAdd = (addStr: string) => {
+    const inc = incrementFromAdd(addStr)
+    if (!Number.isFinite(inc)) return
+    const next = getNextLiftWeight({ ...workout, increment: inc }, statusMultiplier, availablePlates)
+    setNextValue(String(next))
+  }
+
   const handleSave = () => {
-    const trimmed = value.trim()
-    if (trimmed === '' || Number.isNaN(parseFloat(trimmed))) return
-    onSave(Math.max(0, parseFloat(trimmed)))
+    const add = parseFloat(addValue.trim())
+    const next = parseFloat(nextValue.trim())
+    if (!Number.isFinite(add) || !Number.isFinite(next)) return
+    onSave(incrementFromAdd(addValue), Math.max(0, next))
   }
 
   return createPortal(
@@ -231,14 +259,14 @@ function LiftIncrementModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="lift-increment-modal-title"
+        aria-labelledby="lift-progress-modal-title"
         className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Progress increment</p>
-            <h2 id="lift-increment-modal-title" className="text-lg font-black text-white line-clamp-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Progress</p>
+            <h2 id="lift-progress-modal-title" className="text-lg font-black text-white line-clamp-2">
               {workoutName}
             </h2>
           </div>
@@ -251,21 +279,41 @@ function LiftIncrementModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="mb-5">
-          <FieldLabel>Increment ({weightUnit})</FieldLabel>
-          <input
-            ref={inputRef}
-            type="number"
-            step="any"
-            inputMode="decimal"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave()
-              else if (e.key === 'Escape') onClose()
-            }}
-            className="w-full rounded-xl border border-neutral-700 bg-black/40 px-4 py-3 text-center text-2xl font-black text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
+        <div className="mb-5 grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <FieldLabel>Weekly add ({weightUnit})</FieldLabel>
+            <input
+              ref={addInputRef}
+              type="number"
+              step="any"
+              inputMode="decimal"
+              value={addValue}
+              onChange={(e) => {
+                setAddValue(e.target.value)
+                syncNextFromAdd(e.target.value)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSave()
+                else if (e.key === 'Escape') onClose()
+              }}
+              className="w-full rounded-xl border border-neutral-700 bg-black/40 px-4 py-3 text-center text-2xl font-black text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="min-w-0">
+            <FieldLabel>Next ({weightUnit})</FieldLabel>
+            <input
+              type="number"
+              step="any"
+              inputMode="decimal"
+              value={nextValue}
+              onChange={(e) => setNextValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSave()
+                else if (e.key === 'Escape') onClose()
+              }}
+              className="w-full rounded-xl border border-neutral-700 bg-black/40 px-4 py-3 text-center text-2xl font-black text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
         </div>
         <div className="flex gap-3">
           <button
@@ -603,7 +651,7 @@ function LiftHistoryEntryCard({
       }
     >
       <h4 className="mb-3 min-w-0 truncate text-lg font-bold text-white">{entry.workoutName || 'Workout'}</h4>
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
+      <div className="flex min-w-0 flex-col gap-3 min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:items-end min-[360px]:justify-between min-[360px]:gap-3">
         <div className="flex min-w-0 flex-wrap gap-x-3 text-sm font-medium text-neutral-400">
           <span>
             {displayWeight} {unit}
@@ -615,7 +663,7 @@ function LiftHistoryEntryCard({
           )}
         </div>
         {onPersist ? (
-          <div className="min-w-0 w-full max-w-full sm:w-auto sm:max-w-[min(100%,14rem)]">
+          <div className="min-w-0 w-full max-w-full min-[360px]:w-auto min-[360px]:max-w-[min(100%,14rem)]">
             <LiftStatusSelector
               key={`${entry.id}-${selectResetKey}`}
               isNegative={isNegative}
@@ -792,7 +840,7 @@ export function LiftScreen({
   const addPlateInputRef = useRef<HTMLInputElement>(null)
   const [openNotesByWorkoutId, setOpenNotesByWorkoutId] = useState<Record<string, boolean>>({})
   const [weightModalWorkoutId, setWeightModalWorkoutId] = useState<string | null>(null)
-  const [incrementModalWorkoutId, setIncrementModalWorkoutId] = useState<string | null>(null)
+  const [progressModalWorkoutId, setProgressModalWorkoutId] = useState<string | null>(null)
 
   useEffect(() => {
     setWorkoutStatusById({})
@@ -814,10 +862,9 @@ export function LiftScreen({
     [payload.workouts, weightModalWorkoutId],
   )
 
-  const incrementModalWorkout = useMemo(
-    () =>
-      incrementModalWorkoutId ? payload.workouts.find((w) => w.id === incrementModalWorkoutId) : undefined,
-    [payload.workouts, incrementModalWorkoutId],
+  const progressModalWorkout = useMemo(
+    () => (progressModalWorkoutId ? payload.workouts.find((w) => w.id === progressModalWorkoutId) : undefined),
+    [payload.workouts, progressModalWorkoutId],
   )
 
   const saveManualWeight = useCallback(
@@ -856,24 +903,35 @@ export function LiftScreen({
     [payload, persist],
   )
 
-  const saveWorkoutIncrement = useCallback(
-    (workoutId: string, newIncrement: number) => {
+  const saveWorkoutProgress = useCallback(
+    (workoutId: string, newIncrement: number, newNextWeight: number, multiplier: number) => {
       const workout = payload.workouts.find((w) => w.id === workoutId)
       if (!workout) {
-        setIncrementModalWorkoutId(null)
+        setProgressModalWorkoutId(null)
         return
       }
-      if (newIncrement === workout.increment) {
-        setIncrementModalWorkoutId(null)
+      const plates = payload.availablePlates || []
+      const sessionWorkout = workoutWithSessionWeight(workout, payload.history, plates)
+      const newMainWeight = resolveMainWeightForNextLift(
+        newNextWeight,
+        sessionWorkout,
+        newIncrement,
+        multiplier,
+        plates,
+      )
+      const incrementChanged = newIncrement !== workout.increment
+      const weightChanged = newMainWeight !== sessionWorkout.mainWeight
+      if (!incrementChanged && !weightChanged) {
+        setProgressModalWorkoutId(null)
         return
       }
       persist({
         ...payload,
         workouts: payload.workouts.map((w) =>
-          w.id === workoutId ? { ...w, increment: newIncrement } : w,
+          w.id === workoutId ? { ...w, increment: newIncrement, mainWeight: newMainWeight } : w,
         ),
       })
-      setIncrementModalWorkoutId(null)
+      setProgressModalWorkoutId(null)
     },
     [payload, persist],
   )
@@ -897,6 +955,18 @@ export function LiftScreen({
     },
     [statuses, workoutStatusById],
   )
+
+  const progressModalMultiplier = useMemo(() => {
+    if (!progressModalWorkoutId) return 1
+    const sid = effectiveStatusId(progressModalWorkoutId)
+    const status = statuses.find((s) => s.id === sid)
+    return parseStatusMultiplier(status?.multiplier)
+  }, [progressModalWorkoutId, effectiveStatusId, statuses])
+
+  const progressModalSessionWorkout = useMemo(() => {
+    if (!progressModalWorkout) return undefined
+    return workoutWithSessionWeight(progressModalWorkout, payload.history, payload.availablePlates || [])
+  }, [progressModalWorkout, payload.history, payload.availablePlates])
 
   const submitWorkoutDay = useCallback(() => {
     if (!onPersist || !currentDay) return
@@ -1232,12 +1302,7 @@ export function LiftScreen({
         return (
           <div
             key={workout.id}
-            className={`rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md ${
-              onPersist ? 'cursor-pointer' : ''
-            }`}
-            onClick={() => {
-              if (onPersist) setWeightModalWorkoutId(workout.id)
-            }}
+            className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 shadow-md"
           >
             <div className="mb-4 flex items-start justify-between gap-2">
               <h3 className="min-w-0 flex-1 text-xl font-bold leading-snug text-white line-clamp-2 [overflow-wrap:break-word] [word-break:normal]">
@@ -1291,20 +1356,23 @@ export function LiftScreen({
               {groupedSets.map((set, idx) => {
                 const setRangeLabel =
                   set.startNum === set.endNum ? `${set.startNum}` : `${set.startNum}-${set.endNum}`
+                const isFinalSetCard = idx === groupedSets.length - 1
                 return (
                   <div
                     key={`${workout.id}-${idx}`}
-                    onClick={(e) => {
-                      if (set.isWarmup) e.stopPropagation()
+                    onClick={() => {
+                      if (isFinalSetCard && onPersist) setWeightModalWorkoutId(workout.id)
                     }}
-                    className="mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200"
+                    className={`mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200 ${
+                      isFinalSetCard && onPersist ? 'cursor-pointer' : ''
+                    }`}
                   >
                     <div
                       className={`${
                         set.isWarmup ? 'bg-emerald-100' : 'bg-emerald-300'
                       } relative flex min-h-[72px] items-center justify-center sm:min-h-[85px]`}
                     >
-                      {!set.isWarmup && onPersist ? (
+                      {isFinalSetCard && onPersist ? (
                         <span className="pointer-events-none absolute right-2.5 top-2.5 text-emerald-700 opacity-45">
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                         </span>
@@ -1351,31 +1419,35 @@ export function LiftScreen({
             </div>
 
             <div className="mt-4 flex items-end justify-between gap-3">
-              <p className="min-w-0 text-sm font-bold tabular-nums leading-tight">
-                {onPersist ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setIncrementModalWorkoutId(workout.id)
-                    }}
-                    className={`rounded-md px-1 -ml-1 transition-colors hover:bg-neutral-800 ${
-                      isNeg ? 'text-red-400' : 'text-emerald-400'
-                    }`}
-                    aria-label={`Edit progress increment for ${workout.name}`}
-                  >
-                    {formatProgressDelta(progressDelta)}
-                  </button>
-                ) : (
-                  <span className={isNeg ? 'text-red-400' : 'text-emerald-400'}>
+              {onPersist ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setProgressModalWorkoutId(workout.id)
+                  }}
+                  className="inline-flex min-w-0 items-center overflow-hidden rounded-full border border-neutral-700 bg-black/40 text-sm font-bold tabular-nums leading-tight transition-colors hover:bg-neutral-800/80"
+                  aria-label={`Edit progress for ${workout.name}`}
+                >
+                  <span className={`px-3 py-1.5 ${isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
                     {formatProgressDelta(progressDelta)}
                   </span>
-                )}
-                <span className="text-neutral-500">, </span>
-                <span className="font-semibold text-neutral-300">
-                  {nextLiftWeight} {weightUnit}
-                </span>
-              </p>
+                  <span className="h-3.5 w-px shrink-0 bg-neutral-700" aria-hidden />
+                  <span className="px-3 py-1.5 font-semibold text-neutral-300">
+                    {nextLiftWeight} {weightUnit}
+                  </span>
+                </button>
+              ) : (
+                <div className="inline-flex min-w-0 items-center overflow-hidden rounded-full border border-neutral-700 bg-black/40 text-sm font-bold tabular-nums leading-tight">
+                  <span className={`px-3 py-1.5 ${isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {formatProgressDelta(progressDelta)}
+                  </span>
+                  <span className="h-3.5 w-px shrink-0 bg-neutral-700" aria-hidden />
+                  <span className="px-3 py-1.5 font-semibold text-neutral-300">
+                    {nextLiftWeight} {weightUnit}
+                  </span>
+                </div>
+              )}
               {statuses.length > 0 ? (
                 <div onClick={(e) => e.stopPropagation()}>
                   <LiftStatusSelector
@@ -1456,14 +1528,29 @@ export function LiftScreen({
       />
     ) : null}
 
-    {incrementModalWorkout && onPersist ? (
-      <LiftIncrementModal
-        key={incrementModalWorkout.id}
-        workoutName={incrementModalWorkout.name}
-        initialIncrement={incrementModalWorkout.increment}
+    {progressModalWorkout && progressModalSessionWorkout && onPersist ? (
+      <LiftProgressModal
+        key={progressModalWorkout.id}
+        workoutName={progressModalWorkout.name}
+        workout={progressModalSessionWorkout}
+        initialAddAmount={getProgressDelta(progressModalSessionWorkout.increment, progressModalMultiplier)}
+        initialNextWeight={getNextLiftWeight(
+          progressModalSessionWorkout,
+          progressModalMultiplier,
+          payload.availablePlates || [],
+        )}
+        statusMultiplier={progressModalMultiplier}
         weightUnit={weightUnit}
-        onClose={() => setIncrementModalWorkoutId(null)}
-        onSave={(newIncrement) => saveWorkoutIncrement(incrementModalWorkout.id, newIncrement)}
+        availablePlates={payload.availablePlates || []}
+        onClose={() => setProgressModalWorkoutId(null)}
+        onSave={(newIncrement, newNextWeight) =>
+          saveWorkoutProgress(
+            progressModalWorkout.id,
+            newIncrement,
+            newNextWeight,
+            progressModalMultiplier,
+          )
+        }
       />
     ) : null}
     </>

@@ -186,6 +186,8 @@ export interface MacroDayItem {
   fatSecretSearch?: string
   /** Cached FatSecret search snapshot; reused on macro refresh (no re-search). */
   fatSecretResults?: FatSecretFoodRef[]
+  /** Card is waiting on FatSecret barcode lookup (no code shown in UI). */
+  barcodeLookup?: boolean
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

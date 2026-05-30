@@ -31,6 +31,7 @@ function parseStoredPrompts(raw: string | null | undefined): Partial<MacroPrompt
     const out: Partial<MacroPrompts> = {}
     for (const [key, value] of Object.entries(parsed)) {
       if (isMacroPromptKey(key) && typeof value === 'string') out[key] = value
+      else if (key === 'BARCODE_EMOJI' && typeof value === 'string') out.BARCODE_SCAN = value
     }
     return out
   } catch {

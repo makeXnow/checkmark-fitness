@@ -114,7 +114,7 @@ export function MacroPromptSettings() {
                 id={`macro-prompt-${key}`}
                 value={draft[key]}
                 onChange={(e) => updatePrompt(key, e.target.value)}
-                rows={key === 'MACROS' || key === 'PARSER' ? 12 : 6}
+                rows={key === 'MACROS' || key === 'PARSER' ? 12 : key === 'BARCODE_SCAN' ? 10 : 6}
                 className="w-full p-3 bg-black border border-neutral-700 rounded-xl text-white text-sm font-mono leading-relaxed outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all resize-y min-h-[6rem]"
                 spellCheck={false}
               />

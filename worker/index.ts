@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { fatSecretSearchFoods } from './fatsecret'
+import { fatSecretLookupBarcode, fatSecretSearchFoods } from './fatsecret'
+import { pickBarcodeFoodLabel } from './barcodeLabel'
 import {
   type HabitsGoalsStored,
   parseHabitsGoalsStored,
@@ -771,6 +772,26 @@ api.post('/api/fatsecret/search', async (c) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'FatSecret search failed'
     return c.json({ error: msg }, 502)
+  }
+})
+
+/** FatSecret barcode lookup (food.find_id_for_barcode.v2). */
+api.post('/api/fatsecret/barcode', async (c) => {
+  const body = (await c.req.json()) as { barcode?: string; region?: string }
+  const barcode = body.barcode?.trim()
+  if (!barcode) return c.json({ error: 'barcode required' }, 400)
+  if (!c.env.FATSECRET_CLIENT_ID || !c.env.FATSECRET_CLIENT_SECRET) {
+    return c.json({ error: 'FatSecret credentials missing' }, 500)
+  }
+  try {
+    const food = await fatSecretLookupBarcode(c.env, barcode, body.region?.trim() || 'US')
+    const label = await pickBarcodeFoodLabel(c.env.DB, c.env.OPENAI_API_KEY, food)
+    return c.json({ food, name: label.name, emoji: label.emoji })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'FatSecret barcode lookup failed'
+    const notFound = /product not found|\berror 211\b|\b211:/i.test(msg)
+    const invalid = /invalid barcode/i.test(msg)
+    return c.json({ error: msg }, notFound ? 404 : invalid ? 400 : 502)
   }
 })
 

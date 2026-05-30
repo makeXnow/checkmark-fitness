@@ -199,6 +199,55 @@ html.lift-workout-swapping #app-main {
   scroll-padding-bottom: 0.5rem;
 }
 
+/**
+ * Sticky outer wrapper. Uses the page background so any scrolling content
+ * that passes underneath is fully masked. The inner card sits on top.
+ */
+.macro-diet-library-header {
+  position: sticky;
+  top: -1px;
+  z-index: 10;
+  background: var(--color-bg);
+  padding-top: 0.75rem;
+}
+
+/**
+ * The actual card surface with rounded top corners and border, sitting
+ * inside the sticky wrapper at a higher z-index than the bridge.
+ */
+.macro-diet-library-header-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  border: 1px solid var(--color-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  z-index: 2;
+}
+
+/**
+ * Invisible 1rem bridge that fills the gap at the bottom of the sticky
+ * wrapper and seals the visual seam between the header card and the body.
+ * Matches the card surface and carries the side borders down.
+ */
+.macro-diet-library-bridge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1rem;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  z-index: 1;
+}
+
+.macro-diet-library-body {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+}
+
 .tab-pager-frame {
   display: flex;
   flex-direction: column;
@@ -375,4 +424,17 @@ html.lift-workout-swapping #app-main {
     transform: translateY(0) scale(1);
     opacity: 1;
   }
+}
+
+@keyframes macro-scan-line {
+  0% {
+    transform: translateY(-40%);
+  }
+  100% {
+    transform: translateY(40%);
+  }
+}
+
+.macro-scan-line {
+  animation: macro-scan-line 1.5s ease-in-out infinite alternate;
 }

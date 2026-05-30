@@ -16,7 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { fireConfettiFromElement } from '../../lib/confetti'
 import { createPortal } from 'react-dom'
-import { aiJson, aiVisionJson, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
+import { aiJson, aiVisionJson, fatSecretBarcodeLookup, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
 import {
   scheduleScrollContainerToTop,
   useScrollIntoViewWithin,
@@ -31,7 +31,10 @@ import {
   macroItemDisplayName,
   macroItemServingFields,
   mergeMacroLogs,
-  parsedItemToDayItem,
+  parseAiDiaryName,
+  parseAiEmoji,
+  parsedItemsToDayItems,
+  parseServingDefinition,
   scaleFatSecretServing,
   sortCustomFoodsByUsage,
   type ParsedFoodItem,
@@ -48,6 +51,7 @@ import {
   type MacroFoodEditFields,
 } from './MacroFoodCard'
 import { useDebouncedCallback } from '../../lib/useDebouncedCallback'
+import { QuickScanPanel, prewarmCameraStream } from './QuickScanPanel'
 
 type QuickScanState = {
   isOpen: boolean
@@ -58,6 +62,17 @@ type QuickScanState = {
   frontData: Record<string, unknown> | null
   nutritionData: Record<string, unknown> | null
   addToDatabase: boolean
+}
+
+const EMPTY_QUICK_SCAN: QuickScanState = {
+  isOpen: false,
+  frontPreview: null,
+  nutritionPreview: null,
+  frontStatus: 'idle',
+  nutritionStatus: 'idle',
+  frontData: null,
+  nutritionData: null,
+  addToDatabase: true,
 }
 
 const MAX_RECORDING_MS = 3 * 60 * 1000
@@ -198,6 +213,9 @@ export function MacroVoiceTracker({
   })
   const frontPromiseRef = useRef<Promise<unknown> | null>(null)
   const nutritionPromiseRef = useRef<Promise<unknown> | null>(null)
+  const quickScanRef = useRef(quickScan)
+  quickScanRef.current = quickScan
+  const scanPreviewsRef = useRef<Map<string, { front: string; nutrition: string }>>(new Map())
 
   const [dbModalOpen, setDbModalOpen] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
@@ -280,6 +298,20 @@ export function MacroVoiceTracker({
   )
 
   useEffect(() => {
+    const stuck = items.filter(
+      (i) => i.status === 'processing_cancellable' && i.barcodeLookup && i.name?.trim(),
+    )
+    if (stuck.length === 0) return
+    replaceDay((prev) =>
+      prev.map((i) =>
+        i.status === 'processing_cancellable' && i.barcodeLookup && i.name?.trim()
+          ? { ...i, status: 'ready', barcodeLookup: undefined }
+          : i,
+      ),
+    )
+  }, [items, replaceDay])
+
+  useEffect(() => {
     const el = inputRef.current
     if (!el) return
     el.style.height = 'auto'
@@ -330,7 +362,6 @@ export function MacroVoiceTracker({
             if (i.id !== id) return i
             return {
               ...i,
-              timestamp: Date.now(),
               calories: result.calories,
               protein: result.protein,
               libraryFoodId: result.libraryFoodId,
@@ -539,7 +570,7 @@ export function MacroVoiceTracker({
           }
           replaceDay((prev) => prev.filter((i) => i.id !== id))
           if (data.items?.length) {
-            const newItems = data.items.map((it) => parsedItemToDayItem(it, { userInput: rawText }))
+            const newItems = parsedItemsToDayItems(data.items, { userInput: rawText })
             replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
             scrollDietListToTop()
             newItems.forEach((it) =>
@@ -555,7 +586,7 @@ export function MacroVoiceTracker({
         const data = parsed as { items?: ParsedFoodItem[] }
         replaceDay((prev) => prev.filter((i) => i.id !== id))
         if (data.items?.length) {
-          const newItems = data.items.map((it) => parsedItemToDayItem(it, { userInput: rawText }))
+          const newItems = parsedItemsToDayItems(data.items, { userInput: rawText })
           replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
           scrollDietListToTop()
           newItems.forEach((it) => void estimateMacrosForItem(it))
@@ -639,31 +670,29 @@ export function MacroVoiceTracker({
   }, [clearRecordingLimitTimer, recording, replaceDay, scrollDietListToTop, startParsingFlow, stopRecording])
 
   const handleSend = useCallback(async () => {
-    const isQuickReady =
-      quickScan.isOpen && quickScan.frontPreview && quickScan.nutritionPreview && quickScan.frontStatus === 'done' && quickScan.nutritionStatus === 'done'
+    const isQuickReady = quickScan.isOpen && quickScan.frontPreview && quickScan.nutritionPreview
     if (!inputText.trim() && !isQuickReady) return
     const text = inputText.trim() || '1 serving'
     const quickWasOpen = quickScan.isOpen
     const hadQuickMedia = Boolean(quickScan.frontPreview || quickScan.nutritionPreview)
     const addToDatabase = quickScan.addToDatabase
+    const capturedFrontPreview = quickScan.frontPreview
+    const capturedNutritionPreview = quickScan.nutritionPreview
     setInputText('')
     const fp = frontPromiseRef.current
     const np = nutritionPromiseRef.current
     if (quickWasOpen && hadQuickMedia) {
       setQuickScan({
-        isOpen: false,
-        frontPreview: null,
-        nutritionPreview: null,
-        frontStatus: 'idle',
-        nutritionStatus: 'idle',
-        frontData: null,
-        nutritionData: null,
-        addToDatabase: true,
+        ...EMPTY_QUICK_SCAN,
+        addToDatabase,
       })
       frontPromiseRef.current = null
       nutritionPromiseRef.current = null
     }
     const tempId = crypto.randomUUID()
+    if (capturedFrontPreview && capturedNutritionPreview) {
+      scanPreviewsRef.current.set(tempId, { front: capturedFrontPreview, nutrition: capturedNutritionPreview })
+    }
     const logText = quickWasOpen || fp || np ? `Scanning: ${text}` : text
     replaceDay((prev) => [...prev, { id: tempId, status: 'processing_cancellable', rawText: logText, timestamp: Date.now(), name: '', amount: '' }])
     scrollDietListToTop()
@@ -680,46 +709,158 @@ export function MacroVoiceTracker({
     void startParsingFlow(tempId, logText, baseFood, addToDatabase)
   }, [inputText, quickScan, replaceDay, scrollDietListToTop, startParsingFlow])
 
-  const handleQuickFile = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>, kind: 'front' | 'nutrition') => {
-      const file = e.target.files?.[0]
-      e.target.value = ''
-      if (!file) return
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const result = reader.result as string
-        const base64 = result.split(',')[1]
-        const mime = file.type
-        const payload = { mimeType: mime, base64 }
-        if (kind === 'front') {
-          setQuickScan((p) => ({ ...p, frontPreview: result, frontStatus: 'processing' }))
-          const p = aiVisionJson({
-            promptKey: 'ANALYZE_FRONT',
-            user: 'Analyze this image.',
-            images: [payload],
-            model: 'gpt-4o',
-          }).then((r) => r as Record<string, unknown>)
-          frontPromiseRef.current = p
-          p.then((data) => setQuickScan((q) => ({ ...q, frontStatus: 'done', frontData: data }))).catch(() =>
-            setQuickScan((q) => ({ ...q, frontStatus: 'error' })),
+  const handleQuickCapture = useCallback((kind: 'front' | 'nutrition', dataUrl: string) => {
+    const base64 = dataUrl.split(',')[1]
+    const payload = { mimeType: 'image/jpeg', base64 }
+    if (kind === 'front') {
+      setQuickScan((p) => ({ ...p, frontPreview: dataUrl, frontStatus: 'processing' }))
+      const p = aiVisionJson({
+        promptKey: 'ANALYZE_FRONT',
+        user: 'Analyze this image.',
+        images: [payload],
+        model: 'gpt-4o',
+      }).then((r) => r as Record<string, unknown>)
+      frontPromiseRef.current = p
+      p.then((data) => setQuickScan((q) => ({ ...q, frontStatus: 'done', frontData: data }))).catch(() =>
+        setQuickScan((q) => ({ ...q, frontStatus: 'error' })),
+      )
+    } else {
+      setQuickScan((p) => ({ ...p, nutritionPreview: dataUrl, nutritionStatus: 'processing' }))
+      const p = aiVisionJson({
+        promptKey: 'ANALYZE_NUTRITION',
+        user: 'Analyze this nutrition facts panel.',
+        images: [payload],
+        model: 'gpt-4o',
+      }).then((r) => r as Record<string, unknown>)
+      nutritionPromiseRef.current = p
+      p.then((data) => setQuickScan((q) => ({ ...q, nutritionStatus: 'done', nutritionData: data }))).catch(() =>
+        setQuickScan((q) => ({ ...q, nutritionStatus: 'error' })),
+      )
+    }
+  }, [])
+
+  const handleClearQuickCapture = useCallback((kind: 'front' | 'nutrition') => {
+    if (kind === 'front') {
+      frontPromiseRef.current = null
+      setQuickScan((p) => ({ ...p, frontPreview: null, frontStatus: 'idle', frontData: null }))
+    } else {
+      nutritionPromiseRef.current = null
+      setQuickScan((p) => ({ ...p, nutritionPreview: null, nutritionStatus: 'idle', nutritionData: null }))
+    }
+  }, [])
+
+  const handleBarcodeDetected = useCallback(
+    (rawBarcode: string) => {
+      const amount = inputText.trim() || '1 serving'
+      const addToDatabase = quickScanRef.current.addToDatabase
+      setInputText('')
+      setQuickScan({ ...EMPTY_QUICK_SCAN, addToDatabase })
+      frontPromiseRef.current = null
+      nutritionPromiseRef.current = null
+
+      const tempId = crypto.randomUUID()
+      const controller = new AbortController()
+      processingRefs.current[tempId] = controller
+
+      replaceDay((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          status: 'processing_cancellable',
+          barcodeLookup: true,
+          name: '',
+          amount,
+          rawText: '',
+          timestamp: Date.now(),
+        },
+      ])
+      scrollDietListToTop()
+
+      void (async () => {
+        try {
+          const { food, name: barcodeName, emoji: barcodeEmoji } = await fatSecretBarcodeLookup(rawBarcode)
+          if (controller.signal.aborted) return
+
+          const defaultServing = food.servings.find((s) => s.isDefault) ?? food.servings[0]
+          if (!defaultServing) throw new Error('Product not found')
+
+          const servingIndex = food.servings.indexOf(defaultServing) + 1
+          const mult = 1
+          const scaled = scaleFatSecretServing(defaultServing, mult)
+          const def = parseServingDefinition(defaultServing.description)
+          const fatSecretName = food.brandName ? `${food.brandName} ${food.name}`.trim() : food.name
+          const displayName = parseAiDiaryName(barcodeName, fatSecretName)
+          const emoji = parseAiEmoji(barcodeEmoji)
+
+          let libraryFoodId: string | undefined
+          if (addToDatabase) {
+            const libItem: MacroCustomFood = {
+              id: crypto.randomUUID(),
+              name: displayName,
+              emoji,
+              baseAmount: defaultServing.description,
+              calories: defaultServing.calories,
+              protein: defaultServing.protein,
+              fat: 0,
+              carbs: 0,
+              createdAt: Date.now(),
+            }
+            onSaveFoods([...customFoodsRef.current, libItem])
+            libraryFoodId = libItem.id
+          }
+
+          replaceDay((prev) =>
+            prev.map((i) =>
+              i.id !== tempId
+                ? i
+                : {
+                    id: tempId,
+                    status: 'ready',
+                    name: displayName,
+                    emoji,
+                    amount,
+                    calories: scaled.calories,
+                    protein: scaled.protein,
+                    servingType: def.label,
+                    servingSize: def.servingSize,
+                    servingUnit: def.servingUnit,
+                    servingMultiplier: mult,
+                    baseCalories: defaultServing.calories,
+                    baseProtein: defaultServing.protein,
+                    fatSecretResults: [food],
+                    macroEstimateSnapshot: {
+                      fatSecretIndex: 1,
+                      servingIndex,
+                      multiplier: mult,
+                    },
+                    libraryFoodId,
+                    timestamp: Date.now(),
+                  },
+            ),
           )
-        } else {
-          setQuickScan((p) => ({ ...p, nutritionPreview: result, nutritionStatus: 'processing' }))
-          const p = aiVisionJson({
-            promptKey: 'ANALYZE_NUTRITION',
-            user: 'Analyze this nutrition facts panel.',
-            images: [payload],
-            model: 'gpt-4o',
-          }).then((r) => r as Record<string, unknown>)
-          nutritionPromiseRef.current = p
-          p.then((data) => setQuickScan((q) => ({ ...q, nutritionStatus: 'done', nutritionData: data }))).catch(() =>
-            setQuickScan((q) => ({ ...q, nutritionStatus: 'error' })),
+        } catch (e) {
+          if (controller.signal.aborted) return
+          const msg = e instanceof Error ? e.message : 'Barcode lookup failed'
+          const notFound = /product not found|\berror 211\b|\b211:/i.test(msg)
+          replaceDay((prev) =>
+            prev.map((i) =>
+              i.id !== tempId
+                ? i
+                : {
+                    ...i,
+                    status: 'editing_raw',
+                    barcodeLookup: undefined,
+                    rawText: notFound ? 'Product not found' : msg,
+                    name: '',
+                  },
+            ),
           )
+        } finally {
+          delete processingRefs.current[tempId]
         }
-      }
-      reader.readAsDataURL(file)
+      })()
     },
-    [],
+    [inputText, onSaveFoods, replaceDay, scrollDietListToTop],
   )
 
   const cancelProcessing = useCallback(
@@ -856,8 +997,12 @@ export function MacroVoiceTracker({
           </div>
         ) : (
           [...items]
-            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-            .map((item) => (
+            .map((item, idx) => ({ item, idx }))
+            .sort((a, b) => {
+              const byTime = (b.item.timestamp || 0) - (a.item.timestamp || 0)
+              return byTime !== 0 ? byTime : b.idx - a.idx
+            })
+            .map(({ item }) => (
               <FoodRow
                 key={item.id}
                 item={item}
@@ -877,7 +1022,11 @@ export function MacroVoiceTracker({
                   reestimateWithDatabaseMatch(latest, foodIndex)
                 }}
                 databasePickLoading={databasePickLoadingIds.has(item.id)}
-                onCancelProcessing={() => cancelProcessing(item.id)}
+                scanPreviews={scanPreviewsRef.current.get(item.id)}
+                onCancelProcessing={() => {
+                  scanPreviewsRef.current.delete(item.id)
+                  cancelProcessing(item.id)
+                }}
                 onReprocess={(raw) => {
                   replaceDay((prev) =>
                     prev.map((i) => (i.id === item.id ? { ...i, status: 'processing_cancellable', rawText: raw } : i)),
@@ -893,21 +1042,25 @@ export function MacroVoiceTracker({
         )}
       </section>
 
-      <section className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="relative z-10 flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
-          <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
-            <NotebookText size={16} className="text-emerald-400" /> Food Library
-          </h2>
-          <button
-            type="button"
-            onClick={() => setDbModalOpen(true)}
-            className="relative z-10 p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
-            aria-label="Add food"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-          </button>
+      <section>
+        <div className="macro-diet-library-header">
+          <div className="macro-diet-library-header-card flex justify-between items-center p-4">
+            <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
+              <NotebookText size={16} className="text-emerald-400" /> Food Library
+            </h2>
+            <button
+              type="button"
+              onClick={() => setDbModalOpen(true)}
+              className="p-2 bg-white/5 rounded-xl text-emerald-400 hover:bg-white/10"
+              aria-label="Add food"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+          <div className="macro-diet-library-bridge" aria-hidden />
         </div>
-        <div className="space-y-3 p-4 pb-6">
+        <div className="macro-diet-library-body">
+          <div className="space-y-3 p-4 pb-6">
           {customFoods.length === 0 ? (
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">Library is empty</p>
           ) : (
@@ -931,6 +1084,7 @@ export function MacroVoiceTracker({
               />
             ))
           )}
+          </div>
         </div>
       </section>
       <div className="h-2 shrink-0" aria-hidden />
@@ -946,7 +1100,9 @@ export function MacroVoiceTracker({
         setQuickScan={setQuickScan}
         onMic={handleMicToggle}
         onSend={handleSend}
-        onQuickFile={handleQuickFile}
+        onQuickCapture={handleQuickCapture}
+        onClearQuickCapture={handleClearQuickCapture}
+        onBarcodeDetected={handleBarcodeDetected}
       />
 
       {dbModalOpen ? (
@@ -1076,6 +1232,7 @@ function FoodRow({
   onReestimate,
   onSelectFatSecret,
   databasePickLoading = false,
+  scanPreviews,
   onCancelProcessing,
   onReprocess,
   onCancelTranscription,
@@ -1091,6 +1248,7 @@ function FoodRow({
   onReestimate: () => void
   onSelectFatSecret: (foodIndex: number | null) => void
   databasePickLoading?: boolean
+  scanPreviews?: { front: string; nutrition: string }
   onCancelProcessing: () => void
   onReprocess: (raw: string) => void
   onCancelTranscription: () => void
@@ -1182,22 +1340,53 @@ function FoodRow({
   }
 
   if (item.status === 'processing_cancellable') {
-    return (
-      <button
-        type="button"
-        onClick={onCancelProcessing}
-        className="bg-white/5 p-4 rounded-[var(--radius-card)] border border-emerald-500/30 w-full text-left flex items-center gap-4"
-      >
-        <Loader2 className="animate-spin text-emerald-500 shrink-0" size={20} />
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-white text-sm line-clamp-2">&quot;{item.rawText}&quot;</p>
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-1">Processing… Tap to edit</p>
-        </div>
-        <span className="text-white opacity-50 shrink-0">
-          <Pencil size={12} />
-        </span>
-      </button>
-    )
+    const isBarcode = Boolean(item.barcodeLookup)
+    const barcodeComplete = isBarcode && Boolean(item.name?.trim())
+    if (!barcodeComplete) {
+      return (
+        <button
+          type="button"
+          onClick={onCancelProcessing}
+          className="bg-white/5 p-4 rounded-[var(--radius-card)] border border-emerald-500/30 w-full text-left flex items-center gap-4"
+        >
+          {scanPreviews ? (
+            <div className="flex gap-1.5 shrink-0">
+              <img src={scanPreviews.front} alt="" className="w-12 h-12 rounded-xl object-cover opacity-80" />
+              <img src={scanPreviews.nutrition} alt="" className="w-12 h-12 rounded-xl object-cover opacity-80" />
+            </div>
+          ) : (
+            <Loader2 className="animate-spin text-emerald-500 shrink-0" size={20} />
+          )}
+          <div className="flex-1 min-w-0">
+            {isBarcode ? (
+              <>
+                <p className="font-bold text-white text-sm">Looking up product…</p>
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-1">
+                  Tap to cancel
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-bold text-white text-sm line-clamp-2">&quot;{item.rawText}&quot;</p>
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-1">
+                  {scanPreviews ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="animate-spin inline-block" size={9} />
+                      Analyzing… Tap to edit
+                    </span>
+                  ) : (
+                    'Processing… Tap to edit'
+                  )}
+                </p>
+              </>
+            )}
+          </div>
+          <span className="text-white opacity-50 shrink-0">
+            <Pencil size={12} />
+          </span>
+        </button>
+      )
+    }
   }
 
   if (item.status === 'editing_raw' && !item.name?.trim()) {
@@ -1293,7 +1482,9 @@ function InteractionDock({
   setQuickScan,
   onMic,
   onSend,
-  onQuickFile,
+  onQuickCapture,
+  onClearQuickCapture,
+  onBarcodeDetected,
 }: {
   inputRef: React.RefObject<HTMLTextAreaElement>
   inputText: string
@@ -1304,10 +1495,11 @@ function InteractionDock({
   setQuickScan: React.Dispatch<React.SetStateAction<QuickScanState>>
   onMic: () => void
   onSend: () => void
-  onQuickFile: (e: React.ChangeEvent<HTMLInputElement>, kind: 'front' | 'nutrition') => void
+  onQuickCapture: (kind: 'front' | 'nutrition', dataUrl: string) => void
+  onClearQuickCapture: (kind: 'front' | 'nutrition') => void
+  onBarcodeDetected: (barcode: string) => void
 }) {
-  const isQuickReady =
-    quickScan.isOpen && quickScan.frontPreview && quickScan.nutritionPreview && quickScan.frontStatus === 'done' && quickScan.nutritionStatus === 'done'
+  const isQuickReady = quickScan.isOpen && quickScan.frontPreview && quickScan.nutritionPreview
   /** Mic when idle; send (arrow) when there is text, quick-scan is ready, or actively recording — tap send to stop mic and transcribe. */
   const showSend = Boolean(inputText.trim() || isQuickReady || recording)
 
@@ -1323,70 +1515,29 @@ function InteractionDock({
       />
       <div className="relative flex w-full flex-col gap-3 pt-2 pointer-events-auto">
         {quickScan.isOpen && (
-          <div className="flex flex-col gap-3 bg-[var(--color-surface)] p-3 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-2xl">
-            <div className="flex gap-3">
-              <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
-                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onQuickFile(e, 'nutrition')} />
-                {quickScan.nutritionPreview ? (
-                  <img src={quickScan.nutritionPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-                ) : (
-                  <span className="mb-2 flex text-white opacity-30">
-                    <Camera size={24} />
-                  </span>
-                )}
-                {quickScan.nutritionStatus === 'processing' && (
-                  <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
-                )}
-                <span className="relative z-10 text-[9px] font-black uppercase text-white text-center px-2">
-                  {quickScan.nutritionStatus === 'done' ? 'Nutrition OK' : '1. Nutrition'}
-                </span>
-              </label>
-              <label className="relative flex-1 flex flex-col items-center justify-center h-28 bg-white/5 border border-dashed border-white/10 rounded-[1.2rem] cursor-pointer overflow-hidden">
-                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onQuickFile(e, 'front')} />
-                {quickScan.frontPreview ? (
-                  <img src={quickScan.frontPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-                ) : (
-                  <span className="mb-2 flex text-white opacity-30">
-                    <Camera size={24} />
-                  </span>
-                )}
-                {quickScan.frontStatus === 'processing' && (
-                  <Loader2 size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 animate-spin z-20" />
-                )}
-                <span className="relative z-10 text-[9px] font-black uppercase text-white text-center px-2">
-                  {quickScan.frontStatus === 'done' ? 'Front OK' : '2. Front'}
-                </span>
-              </label>
-            </div>
-            <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={quickScan.addToDatabase}
-                onChange={(e) => setQuickScan((p) => ({ ...p, addToDatabase: e.target.checked }))}
-                className="h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald-500"
-              />
-              <span className="text-xs font-semibold text-white/80">Add to database</span>
-            </label>
-          </div>
+          <QuickScanPanel
+            addToDatabase={quickScan.addToDatabase}
+            frontPreview={quickScan.frontPreview}
+            nutritionPreview={quickScan.nutritionPreview}
+            frontStatus={quickScan.frontStatus}
+            nutritionStatus={quickScan.nutritionStatus}
+            onToggleLibrary={() => setQuickScan((p) => ({ ...p, addToDatabase: !p.addToDatabase }))}
+            onCapture={onQuickCapture}
+            onClearCapture={onClearQuickCapture}
+            onBarcodeDetected={onBarcodeDetected}
+          />
         )}
         <div className="flex items-end gap-3 w-full">
           <button
             type="button"
+            onPointerDown={() => {
+              if (!quickScan.isOpen) prewarmCameraStream()
+            }}
             onClick={() =>
               setQuickScan((p) =>
                 p.isOpen
-                  ? {
-                      ...p,
-                      isOpen: false,
-                      frontPreview: null,
-                      nutritionPreview: null,
-                      frontStatus: 'idle',
-                      nutritionStatus: 'idle',
-                      frontData: null,
-                      nutritionData: null,
-                      addToDatabase: true,
-                    }
-                  : { ...p, isOpen: true, addToDatabase: true },
+                  ? { ...EMPTY_QUICK_SCAN, addToDatabase: p.addToDatabase }
+                  : { ...p, isOpen: true },
               )
             }
             className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-opacity ${

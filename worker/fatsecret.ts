@@ -147,7 +147,7 @@ async function getAccessToken(env: EnvFatSecret): Promise<string> {
       Authorization: `Basic ${basic}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: 'grant_type=client_credentials&scope=basic',
+    body: 'grant_type=client_credentials&scope=basic%20barcode',
   })
 
   if (!res.ok) {
@@ -171,6 +171,100 @@ function trimFoods(foods: FatSecretFoodRef[]): FatSecretFoodRef[] {
 function throwFatSecretApiError(msg: string | null): void {
   if (!msg) return
   throw new Error(msg)
+}
+
+/** Pad UPC-A / EAN-8 / EAN-13 to GTIN-13 for FatSecret barcode lookup. */
+export function toGtin13(raw: string): string {
+  const digits = String(raw).replace(/\D/g, '')
+  if (digits.length > 13) throw new Error('Barcode too long')
+  if (digits.length === 13) return digits
+  return digits.padStart(13, '0')
+}
+
+function isValidGs1CheckDigit(digits: string): boolean {
+  if (!/^\d+$/.test(digits) || digits.length < 2) return false
+  const body = digits.slice(0, -1)
+  const check = parseInt(digits.slice(-1), 10)
+  let sum = 0
+  for (let i = 0; i < body.length; i++) {
+    const d = parseInt(body[body.length - 1 - i]!, 10)
+    sum += d * (i % 2 === 0 ? 3 : 1)
+  }
+  return (10 - (sum % 10)) % 10 === check
+}
+
+function assertValidProductBarcode(raw: string): string {
+  const digits = String(raw).replace(/\D/g, '')
+  if (![8, 12, 13].includes(digits.length)) throw new Error('Invalid barcode format')
+  if (!isValidGs1CheckDigit(digits)) throw new Error('Invalid barcode check digit')
+  return digits
+}
+
+function parseFatSecretFoodRecord(food: Record<string, unknown>): FatSecretFoodRef | null {
+  const foodId = str(food.food_id)
+  if (!foodId) return null
+  const servingsRaw = food.servings as Record<string, unknown> | undefined
+  const servingList = asArray(servingsRaw?.serving as Record<string, unknown> | Record<string, unknown>[])
+  const servings: FatSecretServingRef[] = servingList
+    .map((s) => {
+      const servingId = str(s.serving_id)
+      if (!servingId) return null
+      return {
+        servingId,
+        description: str(s.serving_description) || str(s.measurement_description) || '1 serving',
+        calories: num(s.calories),
+        protein: num(s.protein),
+        isDefault: s.is_default === 1 || s.is_default === '1',
+      }
+    })
+    .filter((s): s is FatSecretServingRef => s != null)
+  if (servings.length === 0) return null
+  return {
+    foodId,
+    name: str(food.food_name),
+    brandName: str(food.brand_name) || undefined,
+    foodType: str(food.food_type) || undefined,
+    servings,
+  }
+}
+
+export function parseFatSecretFoodJson(data: unknown): FatSecretFoodRef | null {
+  if (!data || typeof data !== 'object') return null
+  const root = data as Record<string, unknown>
+  const food = root.food
+  if (!food || typeof food !== 'object') return null
+  return parseFatSecretFoodRecord(food as Record<string, unknown>)
+}
+
+export async function fatSecretLookupBarcode(
+  env: EnvFatSecret,
+  barcode: string,
+  region = 'US',
+): Promise<FatSecretFoodRef> {
+  const normalized = assertValidProductBarcode(barcode)
+  const gtin13 = toGtin13(normalized)
+  const token = await getAccessToken(env)
+  const params = new URLSearchParams({
+    barcode: gtin13,
+    format: 'json',
+    flag_default_serving: 'true',
+    region,
+  })
+  const res = await fetch(`https://platform.fatsecret.com/rest/food/barcode/find-by-id/v2?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const text = await res.text()
+  const apiErr = fatSecretApiErrorMessage(text)
+  if (apiErr) throw new Error(apiErr)
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error('Invalid FatSecret barcode response')
+  }
+  const food = parseFatSecretFoodJson(data)
+  if (!food) throw new Error('Product not found')
+  return { ...food, servings: food.servings.slice(0, 8) }
 }
 
 export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Promise<FatSecretFoodRef[]> {

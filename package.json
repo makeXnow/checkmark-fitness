@@ -25,6 +25,7 @@
     "pages:deploy": "npm run build:prod && wrangler deploy && wrangler pages deploy dist --project-name mxn-checkmark-fitness --branch main --commit-dirty=true"
   },
   "dependencies": {
+    "@zxing/browser": "^0.2.0",
     "canvas-confetti": "^1.9.4",
     "hono": "^4.12.18",
     "lucide-react": "^1.14.0",

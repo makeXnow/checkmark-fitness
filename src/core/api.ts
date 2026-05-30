@@ -253,6 +253,20 @@ export async function fatSecretSearch(query: string): Promise<{ foods: FatSecret
   return { foods: data.foods ?? [] }
 }
 
+export async function fatSecretBarcodeLookup(
+  barcode: string,
+  region = 'US',
+): Promise<{ food: FatSecretFoodRef; name?: string; emoji?: string }> {
+  const res = await apiFetch('/api/fatsecret/barcode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ barcode, region }),
+  })
+  const data = await parseJson<{ food?: FatSecretFoodRef; name?: string; emoji?: string; error?: string }>(res)
+  if (data.error || !data.food) throw new Error(data.error || 'Product not found')
+  return { food: data.food, name: data.name, emoji: data.emoji }
+}
+
 export type MacroEstimateApiResult = {
   calories: number
   protein: number

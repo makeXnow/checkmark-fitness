@@ -562,6 +562,20 @@ export function macroItemDisplayEmoji(item: {
   return item.parseSnapshot?.emoji || item.emoji || '🍱'
 }
 
+/** First emoji character from an AI JSON field; falls back if empty. */
+export function parseAiEmoji(raw: unknown, fallback = '🍱'): string {
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (!s) return fallback
+  return [...s][0] ?? fallback
+}
+
+/** Trim AI diary name to parser rules (max 25 chars). */
+export function parseAiDiaryName(raw: unknown, fallback: string): string {
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (!s) return fallback
+  return s.length > 25 ? s.slice(0, 25).trim() : s
+}
+
 const MACRO_ITEM_STATUS_RANK: Record<string, number> = {
   ready: 4,
   pending: 3,
@@ -775,4 +789,13 @@ export function parsedItemToDayItem(it: ParsedFoodItem, overrides: Partial<Macro
     carbs: 0,
     ...overrides,
   }
+}
+
+/** Parser order is first-mentioned → last-mentioned; timestamps ascend so the list (newest on top) reads bottom-to-top in speech order. */
+export function parsedItemsToDayItems(
+  items: ParsedFoodItem[],
+  overrides: Partial<MacroDayItem> = {},
+): MacroDayItem[] {
+  const baseTs = Date.now()
+  return items.map((it, idx) => parsedItemToDayItem(it, { ...overrides, timestamp: baseTs + idx }))
 }
