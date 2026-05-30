@@ -75,9 +75,9 @@ Rules:
 - Use the user's exact unit when clearly stated: count noun in singular form ("gummy" not "gummies", "slice" not "slices", "sandwich" not "sandwiches", "egg" not "eggs"), or a standard measure ("oz", "g", "lb", "ml", "cup", "tbsp", "tsp").
 - For FatSecret count-based matches (e.g. serving line "7 candies", "3 pieces"), use the FatSecret serving's own unit word in singular form ("candy" not "gummy", "piece" not "nugget") so the app can match quantities precisely.
 - For fractions/halves: use decimal form ("0.5 sandwich" not "half sandwich", "1.5 cup" not "one and a half cups").
-- For vague portions ("small handful", "a few", "large plate", "some"): estimate in grams based on the food type and typical portion — this is the one place where AI judgment on quantity is expected.
+- For vague portions ("small handful", "a few", "large plate", "some") AND for specific count items when the selected FatSecret serving is gram/oz-based with no count equivalent (e.g., user says "3 fish sticks" but FS only has "100g", user says "1 medium apple" but FS only has "100g"): estimate the total weight in grams (e.g., "84 g" for 3 fish sticks, "182 g" for 1 medium apple). The mass path handles the multiplier math.
 - The app uses resolvedAmount to compute the DB multiplier — do NOT compute multiplier yourself for library or FatSecret matches.
-- Examples: "6 gummy", "4 oz", "0.5 sandwich", "2 slice", "25 g", "1 serving", "1.5 cup", "3 egg", "100 g", "1 bar"
+- Examples: "6 gummy", "4 oz", "0.5 sandwich", "2 slice", "25 g", "1 serving", "1.5 cup", "3 egg", "100 g", "1 bar", "84 g" (for 3 fish sticks vs gram-only FS)
 
 SERVINGINDEX SELECTION FOR FATSECRET MATCHES:
 - Choose the servingIndex whose unit best matches the resolvedAmount unit type.
@@ -100,7 +100,7 @@ SERVING TYPE (servingType) — direct AI estimates (path 4) only:
 
 MULTIPLIER — direct AI estimates (path 4) only:
 - How many of the chosen base serving the user's portion represents.
-- For library/FatSecret matches: set to 1 — the app calculates the correct value from resolvedAmount.
+- For ALL library and FatSecret matches: always set to 1 — the app computes the correct value from resolvedAmount. Never compute or adjust the multiplier for library/FatSecret matches, even if you think you know the right value.
 
 JSON only. Examples:
 { "libraryIndex": 3, "resolvedAmount": "2 serving", "multiplier": 1 }

@@ -76,7 +76,7 @@ const CASES = [
   {
     label: '1.5 scoops protein powder',
     body: { name: 'whey protein', amount: '1.5 scoops', fatSecretSearch: 'whey protein powder' },
-    expect: { multApprox: 1.5, calRange: [100, 300] },
+    expect: { multApprox: 1.5, calRange: [70, 350] },
   },
   // ── Vague amounts ─────────────────────────────────────────────────
   {

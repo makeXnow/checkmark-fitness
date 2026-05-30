@@ -494,7 +494,9 @@ function resolveCountServingMultiplier(
 ): number {
   const ai = typeof aiMultiplier === 'number' && aiMultiplier > 0 ? aiMultiplier : 1
   if (parseServingBaseGrams(selectedServingDescription) != null) return ai
-  if (userAmount?.trim() && parseMassGrams(userAmount) != null) return ai
+  // User gave a mass input but FS serving has no gram info (e.g. "1/2 cup").
+  // The AI multiplier is unreliable here — return 1 as a safe neutral fallback.
+  if (userAmount?.trim() && parseMassGrams(userAmount) != null) return 1
 
   // Count path: try resolveDbMultiplier (handles tier-2 unit match + tier-3 unit mismatch)
   if (userAmount?.trim()) {
@@ -588,11 +590,24 @@ export function resolveMacroEstimate(
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
 
+    // When FS serving description is a bare "1 serving" or "serving", try to
+    // extract the item count from the food name (e.g. "4 Piece Chicken McNuggets"
+    // → effective description "4 piece"). This handles the common FS pattern where
+    // the count lives in the food name, not the serving description.
+    const rawDesc = serving.description.trim().toLowerCase()
+    let effectiveDesc = serving.description
+    if (rawDesc === '1 serving' || rawDesc === 'serving') {
+      const countMatch = food.name.match(/\b(\d+)\s*(piece|pc|pcs|nugget|nuggets|wing|wings|strip|strips|bite|bites|cookie|cookies|bar|bars|slice|slices|tablet|tablets|capsule|capsules|item|items|count|pack|packs)\b/i)
+      if (countMatch) {
+        effectiveDesc = `${countMatch[1]} ${countMatch[2]!.toLowerCase()}`
+      }
+    }
+
     // Primary: resolvedAmount drives both multiplier and display fields
     const resolvedStr = adjusted.resolvedAmount?.trim()
     const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
     if (resolvedParsed) {
-      const dbMult = resolveDbMultiplier(resolvedParsed, serving.description)
+      const dbMult = resolveDbMultiplier(resolvedParsed, effectiveDesc)
       if (dbMult !== null) {
         const totalCal = serving.calories * dbMult
         const totalPro = serving.protein * dbMult
@@ -603,7 +618,7 @@ export function resolveMacroEstimate(
     // Fallback: count/mass heuristics + AI multiplier
     const multiplier = resolveCountServingMultiplier(
       options?.userAmount,
-      serving.description,
+      effectiveDesc,
       adjusted.multiplier,
     )
     const scaled = scaleFatSecretServing(serving, multiplier)

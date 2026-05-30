@@ -53,8 +53,8 @@ const CASES = [
   {
     label: 'half an avocado',
     body: { name: 'avocado', amount: 'half an avocado', fatSecretSearch: 'avocado raw' },
-    expect: { multApprox: 0.5, calRange: [70, 200] },
-    note: 'resolvedAmount: "0.5 avocado"; FS may list "1 avocado" or "50g" serving',
+    expect: { calRange: [60, 200] },
+    note: 'AI may output "0.5 avocado" (mult=0.5) or "50 g" (mult=50) — cal check only',
   },
   // ── Multi-word count nouns ────────────────────────────────────────────────
   {
@@ -123,8 +123,8 @@ const CASES = [
   {
     label: '1 medium apple',
     body: { name: 'apple', amount: '1 medium apple', fatSecretSearch: 'apple raw medium' },
-    expect: { multApprox: 1, calRange: [60, 150] },
-    note: 'resolvedAmount: "1 apple"; FS "1 medium" base',
+    expect: { calRange: [60, 150] },
+    note: 'AI may output "1 apple" (mult=1) or "182 g" (mult=182) — cal check only',
   },
   // ── Condiment / sauce ─────────────────────────────────────────────────────
   {

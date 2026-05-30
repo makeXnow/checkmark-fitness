@@ -264,14 +264,21 @@ function isVolumeUnit(unit: string): boolean {
   )
 }
 
+// Words that are generic serving placeholders — not specific countable nouns.
+// Tier 3 should not fire across these (e.g. "7 nuggets / 1 serving" ≠ 7x).
+const GENERIC_SERVING_WORDS = new Set(['serving', 'servings', 'portion', 'portions', 'order', 'orders', 'meal', 'meals', 'package', 'packages', 'container', 'containers'])
+
 /**
  * Returns true when a unit is a pure count noun — not mass, not volume.
  * Only pure-count units are safe for the tier-3 ratio fallback where unit
  * names don't match (e.g. "gummy" vs "candy").
+ * Generic serving placeholders ("serving", "portion", etc.) are excluded
+ * to prevent false ratios like "7 nuggets / 1 serving = 7x".
  */
 function isPureCountUnit(unit: string): boolean {
   const u = unit.trim()
   if (!u || !/[a-zA-Z]/.test(u)) return false
+  if (GENERIC_SERVING_WORDS.has(normalizeSingular(u))) return false
   if (isVolumeUnit(u)) return false
   if (parseMassGrams(`1 ${u}`) !== null) return false
   return true
@@ -315,12 +322,15 @@ export function resolveDbMultiplier(
   }
 
   // Tier 3 — count with mismatched unit names (e.g. "gummy" vs "candy")
-  // Safe when both are pure count nouns; AI confirmed the food match already.
+  // Safe when both are specific pure count nouns; generic placeholders ("serving",
+  // "portion", "order") are excluded to prevent false ratios like 7 nuggets / 1 serving = 7x.
   if (
     dbCount &&
     dbCount.qty > 0 &&
     isPureCountUnit(resolved.unit) &&
-    isPureCountUnit(dbCount.unit)
+    isPureCountUnit(dbCount.unit) &&
+    !GENERIC_SERVING_WORDS.has(normalizeSingular(resolved.unit)) &&
+    !GENERIC_SERVING_WORDS.has(normalizeSingular(dbCount.unit))
   ) {
     return roundMultiplier(resolved.qty / dbCount.qty)
   }
