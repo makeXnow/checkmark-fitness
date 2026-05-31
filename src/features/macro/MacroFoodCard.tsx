@@ -17,6 +17,7 @@ import {
   macroItemDisplayName,
   macroItemServingFields,
   macrosForServingCount,
+  normalizeDiaryLabel,
   resolveCanonicalBaseMacros,
 } from './macroLib'
 
@@ -1003,9 +1004,15 @@ function itemToEditFields(
 }
 
 export function libraryFoodToEditFields(food: MacroCustomFood): MacroFoodEditFields {
-  return {
-    emoji: food.emoji || '🍱',
+  const label = normalizeDiaryLabel({
     name: food.name,
+    emoji: food.emoji,
+    fallbackName: food.name,
+    fallbackEmoji: food.emoji,
+  })
+  return {
+    emoji: label.emoji,
+    name: label.name,
     amount: food.baseAmount || '',
     servingMultiplier: 1,
     calories: food.calories,

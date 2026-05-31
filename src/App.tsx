@@ -16,7 +16,11 @@ import { AppLoadingAnimation } from './core/AppLoadingAnimation'
 import { TabPager } from './core/TabPager'
 import { applyAppStatePatch, clearLiftAssumption, dismissLiftAssumption, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
 import { normalizeMacroGoals } from './features/macro/macroCalculator'
-import { mergeMacroLogs, normalizeMacroLogsOnLoad } from './features/macro/macroLib'
+import {
+  mergeMacroLogs,
+  normalizeMacroCustomFoodsOnLoad,
+  normalizeMacroLogsOnLoad,
+} from './features/macro/macroLib'
 import {
   cementHabitsSnapshots,
   cementMacroSnapshots,
@@ -130,8 +134,11 @@ export default function App() {
       )
       const cementedHabitsBundle = habitsCement.changed ? habitsCement.bundle : habitsBundle
 
-      const logs = normalizeMacroLogsOnLoad(data.macro.logs || {}, data.macro.customFoods || [])
+      const customFoodsNorm = normalizeMacroCustomFoodsOnLoad(data.macro.customFoods || [])
+      const logs = normalizeMacroLogsOnLoad(data.macro.logs || {}, customFoodsNorm.foods)
       const logsChanged = logs !== data.macro.logs
+      const foodsChanged = customFoodsNorm.changed
+      if (foodsChanged) data.macro.customFoods = customFoodsNorm.foods
 
       const liftPayload = data.lift.payload as LiftPayload
       const liftHistoryNorm = normalizeLiftHistoryOnLoad(liftPayload.history)
@@ -148,7 +155,7 @@ export default function App() {
         }
       }
 
-      if (logsChanged || macroCement.changed || habitsCement.changed || liftHistoryChanged) {
+      if (logsChanged || foodsChanged || macroCement.changed || habitsCement.changed || liftHistoryChanged) {
         data.macro.logs = logs
         data.macro.goals = macroBundle.current
         data.macro.goalsSnapshotsByDay = macroBundle.snapshotsByDay

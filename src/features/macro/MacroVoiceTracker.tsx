@@ -32,8 +32,7 @@ import {
   macroItemDisplayName,
   macroItemServingFields,
   mergeMacroLogs,
-  parseAiDiaryName,
-  parseAiEmoji,
+  normalizeDiaryLabel,
   parsedItemsToDayItems,
   macrosForServingCount,
   parseServingDefinition,
@@ -445,7 +444,12 @@ export function MacroVoiceTracker({
             return {
               ...i,
               ...(libraryFood
-                ? { name: libraryFood.name, emoji: libraryFood.emoji || '🍱' }
+                ? normalizeDiaryLabel({
+                    name: libraryFood.name,
+                    emoji: libraryFood.emoji,
+                    fallbackName: libraryFood.name,
+                    fallbackEmoji: libraryFood.emoji,
+                  })
                 : {}),
               calories: result.calories,
               protein: result.protein,
@@ -639,10 +643,15 @@ export function MacroVoiceTracker({
           if (!nf || typeof nf !== 'object') throw new Error('parse')
           const data = nf as { items?: ParsedFoodItem[] }
           if (addToDatabase) {
+            const scanLabel = normalizeDiaryLabel({
+              name: baseFood.name,
+              emoji: baseFood.emoji,
+              fallbackName: String(baseFood.name || 'Food'),
+            })
             const libItem: MacroCustomFood = {
               id: crypto.randomUUID(),
-              name: String(baseFood.name || ''),
-              emoji: String(baseFood.emoji || '🍱'),
+              name: scanLabel.name,
+              emoji: scanLabel.emoji,
               baseAmount: String(baseFood.baseAmount || '1 serving'),
               calories: Number(baseFood.calories) || 0,
               protein: Number(baseFood.protein) || 0,
@@ -896,8 +905,13 @@ export function MacroVoiceTracker({
           const scaled = scaleFatSecretServing(defaultServing, mult)
           const def = parseServingDefinition(defaultServing.description)
           const fatSecretName = food.brandName ? `${food.brandName} ${food.name}`.trim() : food.name
-          const displayName = parseAiDiaryName(barcodeName, fatSecretName)
-          const emoji = parseAiEmoji(barcodeEmoji)
+          const barcodeLabel = normalizeDiaryLabel({
+            name: barcodeName,
+            emoji: barcodeEmoji,
+            fallbackName: fatSecretName,
+          })
+          const displayName = barcodeLabel.name
+          const emoji = barcodeLabel.emoji
 
           let libraryFoodId: string | undefined
           if (addToDatabase) {
@@ -1030,13 +1044,19 @@ export function MacroVoiceTracker({
 
   const updateLibraryFood = useCallback(
     (id: string, fields: MacroFoodEditFields) => {
+      const label = normalizeDiaryLabel({
+        name: fields.name,
+        emoji: fields.emoji,
+        fallbackName: fields.name,
+        fallbackEmoji: fields.emoji,
+      })
       onSaveFoods(
         customFoodsRef.current.map((f) =>
           f.id === id
             ? {
                 ...f,
-                emoji: fields.emoji || '🍱',
-                name: fields.name,
+                emoji: label.emoji,
+                name: label.name,
                 baseAmount: fields.amount,
                 calories: fields.calories,
                 protein: fields.protein,
@@ -1783,11 +1803,15 @@ function DatabaseModal({
           model: 'gpt-4o',
         })) as { name?: string; emoji?: string }
         if (cancelled) return
-        setEntry((prev) => ({
-          ...prev,
-          name: frontData.name || prev.name,
-          emoji: frontData.emoji || prev.emoji,
-        }))
+        setEntry((prev) => {
+          const label = normalizeDiaryLabel({
+            name: frontData.name,
+            emoji: frontData.emoji,
+            fallbackName: prev.name || 'Food',
+            fallbackEmoji: prev.emoji,
+          })
+          return { ...prev, name: label.name, emoji: label.emoji }
+        })
       } finally {
         if (!cancelled) setAnalyzingFront(false)
       }
@@ -1797,12 +1821,21 @@ function DatabaseModal({
     }
   }, [frontImage])
 
-  const buildEntry = (): Omit<MacroCustomFood, 'id' | 'createdAt'> => ({
-    ...entry,
-    emoji: entry.emoji || '🍱',
-    fat: 0,
-    carbs: 0,
-  })
+  const buildEntry = (): Omit<MacroCustomFood, 'id' | 'createdAt'> => {
+    const label = normalizeDiaryLabel({
+      name: entry.name,
+      emoji: entry.emoji,
+      fallbackName: entry.name || 'Food',
+      fallbackEmoji: entry.emoji,
+    })
+    return {
+      ...entry,
+      name: label.name,
+      emoji: label.emoji,
+      fat: 0,
+      carbs: 0,
+    }
+  }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: { data: string; mimeType: string; preview: string } | null) => void) => {
     const f = e.target.files?.[0]

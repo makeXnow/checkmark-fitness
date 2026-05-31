@@ -757,9 +757,10 @@ export function macroItemDisplayName(
 ): string {
   if (item.libraryFoodId) {
     const food = customFoods.find((f) => f.id === item.libraryFoodId)
-    if (food?.name?.trim()) return food.name
+    if (food?.name?.trim()) return stripLeadingEmojiFromName(food.name.trim())
   }
-  return item.parseSnapshot?.name?.trim() || item.name
+  const raw = item.parseSnapshot?.name?.trim() || item.name
+  return stripLeadingEmojiFromName(raw)
 }
 
 export function macroItemDisplayEmoji(
@@ -772,9 +773,28 @@ export function macroItemDisplayEmoji(
 ): string {
   if (item.libraryFoodId) {
     const food = customFoods.find((f) => f.id === item.libraryFoodId)
-    if (food?.emoji?.trim()) return food.emoji.trim()
+    if (food?.emoji?.trim()) return parseAiEmoji(food.emoji)
   }
-  return item.parseSnapshot?.emoji || item.emoji || '🍱'
+  return parseAiEmoji(item.parseSnapshot?.emoji || item.emoji)
+}
+
+/** One leading emoji grapheme (incl. ZWJ sequences). */
+const LEADING_EMOJI_CLUSTER =
+  /^(?:\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*)/u
+
+/** Remove emoji prefix so the icon column is the only emoji on food cards. */
+export function stripLeadingEmojiFromName(name: string): string {
+  let rest = name.trimStart()
+  if (!rest) return name.trim()
+  let prev = ''
+  while (rest !== prev) {
+    prev = rest
+    const m = rest.match(LEADING_EMOJI_CLUSTER)
+    if (!m) break
+    rest = rest.slice(m[0].length).trimStart()
+    rest = rest.replace(/^[\s.,\-–—]+/, '').trimStart()
+  }
+  return rest.length > 0 ? rest : name.trim()
 }
 
 /** First emoji character from an AI JSON field; falls back if empty. */
@@ -789,6 +809,70 @@ export function parseAiDiaryName(raw: unknown, fallback: string): string {
   const s = typeof raw === 'string' ? raw.trim() : ''
   if (!s) return fallback
   return s.length > 25 ? s.slice(0, 25).trim() : s
+}
+
+/** Normalize AI/parser name + emoji: single emoji, no duplicate emoji in name. */
+export function normalizeDiaryLabel(input: {
+  name?: unknown
+  emoji?: unknown
+  fallbackName: string
+  fallbackEmoji?: string
+}): { name: string; emoji: string } {
+  const fallbackEmoji = input.fallbackEmoji ?? '🍱'
+  const emoji = parseAiEmoji(input.emoji, fallbackEmoji)
+  const fallbackTrimmed = input.fallbackName.trim() || 'Food'
+  const rawName = typeof input.name === 'string' ? input.name.trim() : ''
+  let name = rawName
+    ? parseAiDiaryName(rawName, fallbackTrimmed)
+    : parseAiDiaryName(fallbackTrimmed, fallbackTrimmed)
+  name = stripLeadingEmojiFromName(name)
+  if (!name) {
+    name = stripLeadingEmojiFromName(parseAiDiaryName(fallbackTrimmed, fallbackTrimmed))
+  }
+  if (!name) name = parseAiDiaryName(fallbackTrimmed, fallbackTrimmed)
+  return { name, emoji }
+}
+
+export function normalizeMacroCustomFood(food: MacroCustomFood): MacroCustomFood {
+  const label = normalizeDiaryLabel({
+    name: food.name,
+    emoji: food.emoji,
+    fallbackName: food.name,
+    fallbackEmoji: food.emoji,
+  })
+  if (label.name === food.name && label.emoji === (food.emoji || '🍱')) return food
+  return { ...food, name: label.name, emoji: label.emoji }
+}
+
+function normalizeStoredMacroDayItem(item: MacroDayItem): MacroDayItem {
+  const emoji = parseAiEmoji(item.emoji ?? item.parseSnapshot?.emoji)
+  let name = stripLeadingEmojiFromName(item.name)
+  let parseSnapshot = item.parseSnapshot
+  let changed = name !== item.name || emoji !== (item.emoji || '🍱')
+
+  if (parseSnapshot) {
+    const snapName = stripLeadingEmojiFromName(parseSnapshot.name)
+    const snapEmoji = parseAiEmoji(parseSnapshot.emoji, emoji)
+    if (snapName !== parseSnapshot.name || snapEmoji !== parseSnapshot.emoji) {
+      parseSnapshot = { ...parseSnapshot, name: snapName, emoji: snapEmoji }
+      changed = true
+    }
+  }
+
+  if (!changed) return item
+  return { ...item, name, emoji, parseSnapshot }
+}
+
+export function normalizeMacroCustomFoodsOnLoad(
+  foods: MacroCustomFood[],
+): { foods: MacroCustomFood[]; changed: boolean } {
+  let changed = false
+  const next = foods.map((f) => {
+    const n = normalizeMacroCustomFood(f)
+    if (n !== f) changed = true
+    return n
+  })
+  return { foods: changed ? next : foods, changed }
 }
 
 const MACRO_ITEM_STATUS_RANK: Record<string, number> = {
@@ -838,9 +922,15 @@ export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayIte
 }
 
 export function parseSnapshotFromItem(it: ParsedFoodItem): MacroParseSnapshot {
-  return {
+  const fallbackName = (it.name || '').trim() || 'Food'
+  const { name, emoji } = normalizeDiaryLabel({
+    name: it.name,
     emoji: it.emoji,
-    name: it.name || '',
+    fallbackName,
+  })
+  return {
+    emoji,
+    name,
     amount: it.amount || '',
     notes: it.notes?.trim() || undefined,
     fatSecretSearch: it.fatSecretSearch?.trim() || undefined,
@@ -928,6 +1018,11 @@ export function normalizeMacroLogsOnLoad(
         changed = true
         nextItem = backfilled
       }
+      const normalized = normalizeStoredMacroDayItem(nextItem)
+      if (normalized !== nextItem) {
+        changed = true
+        nextItem = normalized
+      }
       return nextItem
     })
     out[date] = next
@@ -955,8 +1050,8 @@ export function parsedItemToDayItem(it: ParsedFoodItem, overrides: Partial<Macro
   const snap = parseSnapshotFromItem(it)
   return {
     id: crypto.randomUUID(),
-    emoji: it.emoji,
-    name: it.name || '',
+    emoji: snap.emoji,
+    name: snap.name,
     amount: it.amount || '',
     notes: snap.notes,
     fatSecretSearch: snap.fatSecretSearch,
