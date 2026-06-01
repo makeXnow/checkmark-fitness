@@ -5,7 +5,7 @@ import type {
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { applyMassMultiplierCorrection, parseMassGrams, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier } from './macroMass'
+import { applyMassMultiplierCorrection, isPureCountUnit, normalizeSingular, parseMassGrams, parseDbCountServing, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier } from './macroMass'
 
 export type ParsedFoodItem = {
   emoji?: string
@@ -24,9 +24,20 @@ export type MacroEstimateResponse = {
   calories?: number
   protein?: number
   /**
-   * Machine-readable portion resolved by AI: "<number> <unit>".
-   * The app uses this to compute the correct DB multiplier instead of asking AI to do math.
-   * Examples: "6 gummy", "4 oz", "0.5 sandwich", "25 g", "1 serving"
+   * Numeric part of the resolved portion (JSON number). Paired with resolvedUnit.
+   * Examples: 6, 4, 0.5, 25, 2, 1
+   * Preferred over resolvedAmount when present.
+   */
+  resolvedQty?: number
+  /**
+   * Singular unit word for the resolved portion. Paired with resolvedQty.
+   * Examples: "gummy", "oz", "sandwich", "g", "slice", "cracker"
+   * Preferred over resolvedAmount when present.
+   */
+  resolvedUnit?: string
+  /**
+   * Legacy: machine-readable portion as a single string "<number> <unit>".
+   * Kept for backward compatibility with stored entries. Prefer resolvedQty + resolvedUnit.
    */
   resolvedAmount?: string
 }
@@ -511,15 +522,40 @@ function resolveCountServingMultiplier(
   return legacy.multiplier > 0 ? legacy.multiplier : ai
 }
 
+/**
+ * Returns the user's resolved portion as { qty, unit } from whichever format is present.
+ * Prefers the structured resolvedQty + resolvedUnit fields (new format) over the
+ * legacy resolvedAmount string. Returns a fresh object so callers can mutate unit freely.
+ */
+function getResolvedParsed(
+  r: Pick<MacroEstimateResponse, 'resolvedQty' | 'resolvedUnit' | 'resolvedAmount'>,
+): { qty: number; unit: string } | null {
+  if (typeof r.resolvedQty === 'number' && r.resolvedUnit?.trim()) {
+    return { qty: r.resolvedQty, unit: r.resolvedUnit.trim() }
+  }
+  const str = r.resolvedAmount?.trim()
+  return str ? parseResolvedAmount(str) : null
+}
+
+/** Returns a display string for the resolved portion, or null if not present. */
+function getResolvedStr(
+  r: Pick<MacroEstimateResponse, 'resolvedQty' | 'resolvedUnit' | 'resolvedAmount'>,
+): string | null {
+  if (typeof r.resolvedQty === 'number' && r.resolvedUnit?.trim()) {
+    return `${r.resolvedQty} ${r.resolvedUnit.trim()}`
+  }
+  return r.resolvedAmount?.trim() || null
+}
+
 export function resolveMacroEstimate(
   response: MacroEstimateResponse,
   foods: MacroCustomFood[],
   fatSecretResults: FatSecretFoodRef[] = [],
   options?: ResolveMacroEstimateOptions,
 ): MacroEstimateResult {
-  // Skip mass correction when resolvedAmount is present — the new resolver handles it
-  const hasResolvedAmount = Boolean(response.resolvedAmount?.trim())
-  const adjusted = !hasResolvedAmount && options?.userAmount?.trim()
+  // Skip mass correction when a resolved portion is present — the new resolver handles it
+  const hasResolved = getResolvedParsed(response) !== null
+  const adjusted = !hasResolved && options?.userAmount?.trim()
     ? applyMassMultiplierCorrection(response, options.userAmount, foods, fatSecretResults)
     : response
 
@@ -550,9 +586,8 @@ export function resolveMacroEstimate(
   if (libIdx !== null && libIdx >= 1 && libIdx <= foods.length) {
     const food = foods[libIdx - 1]!
 
-    // Primary: resolvedAmount drives both multiplier and display fields
-    const resolvedStr = adjusted.resolvedAmount?.trim()
-    const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+    // Primary: resolved portion (resolvedQty+resolvedUnit or legacy resolvedAmount) drives both multiplier and display
+    const resolvedParsed = getResolvedParsed(adjusted)
     if (resolvedParsed) {
       const dbMult = resolveDbMultiplier(resolvedParsed, food.baseAmount || '1 serving')
       if (dbMult !== null) {
@@ -603,11 +638,27 @@ export function resolveMacroEstimate(
       }
     }
 
-    // Primary: resolvedAmount drives both multiplier and display fields
-    const resolvedStr = adjusted.resolvedAmount?.trim()
-    const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+    // Primary: resolved portion (resolvedQty+resolvedUnit or legacy resolvedAmount) drives both multiplier and display
+    const resolvedParsed = getResolvedParsed(adjusted)
     if (resolvedParsed) {
-      const dbMult = resolveDbMultiplier(resolvedParsed, effectiveDesc)
+      let dbMult = resolveDbMultiplier(resolvedParsed, effectiveDesc)
+
+      // Safety net: AI used generic "serving" as unit (e.g. "2 serving") but FS has a
+      // specific count description (e.g. "12 crackers"). Re-interpret resolved qty
+      // as individual items of that count unit so 2 crackers → 2/12 × 140 cal.
+      if (dbMult === null && normalizeSingular(resolvedParsed.unit) === 'serving') {
+        const dbCount = parseDbCountServing(effectiveDesc)
+        if (dbCount && dbCount.qty > 0 && isPureCountUnit(dbCount.unit)) {
+          const reinterpreted = { qty: resolvedParsed.qty, unit: dbCount.unit }
+          const retried = resolveDbMultiplier(reinterpreted, effectiveDesc)
+          if (retried !== null) {
+            dbMult = retried
+            // Update resolvedParsed unit so display shows the specific unit (e.g. "cracker")
+            ;(resolvedParsed as { qty: number; unit: string }).unit = normalizeSingular(dbCount.unit)
+          }
+        }
+      }
+
       if (dbMult !== null) {
         const totalCal = serving.calories * dbMult
         const totalPro = serving.protein * dbMult
@@ -640,9 +691,8 @@ export function resolveMacroEstimate(
   const calories = Math.round(adjusted.calories ?? 0)
   const protein = Math.round((adjusted.protein ?? 0) * 10) / 10
 
-  // Use resolvedAmount for display when available (handles "small handful → 25 g")
-  const resolvedStr = adjusted.resolvedAmount?.trim()
-  const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+  // Use resolved portion for display when available (handles "small handful → 25 g")
+  const resolvedParsed = getResolvedParsed(adjusted)
   if (resolvedParsed) {
     return resolveFromParsed(resolvedParsed, calories, protein)
   }
@@ -702,9 +752,9 @@ export function describeMacroEstimate(
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
 
-    // When resolvedAmount is present, compute actual DB multiplier for accurate audit total
-    const resolvedStr = snap.resolvedAmount?.trim()
-    const resolvedParsed = resolvedStr ? parseResolvedAmount(resolvedStr) : null
+    // When a resolved portion is present, compute actual DB multiplier for accurate audit total
+    const resolvedParsed = getResolvedParsed(snap)
+    const resolvedStr = getResolvedStr(snap)
     const auditMult =
       resolvedParsed !== null
         ? (resolveDbMultiplier(resolvedParsed, serving.description) ?? mult)

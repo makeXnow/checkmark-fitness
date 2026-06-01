@@ -147,9 +147,20 @@ export type MacroEstimateSnapshot = {
   calories?: number
   protein?: number
   /**
-   * Machine-readable portion the AI resolved for the user: "<number> <singular-unit>".
-   * Examples: "6 gummy", "4 oz", "0.5 sandwich", "25 g", "2 slice", "1 serving".
-   * The app uses this to compute the correct multiplier against the DB serving — not the AI.
+   * Numeric part of the resolved portion. Paired with resolvedUnit.
+   * Examples: 6, 4, 0.5, 25, 2, 1
+   * Preferred over resolvedAmount when present.
+   */
+  resolvedQty?: number
+  /**
+   * Singular unit word for the resolved portion. Paired with resolvedQty.
+   * Examples: "gummy", "oz", "sandwich", "g", "slice", "cracker"
+   * Preferred over resolvedAmount when present.
+   */
+  resolvedUnit?: string
+  /**
+   * Legacy: machine-readable portion as a single string "<number> <unit>".
+   * Kept for backward compatibility with stored entries. Prefer resolvedQty + resolvedUnit.
    */
   resolvedAmount?: string
 }
@@ -263,6 +274,8 @@ export interface LiftWorkout {
   warmupDurationSeconds?: number
   /** Rest + lift block duration for working sets (seconds). */
   liftDurationSeconds?: number
+  /** Manual override for the next session's weight. If set, this is used instead of mainWeight + increment. */
+  nextWeight?: number
 }
 
 export interface LiftHistoryEntry {

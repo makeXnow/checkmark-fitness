@@ -564,70 +564,6 @@ export function MacroVoiceTracker({
     [calculateMacros, replaceDay, setDatabasePickLoading],
   )
 
-  const refreshItemMacros = useCallback(
-    (item: MacroDayItem) => {
-      replaceDay((prev) =>
-        prev.map((i) =>
-          i.id === item.id
-            ? {
-                ...i,
-                status: 'pending',
-                calories: 0,
-                protein: 0,
-                libraryFoodId: undefined,
-                servingType: undefined,
-                servingMultiplier: undefined,
-                baseCalories: undefined,
-                baseProtein: undefined,
-              }
-            : i,
-        ),
-      )
-      const day = logsRef.current[dateKey] || []
-      const latest = day.find((i) => i.id === item.id) ?? item
-      void calculateMacros(latest.id, latest, '', { skipFatSecretFetch: true })
-    },
-    [calculateMacros, dateKey, replaceDay],
-  )
-
-  const stuckParsedKey = useMemo(
-    () =>
-      items
-        .filter((i) => i.status === 'editing_raw' && i.name?.trim())
-        .map((i) => i.id)
-        .sort()
-        .join(','),
-    [items],
-  )
-
-  useEffect(() => {
-    if (!stuckParsedKey) return
-    replaceDay((prev) =>
-      prev.map((i) =>
-        i.status === 'editing_raw' && i.name?.trim() ? { ...i, status: 'pending' as const } : i,
-      ),
-    )
-  }, [stuckParsedKey, replaceDay])
-
-  const pendingEstimateKey = useMemo(
-    () =>
-      items
-        .filter((i) => i.status === 'pending' && i.name?.trim())
-        .map((i) => i.id)
-        .sort()
-        .join(','),
-    [items],
-  )
-
-  useEffect(() => {
-    if (!pendingEstimateKey) return
-    for (const id of pendingEstimateKey.split(',')) {
-      const item = items.find((i) => i.id === id)
-      if (!item) continue
-      void estimateMacrosForItem(item)
-    }
-  }, [pendingEstimateKey, items, estimateMacrosForItem])
-
   const startParsingFlow = useCallback(
     async (id: string, rawText: string, baseFood?: Record<string, unknown> | null, addToDatabase = false) => {
       const controller = new AbortController()
@@ -691,6 +627,61 @@ export function MacroVoiceTracker({
       }
     },
     [estimateMacrosForItem, onSaveFoods, replaceDay, scrollDietListToTop],
+  )
+
+  const refreshItemMacros = useCallback(
+    (item: MacroDayItem) => {
+      const userInput = item.userInput?.trim()
+      if (userInput) {
+        const day = logsRef.current[dateKey] || []
+        const relatedItems = day.filter(
+          (i) =>
+            i.userInput?.trim() === userInput &&
+            Math.abs((i.timestamp || 0) - (item.timestamp || 0)) < 2000,
+        )
+
+        const tempId = crypto.randomUUID()
+        replaceDay((prev) => {
+          const relatedIds = new Set(relatedItems.map((i) => i.id))
+          const filtered = prev.filter((i) => !relatedIds.has(i.id))
+          return [
+            ...filtered,
+            {
+              id: tempId,
+              status: 'processing_cancellable',
+              rawText: userInput,
+              timestamp: item.timestamp ?? Date.now(),
+              name: '',
+              amount: '',
+            },
+          ]
+        })
+        void startParsingFlow(tempId, userInput, null)
+        return
+      }
+
+      replaceDay((prev) =>
+        prev.map((i) =>
+          i.id === item.id
+            ? {
+                ...i,
+                status: 'pending',
+                calories: 0,
+                protein: 0,
+                libraryFoodId: undefined,
+                servingType: undefined,
+                servingMultiplier: undefined,
+                baseCalories: undefined,
+                baseProtein: undefined,
+              }
+            : i,
+        ),
+      )
+      const day = logsRef.current[dateKey] || []
+      const latest = day.find((i) => i.id === item.id) ?? item
+      void calculateMacros(latest.id, latest, '', { skipFatSecretFetch: false })
+    },
+    [calculateMacros, dateKey, replaceDay, startParsingFlow],
   )
 
   const handleMicToggle = useCallback(async () => {

@@ -341,10 +341,11 @@ function LiftProgressModal({
   weightUnit: LiftWeightUnit
   availablePlates: number[]
   onClose: () => void
-  onSave: (increment: number, nextWeight: number) => void
+  onSave: (increment: number, nextWeight: number, isOverridden: boolean) => void
 }) {
   const [addValue, setAddValue] = useState(String(initialAddAmount))
   const [nextValue, setNextValue] = useState(String(initialNextWeight))
+  const [isNextOverridden, setIsNextOverridden] = useState(false)
   const addInputRef = useRef<HTMLInputElement>(null)
 
   const incrementFromAdd = useCallback(
@@ -367,13 +368,14 @@ function LiftProgressModal({
     if (!Number.isFinite(inc)) return
     const next = getNextLiftWeight({ ...workout, increment: inc }, statusMultiplier, availablePlates)
     setNextValue(String(next))
+    setIsNextOverridden(false)
   }
 
   const handleSave = () => {
     const add = parseFloat(addValue.trim())
     const next = parseFloat(nextValue.trim())
     if (!Number.isFinite(add) || !Number.isFinite(next)) return
-    onSave(incrementFromAdd(addValue), Math.max(0, next))
+    onSave(incrementFromAdd(addValue), Math.max(0, next), isNextOverridden)
   }
 
   return createPortal(
@@ -431,7 +433,10 @@ function LiftProgressModal({
               step="any"
               inputMode="decimal"
               value={nextValue}
-              onChange={(e) => setNextValue(e.target.value)}
+              onChange={(e) => {
+                setNextValue(e.target.value)
+                setIsNextOverridden(true)
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSave()
                 else if (e.key === 'Escape') onClose()
@@ -1044,7 +1049,13 @@ export function LiftScreen({
   )
 
   const saveWorkoutProgress = useCallback(
-    (workoutId: string, newIncrement: number, newNextWeight: number, multiplier: number) => {
+    (
+      workoutId: string,
+      newIncrement: number,
+      newNextWeight: number,
+      multiplier: number,
+      isOverridden: boolean,
+    ) => {
       const workout = payload.workouts.find((w) => w.id === workoutId)
       if (!workout) {
         setProgressModalWorkoutId(null)
@@ -1052,6 +1063,18 @@ export function LiftScreen({
       }
       const plates = payload.availablePlates || []
       const sessionWorkout = workoutWithSessionWeight(workout, payload.history, plates)
+
+      if (isOverridden) {
+        persist({
+          ...payload,
+          workouts: payload.workouts.map((w) =>
+            w.id === workoutId ? { ...w, increment: newIncrement, nextWeight: newNextWeight } : w,
+          ),
+        })
+        setProgressModalWorkoutId(null)
+        return
+      }
+
       const newMainWeight = resolveMainWeightForNextLift(
         newNextWeight,
         sessionWorkout,
@@ -1061,15 +1084,21 @@ export function LiftScreen({
       )
       const incrementChanged = newIncrement !== workout.increment
       const weightChanged = newMainWeight !== sessionWorkout.mainWeight
-      if (!incrementChanged && !weightChanged) {
+      const overrideCleared = workout.nextWeight !== undefined
+
+      if (!incrementChanged && !weightChanged && !overrideCleared) {
         setProgressModalWorkoutId(null)
         return
       }
       persist({
         ...payload,
-        workouts: payload.workouts.map((w) =>
-          w.id === workoutId ? { ...w, increment: newIncrement, mainWeight: newMainWeight } : w,
-        ),
+        workouts: payload.workouts.map((w) => {
+          if (w.id === workoutId) {
+            const { nextWeight: _, ...rest } = w
+            return { ...rest, increment: newIncrement, mainWeight: newMainWeight }
+          }
+          return w
+        }),
       })
       setProgressModalWorkoutId(null)
     },
@@ -1459,8 +1488,15 @@ export function LiftScreen({
         const mVal = parseStatusMultiplier(currentStatus?.multiplier)
         const isNeg = isNonPositiveProgressionMultiplier(mVal)
         const plates = payload.availablePlates || []
-        const progressDelta = getProgressDelta(workout.increment, mVal)
-        const nextLiftWeight = getNextLiftWeight(workout, mVal, plates)
+        const sessionWeight = getSessionMainWeight(workout, payload.history, plates)
+        const nextLiftWeight =
+          workout.nextWeight !== undefined && Number.isFinite(workout.nextWeight)
+            ? getOptimalPlates(workout.nextWeight, workout.barWeight, plates).actualWeight
+            : getNextLiftWeight(workout, mVal, plates)
+        const progressDelta =
+          workout.nextWeight !== undefined && Number.isFinite(workout.nextWeight)
+            ? workout.nextWeight - sessionWeight
+            : getProgressDelta(workout.increment, mVal)
 
         const hasNotes = Boolean(workout.notes?.trim())
         const isNotesOpen = Boolean(openNotesByWorkoutId[workout.id])
@@ -1754,12 +1790,13 @@ export function LiftScreen({
         weightUnit={weightUnit}
         availablePlates={payload.availablePlates || []}
         onClose={() => setProgressModalWorkoutId(null)}
-        onSave={(newIncrement, newNextWeight) =>
+        onSave={(newIncrement, newNextWeight, isOverridden) =>
           saveWorkoutProgress(
             progressModalWorkout.id,
             newIncrement,
             newNextWeight,
             progressModalMultiplier,
+            isOverridden,
           )
         }
       />

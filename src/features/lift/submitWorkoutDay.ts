@@ -39,7 +39,10 @@ export function buildSubmitWorkoutDayPayload(
     const mult = parseStatusMultiplier(status?.multiplier)
     const inc = w.increment || 0
     const sessionWeight = getSessionMainWeight(w, payload.history, plates)
-    const newWeight = Math.max(0, sessionWeight + inc * mult)
+    const newWeight =
+      w.nextWeight !== undefined && Number.isFinite(w.nextWeight)
+        ? w.nextWeight
+        : Math.max(0, sessionWeight + inc * mult)
     nextHistory.push({
       id: crypto.randomUUID(),
       workoutId: w.id,
@@ -50,7 +53,8 @@ export function buildSubmitWorkoutDayPayload(
       newWeight,
       statusName: status?.name ?? '',
     })
-    return { ...w, mainWeight: newWeight }
+    const { nextWeight: _, ...rest } = w
+    return { ...rest, mainWeight: newWeight }
   })
 
   const nextPayload: LiftPayload = {

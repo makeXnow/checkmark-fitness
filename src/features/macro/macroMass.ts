@@ -275,7 +275,7 @@ const GENERIC_SERVING_WORDS = new Set(['serving', 'servings', 'portion', 'portio
  * Generic serving placeholders ("serving", "portion", etc.) are excluded
  * to prevent false ratios like "7 nuggets / 1 serving = 7x".
  */
-function isPureCountUnit(unit: string): boolean {
+export function isPureCountUnit(unit: string): boolean {
   const u = unit.trim()
   if (!u || !/[a-zA-Z]/.test(u)) return false
   if (GENERIC_SERVING_WORDS.has(normalizeSingular(u))) return false
