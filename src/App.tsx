@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Apple,
   ChevronDown,
@@ -103,6 +103,7 @@ export default function App() {
   const bootRef = useRef<BootstrapResponse | null>(null)
   bootRef.current = boot
   const [uiReady, setUiReady] = useState(false)
+  const [loadingVisible, setLoadingVisible] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
@@ -681,7 +682,26 @@ export default function App() {
     scrollAppMainToTop()
   }, [settingsOpen])
 
-  const showLoading = !boot || !appState || !uiReady
+  const contentMounted = Boolean(boot && appState && uiReady)
+
+  useLayoutEffect(() => {
+    if (!contentMounted) {
+      setLoadingVisible(true)
+      return
+    }
+    let cancelled = false
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) setLoadingVisible(false)
+      })
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
+  }, [contentMounted])
+
+  const showLoading = !boot || !appState || !uiReady || loadingVisible
 
   if (error) {
     return (
@@ -696,7 +716,7 @@ export default function App() {
 
   return (
     <>
-      {boot && appState && uiReady ? (
+      {contentMounted ? (
       <Suspense fallback={null}>
       <div
         id="app-root"
