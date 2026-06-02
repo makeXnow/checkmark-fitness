@@ -102,6 +102,7 @@ export default function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
   const bootRef = useRef<BootstrapResponse | null>(null)
   bootRef.current = boot
+  const [uiReady, setUiReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
@@ -427,8 +428,21 @@ export default function App() {
   )
 
   useEffect(() => {
-    if (!boot) return
-    void Promise.all([loadHabitsScreen(), loadMacroScreen(), loadLiftScreen()]).catch(() => {})
+    if (!boot) {
+      setUiReady(false)
+      return
+    }
+    let cancelled = false
+    void Promise.all([loadHabitsScreen(), loadMacroScreen(), loadLiftScreen()])
+      .then(() => {
+        if (!cancelled) setUiReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) setUiReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [boot])
 
   useEffect(() => {
@@ -667,6 +681,8 @@ export default function App() {
     scrollAppMainToTop()
   }, [settingsOpen])
 
+  const showLoading = !boot || !appState || !uiReady
+
   if (error) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 gap-4">
@@ -678,12 +694,10 @@ export default function App() {
     )
   }
 
-  if (!boot || !appState) {
-    return <AppLoadingScreen />
-  }
-
   return (
-    <Suspense fallback={<AppLoadingScreen />}>
+    <>
+      {boot && appState && uiReady ? (
+      <Suspense fallback={null}>
       <div
         id="app-root"
         className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-black font-sans antialiased text-white selection:bg-emerald-400/30 relative"
@@ -1045,6 +1059,9 @@ export default function App() {
         </Suspense>
       ) : null}
       </div>
-    </Suspense>
+      </Suspense>
+      ) : null}
+      {showLoading ? <AppLoadingScreen /> : null}
+    </>
   )
 }
