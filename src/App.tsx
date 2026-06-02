@@ -55,16 +55,28 @@ import type {
 } from './types/domain'
 import type { DayLog } from './types/domain'
 
-const HabitsScreen = lazy(() => import('./features/habits/HabitsScreen').then((m) => ({ default: m.HabitsScreen })))
-const MacroScreen = lazy(() => import('./features/macro/MacroScreen').then((m) => ({ default: m.MacroScreen })))
-const LiftScreen = lazy(() => import('./features/lift/LiftScreen').then((m) => ({ default: m.LiftScreen })))
+const loadHabitsScreen = () =>
+  import('./features/habits/HabitsScreen').then((m) => ({ default: m.HabitsScreen }))
+const loadMacroScreen = () =>
+  import('./features/macro/MacroScreen').then((m) => ({ default: m.MacroScreen }))
+const loadLiftScreen = () =>
+  import('./features/lift/LiftScreen').then((m) => ({ default: m.LiftScreen }))
+
+const HabitsScreen = lazy(loadHabitsScreen)
+const MacroScreen = lazy(loadMacroScreen)
+const LiftScreen = lazy(loadLiftScreen)
 const LiftAssumptionModal = lazy(() =>
   import('./features/lift/LiftAssumptionModal').then((m) => ({ default: m.LiftAssumptionModal })),
 )
 
-function TabFallback() {
+function AppLoadingScreen() {
   return (
-    <div className="flex flex-1 items-center justify-center py-24">
+    <div
+      className="fixed inset-0 z-[100] flex h-dvh items-center justify-center bg-black"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading"
+    >
       <AppLoadingAnimation />
     </div>
   )
@@ -90,7 +102,6 @@ export default function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
   const bootRef = useRef<BootstrapResponse | null>(null)
   bootRef.current = boot
-  const [shellReady, setShellReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
@@ -416,25 +427,8 @@ export default function App() {
   )
 
   useEffect(() => {
-    if (!boot) {
-      setShellReady(false)
-      return
-    }
-    let cancelled = false
-    void Promise.all([
-      import('./features/habits/HabitsScreen'),
-      import('./features/macro/MacroScreen'),
-      import('./features/lift/LiftScreen'),
-    ])
-      .then(() => {
-        if (!cancelled) setShellReady(true)
-      })
-      .catch(() => {
-        if (!cancelled) setShellReady(true)
-      })
-    return () => {
-      cancelled = true
-    }
+    if (!boot) return
+    void Promise.all([loadHabitsScreen(), loadMacroScreen(), loadLiftScreen()]).catch(() => {})
   }, [boot])
 
   useEffect(() => {
@@ -684,19 +678,16 @@ export default function App() {
     )
   }
 
-  if (!boot || !appState || !shellReady) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <AppLoadingAnimation />
-      </div>
-    )
+  if (!boot || !appState) {
+    return <AppLoadingScreen />
   }
 
   return (
-    <div
-      id="app-root"
-      className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-black font-sans antialiased text-white selection:bg-emerald-400/30 relative"
-    >
+    <Suspense fallback={<AppLoadingScreen />}>
+      <div
+        id="app-root"
+        className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-black font-sans antialiased text-white selection:bg-emerald-400/30 relative"
+      >
       <header className="fixed top-0 left-0 right-0 z-40 w-full bg-black pt-[calc(env(safe-area-inset-top,0px)+var(--app-header-pad-top))] pb-[var(--app-header-pad-bottom)]">
         <div className="mx-auto grid min-h-[var(--app-header-row-height)] w-full max-w-[var(--app-max-width)] grid-cols-[1fr_auto_1fr] items-center gap-2 px-[var(--app-pad-x)]">
           <div className="flex min-w-0 items-center gap-1 justify-self-start justify-start">
@@ -831,44 +822,38 @@ export default function App() {
             className="animate-in fade-in duration-300"
             pages={{
               habits: (
-                <Suspense fallback={<TabFallback />}>
-                  <HabitsScreen
-                    currentDate={currentDate}
-                    goals={habitsGoals}
-                    goalsBundle={habitsGoalsBundle}
-                    logs={habitsLogs}
-                    appSettings={habitsSettings}
-                    view="settings"
-                    onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
-                    onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
-                    onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
-                  />
-                </Suspense>
+                <HabitsScreen
+                  currentDate={currentDate}
+                  goals={habitsGoals}
+                  goalsBundle={habitsGoalsBundle}
+                  logs={habitsLogs}
+                  appSettings={habitsSettings}
+                  view="settings"
+                  onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
+                  onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
+                  onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
+                />
               ),
               macro: (
-                <Suspense fallback={<TabFallback />}>
-                  <MacroScreen
-                    currentDate={currentDate}
-                    goals={macroGoals}
-                    logs={macroLogs}
-                    customFoods={macroFoods}
-                    view="settings"
-                    onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
-                  />
-                </Suspense>
+                <MacroScreen
+                  currentDate={currentDate}
+                  goals={macroGoals}
+                  logs={macroLogs}
+                  customFoods={macroFoods}
+                  view="settings"
+                  onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
+                />
               ),
               lift: (
-                <Suspense fallback={<TabFallback />}>
-                  <LiftScreen
-                    payload={liftPayload}
-                    subRoute={liftSubRoute}
-                    currentDayIndex={safeLiftDayIndex}
-                    onDayIndexChange={(i) => void setLiftDayIndex(i)}
-                    view="settings"
-                    onPersist={(next) => void saveLiftBundle(next)}
-                    onWorkoutSubmitted={handleLiftWorkoutSubmitted}
-                  />
-                </Suspense>
+                <LiftScreen
+                  payload={liftPayload}
+                  subRoute={liftSubRoute}
+                  currentDayIndex={safeLiftDayIndex}
+                  onDayIndexChange={(i) => void setLiftDayIndex(i)}
+                  view="settings"
+                  onPersist={(next) => void saveLiftBundle(next)}
+                  onWorkoutSubmitted={handleLiftWorkoutSubmitted}
+                />
               ),
             }}
           />
@@ -878,54 +863,48 @@ export default function App() {
             onTabChange={swipeTrackerTab}
             pages={{
               habits: (
-                <Suspense fallback={<TabFallback />}>
-                  <HabitsScreen
-                    currentDate={currentDate}
-                    goals={habitsGoals}
-                    goalsBundle={habitsGoalsBundle}
-                    logs={habitsLogs}
-                    appSettings={habitsSettings}
-                    view="tracker"
-                    onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
-                    onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
-                    onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
-                  />
-                </Suspense>
+                <HabitsScreen
+                  currentDate={currentDate}
+                  goals={habitsGoals}
+                  goalsBundle={habitsGoalsBundle}
+                  logs={habitsLogs}
+                  appSettings={habitsSettings}
+                  view="tracker"
+                  onSaveGoals={(g) => void saveHabitsBundle({ goals: g })}
+                  onSaveLogs={(l) => void saveHabitsBundle({ logs: l })}
+                  onSaveAppSettings={(s) => void saveHabitsBundle({ appSettings: s })}
+                />
               ),
               macro: (
-                <Suspense fallback={<TabFallback />}>
-                  <MacroScreen
-                    currentDate={currentDate}
-                    goals={macroGoalsForDate}
-                    logs={macroLogs}
-                    customFoods={macroFoods}
-                    view="tracker"
-                    onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
-                    onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
-                    onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}
-                  />
-                </Suspense>
+                <MacroScreen
+                  currentDate={currentDate}
+                  goals={macroGoalsForDate}
+                  logs={macroLogs}
+                  customFoods={macroFoods}
+                  view="tracker"
+                  onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
+                  onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
+                  onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}
+                />
               ),
               lift: (
-                <Suspense fallback={<TabFallback />}>
-                  <LiftScreen
-                    payload={liftPayload}
-                    subRoute={liftSubRoute}
-                    currentDayIndex={safeLiftDayIndex}
-                    onDayIndexChange={(i) => void setLiftDayIndex(i)}
-                    view="tracker"
-                    trackOpenSession={selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout'}
-                    onPersist={(next) => void saveLiftBundle(next)}
-                    onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
-                    onWorkoutSubmitted={handleLiftWorkoutSubmitted}
-                    liftTimer={{
-                      session: liftTimer.session,
-                      liveElapsedMs: liftTimer.liveElapsedMs,
-                      activeWorkoutId: liftTimer.activeWorkoutId,
-                      displayStatus: liftTimer.displayStatus,
-                    }}
-                  />
-                </Suspense>
+                <LiftScreen
+                  payload={liftPayload}
+                  subRoute={liftSubRoute}
+                  currentDayIndex={safeLiftDayIndex}
+                  onDayIndexChange={(i) => void setLiftDayIndex(i)}
+                  view="tracker"
+                  trackOpenSession={selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout'}
+                  onPersist={(next) => void saveLiftBundle(next)}
+                  onSeeAllLog={() => void persistAppState({ lift_sub_route: 'log' })}
+                  onWorkoutSubmitted={handleLiftWorkoutSubmitted}
+                  liftTimer={{
+                    session: liftTimer.session,
+                    liveElapsedMs: liftTimer.liveElapsedMs,
+                    activeWorkoutId: liftTimer.activeWorkoutId,
+                    displayStatus: liftTimer.displayStatus,
+                  }}
+                />
               ),
             }}
           />
@@ -1065,6 +1044,7 @@ export default function App() {
           />
         </Suspense>
       ) : null}
-    </div>
+      </div>
+    </Suspense>
   )
 }
