@@ -90,6 +90,7 @@ export default function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
   const bootRef = useRef<BootstrapResponse | null>(null)
   bootRef.current = boot
+  const [shellReady, setShellReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
@@ -415,10 +416,25 @@ export default function App() {
   )
 
   useEffect(() => {
-    if (!boot) return
-    void import('./features/habits/HabitsScreen')
-    void import('./features/macro/MacroScreen')
-    void import('./features/lift/LiftScreen')
+    if (!boot) {
+      setShellReady(false)
+      return
+    }
+    let cancelled = false
+    void Promise.all([
+      import('./features/habits/HabitsScreen'),
+      import('./features/macro/MacroScreen'),
+      import('./features/lift/LiftScreen'),
+    ])
+      .then(() => {
+        if (!cancelled) setShellReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) setShellReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [boot])
 
   useEffect(() => {
@@ -668,7 +684,7 @@ export default function App() {
     )
   }
 
-  if (!boot || !appState) {
+  if (!boot || !appState || !shellReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <AppLoadingAnimation />
