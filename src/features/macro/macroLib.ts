@@ -1050,6 +1050,35 @@ function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayIt
   )
 }
 
+/** Item already has macro data from a prior estimate or manual save. */
+export function macroDayItemHasStoredMacros(item: MacroDayItem): boolean {
+  if (item.status === 'ready') return true
+  if (item.libraryFoodId || item.macroEstimateSnapshot) return true
+  if (item.baseCalories != null || item.baseProtein != null) return true
+  if ((item.calories ?? 0) > 0 || (item.protein ?? 0) > 0) return true
+  if (item.fromBarcode) return true
+  return false
+}
+
+/** Pending/editing_raw item still waiting on its first macro estimate. */
+export function macroDayItemNeedsEstimate(item: MacroDayItem): boolean {
+  if (!item.name?.trim()) return false
+  if (macroDayItemHasStoredMacros(item)) return false
+  return item.status === 'pending' || item.status === 'editing_raw'
+}
+
+/** Heal stale statuses without wiping saved macro values. */
+export function normalizeMacroDayItemStatus(item: MacroDayItem): MacroDayItem {
+  if (!item.name?.trim() || item.status === 'ready') return item
+  if (macroDayItemHasStoredMacros(item)) {
+    return { ...item, status: 'ready' as const }
+  }
+  if (item.status === 'editing_raw') {
+    return { ...item, status: 'pending' as const }
+  }
+  return item
+}
+
 export function normalizeMacroLogsOnLoad(
   logs: Record<string, MacroDayItem[]>,
   customFoods: MacroCustomFood[] = [],
@@ -1059,9 +1088,10 @@ export function normalizeMacroLogsOnLoad(
   for (const [date, items] of Object.entries(logs)) {
     const next = items.map((item) => {
       let nextItem = item
-      if (item.status === 'editing_raw' && item.name?.trim()) {
+      const statusNorm = normalizeMacroDayItemStatus(item)
+      if (statusNorm !== item) {
         changed = true
-        nextItem = { ...item, status: 'pending' as const }
+        nextItem = statusNorm
       }
       const backfilled = backfillMacroItemServingFields(nextItem, customFoods)
       if (macroItemServingBackfillChanged(nextItem, backfilled)) {

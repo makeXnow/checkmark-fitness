@@ -31,8 +31,11 @@ import {
   macroItemDisplayEmoji,
   macroItemDisplayName,
   macroItemServingFields,
+  macroDayItemHasStoredMacros,
+  macroDayItemNeedsEstimate,
   mergeMacroLogs,
   normalizeDiaryLabel,
+  normalizeMacroDayItemStatus,
   parsedItemsToDayItems,
   macrosForServingCount,
   parseServingDefinition,
@@ -657,10 +660,14 @@ export function MacroVoiceTracker({
     [calculateMacros, dateKey, replaceDay],
   )
 
-  const stuckParsedKey = useMemo(
+  const statusHealKey = useMemo(
     () =>
       items
-        .filter((i) => i.status === 'editing_raw' && i.name?.trim())
+        .filter((i) => {
+          if (!i.name?.trim()) return false
+          if (i.status === 'editing_raw') return true
+          return i.status === 'pending' && macroDayItemHasStoredMacros(i)
+        })
         .map((i) => i.id)
         .sort()
         .join(','),
@@ -668,18 +675,14 @@ export function MacroVoiceTracker({
   )
 
   useEffect(() => {
-    if (!stuckParsedKey) return
-    replaceDay((prev) =>
-      prev.map((i) =>
-        i.status === 'editing_raw' && i.name?.trim() ? { ...i, status: 'pending' as const } : i,
-      ),
-    )
-  }, [stuckParsedKey, replaceDay])
+    if (!statusHealKey) return
+    replaceDay((prev) => prev.map((i) => normalizeMacroDayItemStatus(i)))
+  }, [statusHealKey, replaceDay])
 
   const pendingEstimateKey = useMemo(
     () =>
       items
-        .filter((i) => i.status === 'pending' && i.name?.trim())
+        .filter((i) => macroDayItemNeedsEstimate(i))
         .map((i) => i.id)
         .sort()
         .join(','),
@@ -745,6 +748,9 @@ export function MacroVoiceTracker({
         setWaveHistory(createMicWaveHistory())
         await audioCtx.close()
         if (audioChunksRef.current.length === 0) return
+        const tempId = crypto.randomUUID()
+        replaceDay((prev) => [...prev, { id: tempId, status: 'transcribing', timestamp: Date.now(), name: '', amount: '' }])
+        scrollDietListToTop()
         const mime = rec.mimeType || recorderMime || 'audio/webm'
         const ext = mime.includes('mp4') || mime.includes('aac') ? 'm4a' : 'webm'
         const blob = new Blob(audioChunksRef.current, { type: mime })
@@ -752,29 +758,30 @@ export function MacroVoiceTracker({
         abortRef.current = new AbortController()
         try {
           const text = await transcribeAudio(file)
-          const tempId = crypto.randomUUID()
-          replaceDay((prev) => [
-            ...prev,
-            {
-              id: tempId,
-              status: 'processing_cancellable',
-              rawText: text.trim(),
-              timestamp: Date.now(),
-              name: '',
-              amount: '',
-            },
-          ])
-          scrollDietListToTop()
+          replaceDay((prev) =>
+            prev.map((i) =>
+              i.id === tempId
+                ? {
+                    ...i,
+                    status: 'processing_cancellable',
+                    rawText: text.trim(),
+                    timestamp: Date.now(),
+                    name: '',
+                    amount: '',
+                  }
+                : i,
+            ),
+          )
           void startParsingFlow(tempId, text.trim(), null)
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'Transcription failed'
-          if (msg.startsWith('No speech detected')) return
-          const tempId = crypto.randomUUID()
-          replaceDay((prev) => [
-            ...prev,
-            { id: tempId, status: 'editing_raw', rawText: msg, timestamp: Date.now(), name: '', amount: '' },
-          ])
-          scrollDietListToTop()
+          if (msg.startsWith('No speech detected')) {
+            replaceDay((prev) => prev.filter((i) => i.id !== tempId))
+            return
+          }
+          replaceDay((prev) =>
+            prev.map((i) => (i.id === tempId ? { ...i, status: 'editing_raw', rawText: msg } : i)),
+          )
         }
         stream.getTracks().forEach((t) => t.stop())
       }
