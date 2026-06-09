@@ -310,7 +310,9 @@ profileApi.get('/bootstrap', async (c) => {
       },
     }
 
-    return c.json(jsonSafe(body))
+    return c.json(jsonSafe(body), 200, {
+      'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+    })
   } catch (e) {
     console.error('[bootstrap]', e)
     const message = e instanceof Error ? e.message : String(e)

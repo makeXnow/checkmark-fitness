@@ -14,13 +14,10 @@ import {
 import { AppAccentTextButton } from './core/AppAccentTextButton'
 import { AppLoadingAnimation } from './core/AppLoadingAnimation'
 import { TabPager } from './core/TabPager'
+import { getApiProfile } from './core/apiProfile'
 import { applyAppStatePatch, clearLiftAssumption, dismissLiftAssumption, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
 import { normalizeMacroGoals } from './features/macro/macroCalculator'
-import {
-  mergeMacroLogs,
-  normalizeMacroCustomFoodsOnLoad,
-  normalizeMacroLogsOnLoad,
-} from './features/macro/macroLib'
+import { mergeMacroLogs } from './features/macro/macroLib'
 import {
   cementHabitsSnapshots,
   cementMacroSnapshots,
@@ -31,10 +28,8 @@ import {
   type HabitsGoalsBundleData,
   type MacroGoalsBundleData,
 } from './lib/goalSnapshots'
-import {
-  normalizeLiftHistoryOnLoad,
-  reconcileWorkoutMainWeightsFromHistory,
-} from './features/lift/liftHistory'
+import { readBootstrapCache, writeBootstrapCache } from './lib/bootstrapCache'
+import { hydrateBootstrap } from './lib/bootstrapHydrate'
 import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
 import { useLiftTimer } from './features/lift/useLiftTimer'
 import { workoutWithSessionWeight } from './features/lift/plates'
@@ -68,6 +63,28 @@ const LiftScreen = lazy(loadLiftScreen)
 const LiftAssumptionModal = lazy(() =>
   import('./features/lift/LiftAssumptionModal').then((m) => ({ default: m.LiftAssumptionModal })),
 )
+
+const TAB_SCREEN_LOADERS: Record<BottomTab, () => Promise<unknown>> = {
+  habits: loadHabitsScreen,
+  macro: loadMacroScreen,
+  lift: loadLiftScreen,
+}
+
+function prefetchInactiveTabChunks(active: BottomTab): void {
+  const run = () => {
+    for (const tab of ['habits', 'macro', 'lift'] as const) {
+      if (tab !== active) void TAB_SCREEN_LOADERS[tab]()
+    }
+  }
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run)
+  else setTimeout(run, 1500)
+}
+
+function resolveActiveTab(appState: AppStateRow | undefined): BottomTab {
+  const tab = appState?.selected_tab
+  if (tab === 'macro' || tab === 'lift') return tab
+  return 'habits'
+}
 
 function AppLoadingScreen() {
   return (
@@ -108,100 +125,41 @@ export default function App() {
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
 
+  const applyBoot = useCallback((hydrated: ReturnType<typeof hydrateBootstrap>) => {
+    setBoot(hydrated.data)
+    bootRef.current = hydrated.data
+    setLiftAssumptionPrompt(hydrated.data.liftAssumption?.pendingPrompt ?? null)
+    if (hydrated.persist) void hydrated.persist().catch(() => undefined)
+  }, [])
+
   const resyncFromServer = useCallback(async () => {
     try {
-      const data = await fetchBootstrap()
-      bootRef.current = data
-      setBoot(data)
+      const fresh = await fetchBootstrap()
+      const hydrated = hydrateBootstrap(fresh)
+      applyBoot(hydrated)
+      const profile = getApiProfile()
+      if (profile) writeBootstrapCache(profile, hydrated.data)
     } catch {
       /* ignore — user can reload if sync is critical */
     }
-  }, [])
+  }, [applyBoot])
 
   const load = useCallback(async () => {
+    setError(null)
+    const profile = getApiProfile()
+
+    if (profile) {
+      const cached = readBootstrapCache(profile)
+      if (cached) applyBoot(hydrateBootstrap(cached))
+    }
+
     try {
-      setError(null)
-      const data = await fetchBootstrap()
-      const todayISO = localDateISO(new Date())
-      const firstDayOfWeek = data.habits.appSettings?.firstDayOfWeek ?? 0
-
-      const macroCurrent = normalizeMacroGoals(data.macro.goals)
-      let macroBundle: MacroGoalsBundleData = {
-        current: macroCurrent,
-        snapshotsByDay: data.macro.goalsSnapshotsByDay ?? {},
-        goalHistory: data.macro.goalsHistory ?? [],
-      }
-      const macroCement = cementMacroSnapshots(macroBundle, Object.keys(data.macro.logs || {}), todayISO)
-      if (macroCement.changed) macroBundle = macroCement.bundle
-
-      const habitsBundle: HabitsGoalsBundleData = {
-        current: data.habits.goals as HabitsGoals,
-        snapshotsByWeek: data.habits.goalsSnapshotsByWeek ?? {},
-        goalHistory: data.habits.goalsHistory ?? [],
-      }
-      const habitsCement = cementHabitsSnapshots(
-        habitsBundle,
-        Object.keys(data.habits.logs || {}),
-        new Date(),
-        firstDayOfWeek,
-        todayISO,
-      )
-      const cementedHabitsBundle = habitsCement.changed ? habitsCement.bundle : habitsBundle
-
-      const customFoodsNorm = normalizeMacroCustomFoodsOnLoad(data.macro.customFoods || [])
-      const logs = normalizeMacroLogsOnLoad(data.macro.logs || {}, customFoodsNorm.foods)
-      const logsChanged = logs !== data.macro.logs
-      const foodsChanged = customFoodsNorm.changed
-      if (foodsChanged) data.macro.customFoods = customFoodsNorm.foods
-
-      const liftPayload = data.lift.payload as LiftPayload
-      const liftHistoryNorm = normalizeLiftHistoryOnLoad(liftPayload.history)
-      const liftReconcile = reconcileWorkoutMainWeightsFromHistory(
-        liftPayload.workouts,
-        liftHistoryNorm.history,
-      )
-      const liftHistoryChanged = liftHistoryNorm.changed || liftReconcile.changed
-      if (liftHistoryChanged) {
-        data.lift.payload = {
-          ...liftPayload,
-          history: liftHistoryNorm.history,
-          workouts: liftReconcile.workouts,
-        }
-      }
-
-      if (logsChanged || foodsChanged || macroCement.changed || habitsCement.changed || liftHistoryChanged) {
-        data.macro.logs = logs
-        data.macro.goals = macroBundle.current
-        data.macro.goalsSnapshotsByDay = macroBundle.snapshotsByDay
-        data.macro.goalsHistory = macroBundle.goalHistory
-        data.habits.goals = cementedHabitsBundle.current
-        data.habits.goalsSnapshotsByWeek = cementedHabitsBundle.snapshotsByWeek
-        data.habits.goalsHistory = cementedHabitsBundle.goalHistory
-        const persistTasks: Promise<unknown>[] = [
-          putMacro({
-            goals: macroBundle.current,
-            goalsSnapshotsByDay: macroBundle.snapshotsByDay,
-            goalsHistory: macroBundle.goalHistory,
-            customFoods: data.macro.customFoods || [],
-            logs,
-          }),
-          putHabits({
-            goals: cementedHabitsBundle.current,
-            goalsSnapshotsByWeek: cementedHabitsBundle.snapshotsByWeek,
-            goalsHistory: cementedHabitsBundle.goalHistory,
-            logs: data.habits.logs,
-            appSettings: data.habits.appSettings,
-          }),
-        ]
-        if (liftHistoryChanged) {
-          persistTasks.push(putLift(data.lift.payload as LiftPayload))
-        }
-        await Promise.all(persistTasks)
-      }
-      setBoot(data)
-      bootRef.current = data
-      setLiftAssumptionPrompt(data.liftAssumption?.pendingPrompt ?? null)
+      const fresh = await fetchBootstrap()
+      const hydrated = hydrateBootstrap(fresh)
+      applyBoot(hydrated)
+      if (profile) writeBootstrapCache(profile, hydrated.data)
     } catch (e) {
+      if (bootRef.current) return
       const base = e instanceof Error ? e.message : 'Failed to load'
       const apiDown =
         base === 'Internal Server Error' ||
@@ -219,7 +177,7 @@ export default function App() {
           : ''
       setError(base + hint)
     }
-  }, [])
+  }, [applyBoot])
 
   useEffect(() => {
     void load()
@@ -434,13 +392,15 @@ export default function App() {
       return
     }
     let cancelled = false
-    void Promise.all([loadHabitsScreen(), loadMacroScreen(), loadLiftScreen()])
+    const activeTab = resolveActiveTab(boot.appState)
+    void TAB_SCREEN_LOADERS[activeTab]()
       .then(() => {
         if (!cancelled) setUiReady(true)
       })
       .catch(() => {
         if (!cancelled) setUiReady(true)
       })
+    prefetchInactiveTabChunks(activeTab)
     return () => {
       cancelled = true
     }

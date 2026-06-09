@@ -5,7 +5,7 @@ import type {
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { applyMassMultiplierCorrection, isPureCountUnit, normalizeSingular, parseMassGrams, parseDbCountServing, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier } from './macroMass'
+import { applyMassMultiplierCorrection, isPureCountUnit, normalizeSingular, parseMassGrams, parseDbCountServing, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier, roundMultiplier } from './macroMass'
 
 export type ParsedFoodItem = {
   emoji?: string
@@ -504,7 +504,14 @@ function resolveCountServingMultiplier(
   aiMultiplier: number | undefined,
 ): number {
   const ai = typeof aiMultiplier === 'number' && aiMultiplier > 0 ? aiMultiplier : 1
-  if (parseServingBaseGrams(selectedServingDescription) != null) return ai
+  const baseGrams = parseServingBaseGrams(selectedServingDescription)
+  if (baseGrams !== null) {
+    // Gram-based FS serving: compute mass ratio from user input rather than trusting the
+    // AI multiplier (AI often sets multiplier = userGrams ÷ 1, giving e.g. 200× instead of 2×).
+    const userGrams = userAmount?.trim() ? parseMassGrams(userAmount) : null
+    if (userGrams !== null && baseGrams > 0) return roundMultiplier(userGrams / baseGrams)
+    return ai
+  }
   // User gave a mass input but FS serving has no gram info (e.g. "1/2 cup").
   // The AI multiplier is unreliable here — return 1 as a safe neutral fallback.
   if (userAmount?.trim() && parseMassGrams(userAmount) != null) return 1

@@ -1,5 +1,3 @@
-import { BrowserMultiFormatReader } from '@zxing/browser'
-import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Camera, CameraOff, Loader2, NotebookText, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
@@ -10,6 +8,7 @@ import {
   takeLiveCachedCameraStream,
 } from './cameraStream'
 import { trackStableBarcodeRead, type BarcodeStableTracker } from './barcodeScan'
+import { startZxingVideoScan } from './zxingScan'
 
 export type QuickScanCaptureState = {
   frontPreview: string | null
@@ -330,18 +329,9 @@ export function QuickScanPanel({
     if (detectorRef.current) {
       intervalId = setInterval(() => void scanWithDetector(), 350)
     } else if (video) {
-      const hints = new Map()
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-      ])
-      const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 350 })
-      void reader
-        .decodeFromVideoElement(video, (result) => {
-          if (result && !cancelled) considerBarcode(result.getText())
-        })
+      void startZxingVideoScan(video, (text) => {
+        if (!cancelled) considerBarcode(text)
+      })
         .then((controls) => {
           if (cancelled) {
             controls.stop()

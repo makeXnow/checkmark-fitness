@@ -7,8 +7,13 @@ import './index.css'
 import { isDevLoadingRoute } from './lib/devRoutes'
 import { getBasename } from './lib/getBasename'
 import { initPortraitOrientationLock } from './lib/lockOrientation'
+import { registerServiceWorker } from './lib/registerServiceWorker'
 
 initPortraitOrientationLock()
+
+if (import.meta.env.PROD) {
+  registerServiceWorker()
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
