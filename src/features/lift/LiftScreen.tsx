@@ -82,40 +82,78 @@ function formatPlatesSummary(plates: PlateGroup[]) {
     .join(' · ')
 }
 
+const PLATE_FONT_FULL_PT = 32
+const PLATE_FONT_MIN_PT = 13
+const PLATE_SUB_RATIO = 18 / 32
+
 function WorkoutPlateStack({ plates, isWarmup }: { plates: PlateGroup[]; isWarmup: boolean }) {
   const areaRef = useRef<HTMLDivElement>(null)
-  const fullMeasureRef = useRef<HTMLDivElement>(null)
-  const compactMeasureRef = useRef<HTMLDivElement>(null)
-  const [displayMode, setDisplayMode] = useState<'full' | 'compact' | 'summary'>('full')
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [fontPt, setFontPt] = useState(PLATE_FONT_FULL_PT)
+  const [displayMode, setDisplayMode] = useState<'plates' | 'summary'>('plates')
 
   const colorMain = isWarmup ? 'text-emerald-950' : 'text-blue-950'
   const colorSub = isWarmup ? 'text-emerald-800' : 'text-blue-800'
 
   useLayoutEffect(() => {
     const area = areaRef.current
-    const fullMeasure = fullMeasureRef.current
-    const compactMeasure = compactMeasureRef.current
-    if (!area) return
+    const measure = measureRef.current
+    if (!area || !measure) return
 
-    const updateMode = () => {
-      const fits = (el: HTMLDivElement | null) => {
-        if (!el) return true
-        return el.scrollWidth <= area.clientWidth && el.scrollHeight <= area.clientHeight
-      }
+    const fits = () =>
+      measure.scrollWidth <= measure.clientWidth + 0.5 &&
+      measure.scrollHeight <= area.clientHeight + 0.5
 
-      if (plates.length === 0) {
-        setDisplayMode('full')
-      } else if (fits(fullMeasure)) {
-        setDisplayMode('full')
-      } else if (fits(compactMeasure)) {
-        setDisplayMode('compact')
-      } else {
-        setDisplayMode('summary')
-      }
+    const applyFont = (pt: number) => {
+      measure.style.gap = `${pt / 2}px`
+      measure.querySelectorAll<HTMLElement>('[data-plate]').forEach((el) => {
+        el.style.fontSize = `${pt}pt`
+      })
+      measure.querySelectorAll<HTMLElement>('[data-plate-sub]').forEach((sub) => {
+        sub.style.fontSize = `${pt * PLATE_SUB_RATIO}pt`
+      })
     }
 
-    updateMode()
-    const ro = new ResizeObserver(updateMode)
+    const updateSize = () => {
+      if (plates.length === 0) {
+        setDisplayMode('plates')
+        setFontPt(PLATE_FONT_FULL_PT)
+        return
+      }
+
+      applyFont(PLATE_FONT_FULL_PT)
+      if (fits()) {
+        setFontPt(PLATE_FONT_FULL_PT)
+        setDisplayMode('plates')
+        return
+      }
+
+      let lo = PLATE_FONT_MIN_PT
+      let hi = PLATE_FONT_FULL_PT
+      let best = PLATE_FONT_MIN_PT
+      for (let i = 0; i < 14; i++) {
+        const mid = (lo + hi) / 2
+        applyFont(mid)
+        if (fits()) {
+          best = mid
+          lo = mid
+        } else {
+          hi = mid
+        }
+      }
+
+      applyFont(best)
+      if (!fits()) {
+        setDisplayMode('summary')
+        return
+      }
+
+      setFontPt(best)
+      setDisplayMode('plates')
+    }
+
+    updateSize()
+    const ro = new ResizeObserver(updateSize)
     ro.observe(area)
     return () => ro.disconnect()
   }, [plates])
@@ -128,25 +166,23 @@ function WorkoutPlateStack({ plates, isWarmup }: { plates: PlateGroup[]; isWarmu
     )
   }
 
-  const renderFullPlates = () =>
+  const renderPlates = (pt: number) =>
     plates.map((p, i) => (
       <span
         key={i}
-        className={`mr-4 font-black leading-none text-[32pt] tracking-tighter last:mr-0 ${colorMain}`}
+        data-plate
+        className={`font-black leading-none tracking-tighter ${colorMain}`}
+        style={{ fontSize: `${pt}pt` }}
       >
         {formatWeightStr(p.weight)}
         {p.count > 1 && (
-          <sub className={`ml-0.5 text-[18pt] font-black tracking-normal ${colorSub}`}>{p.count}</sub>
-        )}
-      </span>
-    ))
-
-  const renderCompactPlates = () =>
-    plates.map((p, i) => (
-      <span key={i} className={`font-black leading-none text-[16pt] tracking-tight ${colorMain}`}>
-        {formatWeightStr(p.weight)}
-        {p.count > 1 && (
-          <sub className={`ml-0.5 text-[11pt] font-black tracking-normal ${colorSub}`}>{p.count}</sub>
+          <sub
+            data-plate-sub
+            className={`ml-0.5 font-black tracking-normal ${colorSub}`}
+            style={{ fontSize: `${pt * PLATE_SUB_RATIO}pt` }}
+          >
+            {p.count}
+          </sub>
         )}
       </span>
     ))
@@ -154,24 +190,21 @@ function WorkoutPlateStack({ plates, isWarmup }: { plates: PlateGroup[]; isWarmu
   return (
     <div ref={areaRef} className="relative h-full w-full overflow-hidden">
       <div
-        ref={fullMeasureRef}
+        ref={measureRef}
         aria-hidden
         className="pointer-events-none absolute inset-x-4 top-0 flex flex-wrap items-center justify-center opacity-0"
+        style={{ gap: `${PLATE_FONT_FULL_PT / 2}px` }}
       >
-        {renderFullPlates()}
-      </div>
-      <div
-        ref={compactMeasureRef}
-        aria-hidden
-        className="pointer-events-none absolute inset-x-4 top-0 flex flex-wrap items-center justify-center gap-x-2 gap-y-0 opacity-0"
-      >
-        {renderCompactPlates()}
+        {renderPlates(PLATE_FONT_FULL_PT)}
       </div>
       <div className="flex h-full w-full items-center justify-center px-4">
-        {displayMode === 'full' ? (
-          <div className="flex flex-wrap items-center justify-center">{renderFullPlates()}</div>
-        ) : displayMode === 'compact' ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0">{renderCompactPlates()}</div>
+        {displayMode === 'plates' ? (
+          <div
+            className="flex flex-wrap items-center justify-center"
+            style={{ gap: `${fontPt / 2}px` }}
+          >
+            {renderPlates(fontPt)}
+          </div>
         ) : (
           <span
             className={`line-clamp-2 text-center text-[13pt] font-black leading-tight tracking-tight ${colorMain}`}

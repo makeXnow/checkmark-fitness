@@ -5,7 +5,8 @@
  * Your app decides access (whitelist, roles, etc.).
  *
  * Enable with VITE_MXN_AUTH=1 and optional VITE_MXN_ACCOUNTS_URL.
- * Ignore this module unless auth is turned on for the app.
+ * Put local overrides in `.env.development.local` (NOT `.env.local`) so
+ * production builds never bake in http://localhost:8999.
  */
 
 export type MxnUser = {
@@ -23,20 +24,29 @@ export type MxnSession = {
 
 const STORAGE_KEY = "mxn_auth_session";
 
+function pageIsLocal(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+function urlLooksLocal(url: string): boolean {
+  return /:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(url);
+}
+
 export function isMxnAuthEnabled(): boolean {
   const flag = String(import.meta.env.VITE_MXN_AUTH || "").toLowerCase();
   return flag === "1" || flag === "true" || flag === "yes";
 }
 
 export function getAccountsBaseUrl(): string {
-  const fromEnv = String(import.meta.env.VITE_MXN_ACCOUNTS_URL || "").trim();
-  if (fromEnv) return fromEnv.replace(/\/+$/, "");
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") {
-      return "http://localhost:8999";
-    }
+  const fromEnv = String(import.meta.env.VITE_MXN_ACCOUNTS_URL || "").trim().replace(/\/+$/, "");
+
+  // Never let a deployed site call localhost (common when .env.local is baked into prod).
+  if (fromEnv && !(urlLooksLocal(fromEnv) && !pageIsLocal())) {
+    return fromEnv;
   }
+  if (pageIsLocal()) return "http://localhost:8999";
   return "https://accounts.makexnow.com";
 }
 
@@ -54,7 +64,6 @@ export function getStoredSession(): MxnSession | null {
 
 export function clearStoredSession(): void {
   localStorage.removeItem(STORAGE_KEY);
-  authBootstrap = null;
 }
 
 export function storeSession(session: MxnSession): void {
@@ -72,59 +81,36 @@ function defaultReturnTo(): string {
 
 /** Start Google sign-in via MakeXNow accounts. `appId` is a label for the JWT only. */
 export function startMxnLogin(appId: string, returnTo?: string): void {
-  // Next login should run a fresh bootstrap (do not clear a just-exchanged session mid-flight).
-  authBootstrap = null;
   const base = getAccountsBaseUrl();
   const ret = returnTo || defaultReturnTo();
   const url = new URL(`${base}/login`);
   url.searchParams.set("app", appId);
   url.searchParams.set("return_to", ret);
+  url.searchParams.set("prompt", "select_account");
   window.location.assign(url.toString());
 }
 
 /** In-flight dedupe: React Strict Mode mounts twice and would burn a one-time code. */
 let consumeInflight: { code: string; promise: Promise<MxnSession> } | null = null;
 
-/**
- * Single shared bootstrap for the page lifetime so Strict Mode remounts
- * wait on the same exchange instead of treating a stripped URL as "logged out".
- */
-let authBootstrap: Promise<MxnSession | null> | null = null;
-
-export function bootstrapMxnSession(appId: string): Promise<MxnSession | null> {
-  if (!authBootstrap) {
-    authBootstrap = (async () => {
-      const fromCode = await consumeMxnCodeFromUrl(appId);
-      return fromCode || getStoredSession();
-    })().catch((err) => {
-      authBootstrap = null;
-      throw err;
-    });
-  }
-  return authBootstrap;
-}
-
 /** If URL has mxn_code, exchange it for a session and strip the query params. */
 export async function consumeMxnCodeFromUrl(appId: string): Promise<MxnSession | null> {
   if (typeof window === "undefined") return null;
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("mxn_code");
+  if (!code) return null;
 
-  // Remount after URL strip: still wait for the in-flight exchange.
-  if (consumeInflight) {
+  url.searchParams.delete("mxn_code");
+  url.searchParams.delete("mxn_app");
+  window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+
+  if (consumeInflight?.code === code) {
     const session = await consumeInflight.promise;
     if (session.app && session.app !== appId) {
       console.warn(`[mxn-auth] token app ${session.app} !== expected ${appId}`);
     }
     return session;
   }
-
-  const url = new URL(window.location.href);
-  const code = url.searchParams.get("mxn_code");
-  if (!code) return null;
-
-  // Strip immediately so a remount does not start a second independent exchange.
-  url.searchParams.delete("mxn_code");
-  url.searchParams.delete("mxn_app");
-  window.history.replaceState({}, "", url.pathname + url.search + url.hash);
 
   const promise = exchangeMxnCode(code)
     .then((session) => {
