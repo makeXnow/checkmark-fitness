@@ -18,3 +18,4 @@ seed-generated.sql
 # Editor
 *.swp
 *.swo
+.env.local

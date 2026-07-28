@@ -6,6 +6,7 @@ import { DevLoadingPage } from './dev/DevLoadingPage'
 import './index.css'
 import { isDevLoadingRoute } from './lib/devRoutes'
 import { getBasename } from './lib/getBasename'
+import { MxnAuthGate } from './lib/MxnAuthGate'
 import { initPortraitOrientationLock } from './lib/lockOrientation'
 import { registerServiceWorker } from './lib/registerServiceWorker'
 
@@ -20,9 +21,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     {isDevLoadingRoute() ? (
       <DevLoadingPage />
     ) : (
-      <BrowserRouter basename={getBasename()}>
-        <AppRouter />
-      </BrowserRouter>
+      <MxnAuthGate>
+        <BrowserRouter basename={getBasename()}>
+          <AppRouter />
+        </BrowserRouter>
+      </MxnAuthGate>
     )}
   </React.StrictMode>,
 )

@@ -1,9 +1,10 @@
 import { Check } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { checkProfileExists } from '../core/api'
 import { AppLoadingAnimation } from '../core/AppLoadingAnimation'
+import { useMxnAuth } from '../lib/MxnAuthGate'
 import { normalizeUsername } from '../lib/username'
 
 function CreateProfileDialog({
@@ -52,13 +53,24 @@ function CreateProfileDialog({
   )
 }
 
-/** Username → profile URL. Not auth — same as navigating to a bookmarked path. */
+/** Username → profile URL. With MxN auth, signed-in users go straight to their profile. */
 export function UsernameEntryPage() {
   const navigate = useNavigate()
+  const { enabled, profile } = useMxnAuth()
   const [raw, setRaw] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [pendingSlug, setPendingSlug] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (enabled && profile) {
+      navigate(`/u/${profile}`, { replace: true })
+    }
+  }, [enabled, profile, navigate])
+
+  if (enabled && profile) {
+    return <Navigate to={`/u/${profile}`} replace />
+  }
 
   async function goToProfile(slug: string) {
     setBusy(true)

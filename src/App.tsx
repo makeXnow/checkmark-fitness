@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ClipboardList,
   Dumbbell,
+  LogOut,
   Menu,
   Notebook,
   Settings as SettingsIcon,
@@ -35,6 +36,7 @@ import { useLiftTimer } from './features/lift/useLiftTimer'
 import { workoutWithSessionWeight } from './features/lift/plates'
 import { computeWeekPercentageRange, getWeekDatesFor } from './features/habits/habitsUi'
 import { localDateISO } from './lib/localDate'
+import { useMxnAuth } from './lib/MxnAuthGate'
 import { scrollAppMainToTop } from './lib/scrollAppMain'
 import type {
   AppStateRow,
@@ -116,6 +118,7 @@ function bottomNavButtonClass(active: boolean): string {
 }
 
 export default function App() {
+  const { enabled: authEnabled, signOut } = useMxnAuth()
   const [boot, setBoot] = useState<BootstrapResponse | null>(null)
   const bootRef = useRef<BootstrapResponse | null>(null)
   bootRef.current = boot
@@ -786,7 +789,16 @@ export default function App() {
           </div>
 
           <div className="flex min-w-0 items-center justify-self-end justify-end">
-            {!settingsOpen && selectedTab === 'lift' && liftSubRoute === 'workout' ? (
+            {settingsOpen && authEnabled ? (
+              <button
+                type="button"
+                aria-label="Log out"
+                onClick={() => signOut()}
+                className="p-3 rounded-2xl text-[var(--color-danger)] transition-all duration-300 active:scale-95 hover:bg-red-950/40"
+              >
+                <LogOut className="h-6 w-6" />
+              </button>
+            ) : !settingsOpen && selectedTab === 'lift' && liftSubRoute === 'workout' ? (
               <LiftTimerHeaderControl timer={liftTimer} />
             ) : !settingsOpen && selectedTab === 'habits' && isTodaySelected && habitsWeekPercentRange ? (
               <span className="shrink-0 font-black text-[10px] uppercase tracking-[0.2em] text-neutral-500">
