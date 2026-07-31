@@ -64,6 +64,7 @@ export function getStoredSession(): MxnSession | null {
 
 export function clearStoredSession(): void {
   localStorage.removeItem(STORAGE_KEY);
+  authBootstrap = null;
 }
 
 export function storeSession(session: MxnSession): void {
@@ -81,6 +82,8 @@ function defaultReturnTo(): string {
 
 /** Start Google sign-in via MakeXNow accounts. `appId` is a label for the JWT only. */
 export function startMxnLogin(appId: string, returnTo?: string): void {
+  // Next login should run a fresh bootstrap (do not clear a just-exchanged session mid-flight).
+  authBootstrap = null;
   const base = getAccountsBaseUrl();
   const ret = returnTo || defaultReturnTo();
   const url = new URL(`${base}/login`);
@@ -92,6 +95,25 @@ export function startMxnLogin(appId: string, returnTo?: string): void {
 
 /** In-flight dedupe: React Strict Mode mounts twice and would burn a one-time code. */
 let consumeInflight: { code: string; promise: Promise<MxnSession> } | null = null;
+
+/**
+ * Single shared bootstrap for the page lifetime so Strict Mode remounts
+ * wait on the same exchange instead of treating a stripped URL as "logged out".
+ */
+let authBootstrap: Promise<MxnSession | null> | null = null;
+
+export function bootstrapMxnSession(appId: string): Promise<MxnSession | null> {
+  if (!authBootstrap) {
+    authBootstrap = (async () => {
+      const fromCode = await consumeMxnCodeFromUrl(appId);
+      return fromCode || getStoredSession();
+    })().catch((err) => {
+      authBootstrap = null;
+      throw err;
+    });
+  }
+  return authBootstrap;
+}
 
 /** If URL has mxn_code, exchange it for a session and strip the query params. */
 export async function consumeMxnCodeFromUrl(appId: string): Promise<MxnSession | null> {
