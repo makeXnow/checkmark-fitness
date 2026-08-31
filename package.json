@@ -27,7 +27,7 @@
     "db:migrate": "wrangler d1 migrations apply checkmark-fitness --remote",
     "db:migrate:remote": "npm run db:migrate",
     "deploy": "npm run pages:deploy",
-    "pages:deploy": "npm run build:prod && wrangler deploy && wrangler pages deploy dist --project-name mxn-checkmark-fitness --branch main --commit-dirty=true"
+    "pages:deploy": "npm run build:prod && wrangler deploy"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.0",
