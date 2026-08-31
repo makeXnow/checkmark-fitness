@@ -161,6 +161,8 @@ describe('V8 Food Library through same resolver', () => {
       baseAmount: '2 bars',
       calories: 200,
       protein: 6,
+      fat: 8,
+      carbs: 28,
     },
   ]
 

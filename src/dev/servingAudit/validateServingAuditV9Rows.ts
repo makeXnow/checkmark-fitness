@@ -17,7 +17,7 @@ export type V9ValidationReport = {
 export function validateServingAuditV9Row(row: ServingAuditV9Row): V9RowValidation {
   const issues: string[] = []
   if (row.error?.trim()) {
-    return { ok: false, issues: [row.error], row }
+    return { ok: false, issues: [row.error], rowId: row.id, row }
   }
   if (!row.parsedName?.trim()) issues.push('missing parsed name')
   if (!row.unitSingular?.trim()) issues.push('missing unitSingular')
