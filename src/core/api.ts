@@ -225,6 +225,11 @@ export async function transcribeAudio(
   return text
 }
 
+/** Live worker still uses `json_object`, which requires the word "json" in messages. */
+function withJsonHint(user: string): string {
+  return /\bjson\b/i.test(user) ? user : `${user}\n\nRespond with JSON.`
+}
+
 export async function aiJson(body: {
   model?: string
   system?: string
@@ -235,7 +240,7 @@ export async function aiJson(body: {
   const res = await apiFetch('/api/ai/json', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, user: withJsonHint(body.user) }),
   })
   const data = await parseJson<{ result?: unknown; error?: string }>(res)
   if (data.result === undefined) throw new Error(data.error || 'AI failed')
@@ -302,11 +307,18 @@ export async function macroEstimateItem(body: {
   skipFatSecretFetch?: boolean
   customFoods?: { id: string; name: string; emoji?: string; baseAmount?: string; calories: number; protein: number }[]
   extraCtx?: string
+  v7CachedResolution?: {
+    fatSecretIndex: number
+    servingIndex: number
+    relationship: import('../features/macro/macroAiSchemas').V7ServingRelationship
+    estimateQuantity?: number | null
+    estimateUnit?: string | null
+  }
 }): Promise<MacroEstimateApiResult> {
   const res = await apiFetch('/api/macro/estimate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, extraCtx: withJsonHint(body.extraCtx ?? '') }),
   })
   const text = await res.text()
   let data: MacroEstimateApiResult & { error?: string }
@@ -337,7 +349,7 @@ export async function aiVisionJson(body: {
   const res = await apiFetch('/api/ai/vision', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, user: withJsonHint(body.user) }),
   })
   const data = await parseJson<{ result?: unknown; error?: string }>(res)
   if (data.result === undefined) throw new Error(data.error || 'Vision AI failed')

@@ -18,6 +18,9 @@ import {
   saveMacroPrompts,
 } from './macroPromptsStore'
 import { OPENAI_MODELS } from './openaiModels'
+import { openAiResponseFormat, callOpenAiJsonWithRetry, ensureJsonObjectUser } from './openaiJson'
+import { schemaForPromptKey } from '../src/features/macro/macroAiSchemas'
+import { parserValidationErrors, validateParserResponse } from '../src/features/macro/macroAiValidate'
 import { MACRO_PROMPTS_OWNER, type MacroPrompts } from '../src/features/macro/prompts'
 import {
   clearLiftAssumption,
@@ -627,7 +630,9 @@ api.post('/api/ai/json', async (c) => {
   }
 
   const model = body.model || OPENAI_MODELS.chatFast
-  const content: unknown[] = [{ type: 'text', text: body.user }]
+  const jsonSchema = body.promptKey ? schemaForPromptKey(body.promptKey) : null
+  const userText = jsonSchema ? body.user : ensureJsonObjectUser(system ?? '', body.user)
+  const content: unknown[] = [{ type: 'text', text: userText }]
   for (const img of body.images || []) {
     content.push({
       type: 'image_url',
@@ -635,37 +640,51 @@ api.post('/api/ai/json', async (c) => {
     })
   }
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [
-        ...(system ? [{ role: 'system', content: system }] : []),
-        { role: 'user', content },
-      ],
-    }),
-  })
-
-  if (!res.ok) {
-    const errText = await res.text()
-    return c.json({ error: 'OpenAI chat failed', detail: errText }, 502)
-  }
-
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[]
-  }
-  const raw = data.choices?.[0]?.message?.content || '{}'
   try {
+    if (body.promptKey === 'PARSER' && jsonSchema && !(body.images?.length)) {
+      const parsed = await callOpenAiJsonWithRetry(key, system ?? '', body.user, {
+        model,
+        schema: jsonSchema,
+        validate: validateParserResponse,
+        validationHint: (raw) => parserValidationErrors(raw).join('; '),
+      })
+      return c.json({ result: parsed })
+    }
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        ...(model.includes('gpt-5') ? {} : { temperature: 0.2 }),
+        response_format: openAiResponseFormat(jsonSchema),
+        messages: [
+          ...(system ? [{ role: 'system', content: system }] : []),
+          { role: 'user', content },
+        ],
+      }),
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      return c.json({ error: 'OpenAI chat failed', detail: errText }, 502)
+    }
+
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[]
+    }
+    const raw = data.choices?.[0]?.message?.content || '{}'
     const parsed = JSON.parse(raw) as unknown
     return c.json({ result: parsed })
-  } catch {
-    return c.json({ error: 'Model returned non-JSON', raw }, 502)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'OpenAI chat failed'
+    if (msg.includes('invalid after')) {
+      return c.json({ error: msg }, 502)
+    }
+    return c.json({ error: 'Model returned non-JSON', detail: msg }, 502)
   }
 })
 
@@ -692,7 +711,9 @@ api.post('/api/ai/vision', async (c) => {
   }
 
   const model = body.model || OPENAI_MODELS.chatVision
-  const content: unknown[] = [{ type: 'text', text: body.user }]
+  const jsonSchema = body.promptKey ? schemaForPromptKey(body.promptKey) : null
+  const userText = jsonSchema ? body.user : ensureJsonObjectUser(system ?? '', body.user)
+  const content: unknown[] = [{ type: 'text', text: userText }]
   for (const img of body.images || []) {
     content.push({
       type: 'image_url',
@@ -708,8 +729,8 @@ api.post('/api/ai/vision', async (c) => {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
+      ...(model.includes('gpt-5') ? {} : { temperature: 0.2 }),
+      response_format: openAiResponseFormat(jsonSchema),
       messages: [
         ...(system ? [{ role: 'system', content: system }] : []),
         { role: 'user', content },

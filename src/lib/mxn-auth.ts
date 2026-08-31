@@ -4,9 +4,10 @@
  * Identity only — MakeXNow Accounts connects Google and returns a user/token.
  * Your app decides access (whitelist, roles, etc.).
  *
- * Enable with VITE_MXN_AUTH=1 and optional VITE_MXN_ACCOUNTS_URL.
- * Put local overrides in `.env.development.local` (NOT `.env.local`) so
- * production builds never bake in http://localhost:8999.
+ * Enable with VITE_MXN_AUTH=1.
+ * Default identity host is always https://accounts.makexnow.com (including
+ * local apps). Set VITE_MXN_ACCOUNTS_URL=http://localhost:8999 only if you
+ * are actually testing the local Accounts worker.
  */
 
 export type MxnUser = {
@@ -46,7 +47,6 @@ export function getAccountsBaseUrl(): string {
   if (fromEnv && !(urlLooksLocal(fromEnv) && !pageIsLocal())) {
     return fromEnv;
   }
-  if (pageIsLocal()) return "http://localhost:8999";
   return "https://accounts.makexnow.com";
 }
 

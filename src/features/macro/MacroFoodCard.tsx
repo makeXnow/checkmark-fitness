@@ -13,12 +13,14 @@ import type {
 } from '../../types/domain'
 import {
   describeMacroEstimate,
+  formatAmountFromQuantityUnit,
   macroItemDisplayEmoji,
   macroItemDisplayName,
   macroItemServingFields,
   macrosForServingCount,
   normalizeDiaryLabel,
   resolveCanonicalBaseMacros,
+  resolveParserPortion,
 } from './macroLib'
 
 export type MacroFoodAuditTrail = {
@@ -43,13 +45,24 @@ export function macroItemAuditTrail(item: {
   const classification =
     item.parseSnapshot ??
     (item.name?.trim()
-      ? {
-          emoji: item.emoji,
-          name: item.name || '',
-          amount: item.amount || '',
-          notes: item.notes,
-          fatSecretSearch: item.fatSecretSearch,
-        }
+      ? (() => {
+          const portion = resolveParserPortion({
+            amount: item.amount || '',
+            foodName: item.name,
+            userInput: item.userInput ?? item.rawText,
+          })
+          const quantity = portion?.qty ?? 1
+          const unit = portion?.unit ?? 'serving'
+          return {
+            emoji: item.emoji,
+            name: item.name || '',
+            quantity,
+            unit,
+            amount: item.amount || formatAmountFromQuantityUnit(quantity, unit),
+            notes: item.notes,
+            fatSecretSearch: item.fatSecretSearch,
+          } satisfies MacroParseSnapshot
+        })()
       : undefined)
 
   return {
@@ -214,11 +227,20 @@ function MacroDatabaseMatchPicker({
   onExpandedChange?: (expanded: boolean) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  /** Lazy-load FatSecret results 8 at a time (V7 may fetch up to 50). */
+  const [visibleCount, setVisibleCount] = useState(8)
   const selectedFood = selectedIndex != null ? foods[selectedIndex - 1] : undefined
 
   const setExpandedState = (next: boolean) => {
     setExpanded(next)
     onExpandedChange?.(next)
+    if (next) {
+      // Always show the selected food even if beyond the first page
+      const minForSelected = selectedIndex != null ? Math.max(8, selectedIndex) : 8
+      setVisibleCount(Math.min(foods.length, Math.max(8, minForSelected)))
+    } else {
+      setVisibleCount(8)
+    }
   }
 
   const pick = (index: number | null) => {
@@ -265,6 +287,9 @@ function MacroDatabaseMatchPicker({
         ? primaryServingLine(selectedFood.servings)
         : undefined
 
+  const visibleFoods = foods.slice(0, visibleCount)
+  const hasMore = visibleCount < foods.length
+
   return (
     <div className="px-4 py-4 border-t border-white/10 bg-black/15">
       {disabled ? (
@@ -277,7 +302,17 @@ function MacroDatabaseMatchPicker({
       {expanded ? (
         <div className="space-y-3">
           {renderOption(null, 'none')}
-          {foods.map((f, i) => renderOption(i + 1, f.foodId || String(i)))}
+          {visibleFoods.map((f, i) => renderOption(i + 1, f.foodId || String(i)))}
+          {hasMore ? (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setVisibleCount((n) => Math.min(foods.length, n + 8))}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-400/10 transition-colors shrink-0"
+            >
+              Show more ({foods.length - visibleCount} remaining)
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={disabled}

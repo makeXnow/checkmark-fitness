@@ -2,6 +2,7 @@ import { normalizeDiaryLabel } from '../src/features/macro/macroLib'
 import type { FatSecretFoodRef } from './fatsecret'
 import { getMacroPrompt } from './macroPromptsStore'
 import { callOpenAiJson } from './openaiJson'
+import { BARCODE_SCAN_JSON_SCHEMA } from '../src/features/macro/macroAiSchemas'
 
 export type BarcodeFoodLabel = {
   name: string
@@ -32,7 +33,10 @@ export async function pickBarcodeFoodLabel(
 
   try {
     const system = await getMacroPrompt(db, 'BARCODE_SCAN')
-    const result = (await callOpenAiJson(apiKey, system, user)) as { name?: string; emoji?: string }
+    const result = (await callOpenAiJson(apiKey, system, user, undefined, BARCODE_SCAN_JSON_SCHEMA)) as {
+      name?: string
+      emoji?: string
+    }
     return normalizeDiaryLabel({
       name: result?.name,
       emoji: result?.emoji,

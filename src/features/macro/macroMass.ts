@@ -2,11 +2,51 @@ import type { FatSecretFoodRef, MacroCustomFood, MacroEstimateSnapshot } from '.
 
 const G_PER_OZ = 28.3495
 const G_PER_LB = 453.592
+const ML_PER_TSP = 4.92892
+const ML_PER_TBSP = 14.7868
+const ML_PER_CUP = 236.588
+
+/** Parse leading numeric quantity: "1 1/4", "2/3", "0.5", "2". */
+export function parseLeadingQuantity(text: string): number | null {
+  const trimmed = text.trim()
+  if (!trimmed) return null
+
+  const mixed = trimmed.match(/^(\d+)\s+(\d+\s*\/\s*\d+|\d+\/\d+)/)
+  if (mixed) {
+    const whole = parseInt(mixed[1]!, 10)
+    const fracRaw = mixed[2]!.replace(/\s/g, '')
+    const fracParts = fracRaw.split('/')
+    if (fracParts.length === 2) {
+      const num = parseInt(fracParts[0]!, 10)
+      const den = parseInt(fracParts[1]!, 10)
+      if (den > 0) return whole + num / den
+    }
+  }
+
+  const fracOnly = trimmed.match(/^(\d+\s*\/\s*\d+|\d+\/\d+)/)
+  if (fracOnly) {
+    const parts = fracOnly[1]!.replace(/\s/g, '').split('/')
+    const num = parseInt(parts[0]!, 10)
+    const den = parseInt(parts[1]!, 10)
+    if (den > 0) return num / den
+  }
+
+  const decimal = trimmed.match(/^([\d.]+)/)
+  if (decimal) {
+    const n = parseFloat(decimal[1]!)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+
+  return null
+}
 
 /** Parse a user or serving size string into total grams, or null if not a mass amount. */
 export function parseMassGrams(text: string): number | null {
   const trimmed = text.trim().toLowerCase()
   if (!trimmed) return null
+
+  const qty = parseLeadingQuantity(trimmed)
+  const rest = qty != null ? trimmed.replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '').trim() : trimmed
 
   const patterns: { re: RegExp; toGrams: (n: number) => number }[] = [
     { re: /^([\d.]+)\s*(?:lbs?|pounds?)\b/, toGrams: (n) => n * G_PER_LB },
@@ -18,13 +58,19 @@ export function parseMassGrams(text: string): number | null {
     { re: /^([\d.]+)g\b/, toGrams: (n) => n },
   ]
 
+  const target = rest || trimmed
   for (const { re, toGrams } of patterns) {
-    const m = trimmed.match(re)
+    const m = target.match(re)
     if (m) {
       const n = parseFloat(m[1]!)
       if (Number.isFinite(n) && n > 0) return toGrams(n)
     }
   }
+
+  if (qty != null && /^(g|grams?)$/.test(rest)) return qty
+  if (qty != null && /^(oz|ounces?)$/.test(rest)) return qty * G_PER_OZ
+  if (qty != null && /^(lbs?|pounds?)$/.test(rest)) return qty * G_PER_LB
+
   return null
 }
 
@@ -70,6 +116,9 @@ function parseIndex(raw: unknown): number | null {
 }
 
 export function roundMultiplier(n: number): number {
+  if (!Number.isFinite(n)) return n
+  // Preserve small fractions (e.g. 0.2 fries / 110 per serving) instead of rounding to 0.
+  if (n > 0 && n < 0.01) return Math.round(n * 10000) / 10000
   return Math.round(n * 100) / 100
 }
 
@@ -172,6 +221,14 @@ const UNIT_SYNONYMS: Record<string, string> = {
   chops: 'chop',
   ribs: 'rib',
   meatballs: 'meatball',
+  apricots: 'apricot',
+  carrots: 'carrot',
+  potato: 'potato',
+  potatoes: 'potato',
+  fries: 'fry',
+  cartons: 'carton',
+  oreos: 'oreo',
+  whites: 'white',
 }
 
 /** Normalize a unit to its canonical singular/abbreviated form. */
@@ -239,14 +296,10 @@ export function parseDbCountServing(description: string): { qty: number; unit: s
   if (parseServingBaseGrams(description) !== null) return null
 
   const d = description.trim()
-  // "N unit" pattern
-  const match = d.match(/^(\d+(?:\.\d+)?)\s+(.+)$/)
-  if (match) {
-    const qty = parseFloat(match[1]!)
-    const unit = match[2]!.trim()
-    if (Number.isFinite(qty) && qty > 0 && unit) {
-      return { qty, unit }
-    }
+  const qty = parseLeadingQuantity(d)
+  if (qty != null) {
+    const unit = d.replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '').trim()
+    if (unit) return { qty, unit }
   }
 
   // No leading number — treat as qty=1 (e.g. bare "sandwich", "serving")
@@ -254,6 +307,80 @@ export function parseDbCountServing(description: string): { qty: number; unit: s
     return { qty: 1, unit: d }
   }
 
+  return null
+}
+
+/** Parse FatSecret serving description into qty + unit for count, mass, or volume lines. */
+export function parseDbServingDescription(description: string): { qty: number; unit: string } | null {
+  const trimmed = description.trim()
+  if (!trimmed) return null
+
+  const count = parseDbCountServing(trimmed)
+  if (count) return count
+
+  const lower = trimmed.toLowerCase()
+
+  const compactG = lower.match(/^([\d.]+)g$/)
+  if (compactG) {
+    const n = parseFloat(compactG[1]!)
+    if (Number.isFinite(n) && n > 0) return { qty: n, unit: 'g' }
+  }
+
+  const compactOz = lower.match(/^([\d.]+)oz$/)
+  if (compactOz) {
+    const n = parseFloat(compactOz[1]!)
+    if (Number.isFinite(n) && n > 0) return { qty: n, unit: 'oz' }
+  }
+
+  const spacedG = lower.match(/^([\d.]+)\s*g(?:rams?)?\b/)
+  if (spacedG) {
+    const n = parseFloat(spacedG[1]!)
+    if (Number.isFinite(n) && n > 0) return { qty: n, unit: 'g' }
+  }
+
+  const ozMatch = lower.match(/^([\d.]+)\s*(?:oz|ounces?)\b/)
+  if (ozMatch) {
+    const n = parseFloat(ozMatch[1]!)
+    if (Number.isFinite(n) && n > 0) return { qty: n, unit: 'oz' }
+  }
+
+  const lbMatch = lower.match(/^([\d.]+)\s*(?:lbs?|pounds?)\b/)
+  if (lbMatch) {
+    const n = parseFloat(lbMatch[1]!)
+    if (Number.isFinite(n) && n > 0) return { qty: n, unit: 'lb' }
+  }
+
+  const baseGrams = parseServingBaseGrams(trimmed)
+  if (baseGrams !== null) {
+    const qty = parseLeadingQuantity(lower)
+    if (qty != null) {
+      const unitPart = lower
+        .replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '')
+        .trim()
+      if (/^(g|grams?)\b/.test(unitPart)) return { qty, unit: 'g' }
+      if (/^(oz|ounces?)\b/.test(unitPart)) return { qty, unit: 'oz' }
+      if (/^(lbs?|pounds?)\b/.test(unitPart)) return { qty, unit: 'lb' }
+    }
+    if (/^[\d.]+\s*g\b/.test(lower) || /^[\d.]+g$/.test(lower)) {
+      return { qty: baseGrams, unit: 'g' }
+    }
+  }
+
+  return null
+}
+
+function parseVolumeMl(text: string): number | null {
+  const trimmed = text.trim().toLowerCase()
+  const qty = parseLeadingQuantity(trimmed)
+  if (qty == null) return null
+  const unit = trimmed
+    .replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '')
+    .trim()
+  if (/^tsp|teaspoons?$/.test(unit)) return qty * ML_PER_TSP
+  if (/^tbsp|tablespoons?$/.test(unit)) return qty * ML_PER_TBSP
+  if (/^cups?$/.test(unit)) return qty * ML_PER_CUP
+  if (/^ml|milliliters?$/.test(unit)) return qty
+  if (/^l|liters?$/.test(unit)) return qty * 1000
   return null
 }
 
@@ -285,6 +412,35 @@ export function isPureCountUnit(unit: string): boolean {
 }
 
 /**
+ * Exact arithmetic only: mass↔mass, volume↔volume, or identical normalized count unit.
+ * Does not do mismatched-noun count ratios (those need AI #2 EQUIVALENT_COUNT).
+ * Used by V7 so AI #2 cannot override conversions code already knows.
+ */
+export function resolveExactConvertibleMultiplier(
+  resolved: { qty: number; unit: string },
+  fsDescription: string,
+): number | null {
+  const userGrams = parseMassGrams(`${resolved.qty} ${resolved.unit}`)
+  const baseGrams = parseServingBaseGrams(fsDescription)
+  if (userGrams !== null && baseGrams !== null && baseGrams > 0) {
+    return roundMultiplier(userGrams / baseGrams)
+  }
+
+  const userMl = parseVolumeMl(`${resolved.qty} ${resolved.unit}`)
+  const baseMl = parseVolumeMl(fsDescription)
+  if (userMl !== null && baseMl !== null && baseMl > 0) {
+    return roundMultiplier(userMl / baseMl)
+  }
+
+  const dbCount = parseDbCountServing(fsDescription)
+  if (dbCount && unitsCompatible(resolved.unit, dbCount.unit) && dbCount.qty > 0) {
+    return roundMultiplier(resolved.qty / dbCount.qty)
+  }
+
+  return null
+}
+
+/**
  * Compute how many times a FatSecret serving line must be multiplied to match
  * the user's resolved amount.
  *
@@ -307,19 +463,10 @@ export function resolveDbMultiplier(
   resolved: { qty: number; unit: string },
   fsDescription: string,
 ): number | null {
-  // Tier 1 — mass: convert both to grams and divide
-  const userGrams = parseMassGrams(`${resolved.qty} ${resolved.unit}`)
-  const baseGrams = parseServingBaseGrams(fsDescription)
-  if (userGrams !== null && baseGrams !== null && baseGrams > 0) {
-    return roundMultiplier(userGrams / baseGrams)
-  }
+  const exact = resolveExactConvertibleMultiplier(resolved, fsDescription)
+  if (exact !== null) return exact
 
   const dbCount = parseDbCountServing(fsDescription)
-
-  // Tier 2 — count with matching unit names (e.g. "gummy" vs "gummies")
-  if (dbCount && unitsCompatible(resolved.unit, dbCount.unit) && dbCount.qty > 0) {
-    return roundMultiplier(resolved.qty / dbCount.qty)
-  }
 
   // Tier 3 — count with mismatched unit names (e.g. "gummy" vs "candy")
   // Safe when both are specific pure count nouns; generic placeholders ("serving",

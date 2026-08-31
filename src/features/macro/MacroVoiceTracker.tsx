@@ -44,6 +44,8 @@ import {
   sortCustomFoodsByUsage,
   type ParsedFoodItem,
 } from './macroLib'
+import { getFatSecretV7Cache, setFatSecretV7Cache } from './macroFatSecretCache'
+import type { UnitFamily, V7ServingRelationship } from './macroAiSchemas'
 import {
   MacroFoodEditCard,
   MacroFoodViewCard,
@@ -422,22 +424,96 @@ export function MacroVoiceTracker({
     ) => {
       estimatingIdsRef.current.add(id)
       try {
+        const snap = item.parseSnapshot
+        const unitFamily = (snap?.unitFamily ?? 'count') as UnitFamily
+        const estimated = Boolean(snap?.estimated)
+        const searchQ = item.fatSecretSearch?.trim() || snap?.fatSecretSearch?.trim() || ''
+
+        let v7CachedResolution:
+          | {
+              fatSecretIndex: number
+              servingIndex: number
+              relationship: V7ServingRelationship
+              estimateQuantity?: number | null
+              estimateUnit?: string | null
+              unitsPerServing?: number | null
+            }
+          | undefined
+        let cachedFoods = item.fatSecretResults
+        const skipUserPickPath =
+          !options?.userDatabasePick && !options?.skipFatSecretForAi && !options?.aiFatSecretResults?.length
+
+        if (skipUserPickPath && searchQ && !item.fatSecretResults?.length) {
+          const hit = getFatSecretV7Cache({
+            fatSecretSearch: searchQ,
+            unitFamily,
+            estimated,
+            originalPortion: snap?.originalPortion,
+          })
+          if (hit) {
+            cachedFoods = hit.foods
+            v7CachedResolution = {
+              fatSecretIndex: hit.selectedFoodIndex,
+              servingIndex: hit.selectedServingIndex,
+              relationship: hit.relationship,
+              estimateQuantity: hit.estimateQuantity,
+              estimateUnit: hit.estimateUnit,
+              unitsPerServing: hit.unitsPerServing,
+            }
+          }
+        }
+
         const result = await macroEstimateItem({
           name: item.name,
           amount: item.amount,
           notes: item.notes,
           fatSecretSearch: item.fatSecretSearch,
-          fatSecretResults: item.fatSecretResults,
+          fatSecretResults: cachedFoods,
           aiFatSecretResults: options?.aiFatSecretResults,
           fatSecretSelectedIndex: options?.fatSecretSelectedIndex,
           skipFatSecretForAi: options?.skipFatSecretForAi,
           userDatabasePick: options?.userDatabasePick,
           parseSnapshot: item.parseSnapshot,
           userInput: item.userInput ?? item.rawText,
-          skipFatSecretFetch: options?.skipFatSecretFetch ?? Boolean(options?.aiFatSecretResults?.length),
+          skipFatSecretFetch:
+            options?.skipFatSecretFetch ??
+            Boolean(options?.aiFatSecretResults?.length || v7CachedResolution),
           customFoods: customFoodsRef.current,
           extraCtx,
+          v7CachedResolution,
         })
+
+        const estSnap = result.macroEstimateSnapshot
+        const rel = estSnap?.relationshipV7
+        const fsIdx = typeof estSnap?.fatSecretIndex === 'number' ? estSnap.fatSecretIndex : null
+        const servIdx = typeof estSnap?.servingIndex === 'number' ? estSnap.servingIndex : null
+        if (
+          skipUserPickPath &&
+          searchQ &&
+          result.fatSecretResults?.length &&
+          rel &&
+          rel !== 'NEED_MORE_CANDIDATES' &&
+          rel !== 'WRONG_MATCH' &&
+          fsIdx != null &&
+          fsIdx >= 1 &&
+          servIdx != null &&
+          servIdx >= 1
+        ) {
+          setFatSecretV7Cache({
+            fatSecretSearch: searchQ,
+            unitFamily,
+            estimated,
+            originalPortion: snap?.originalPortion ?? '',
+            foods: result.fatSecretResults,
+            selectedFoodIndex: fsIdx,
+            selectedServingIndex: servIdx,
+            relationship: rel,
+            estimateQuantity: estSnap?.estimateQuantity,
+            estimateUnit: estSnap?.estimateUnit,
+            unitsPerServing: estSnap?.unitsPerServing,
+          })
+        }
+
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
@@ -843,7 +919,6 @@ export function MacroVoiceTracker({
         promptKey: 'ANALYZE_FRONT',
         user: 'Analyze this image.',
         images: [payload],
-        model: 'gpt-4o',
       }).then((r) => r as Record<string, unknown>)
       frontPromiseRef.current = p
       p.then((data) => setQuickScan((q) => ({ ...q, frontStatus: 'done', frontData: data }))).catch(() =>
@@ -855,7 +930,6 @@ export function MacroVoiceTracker({
         promptKey: 'ANALYZE_NUTRITION',
         user: 'Analyze this nutrition facts panel.',
         images: [payload],
-        model: 'gpt-4o',
       }).then((r) => r as Record<string, unknown>)
       nutritionPromiseRef.current = p
       p.then((data) => setQuickScan((q) => ({ ...q, nutritionStatus: 'done', nutritionData: data }))).catch(() =>
@@ -1779,7 +1853,6 @@ function DatabaseModal({
           promptKey: 'ANALYZE_NUTRITION',
           user: 'Analyze nutrition label.',
           images: [{ mimeType: nutritionImage.mimeType, base64: nutritionImage.data }],
-          model: 'gpt-4o',
         })) as { baseAmount?: string; calories?: number; protein?: number; fat?: number; carbs?: number }
         if (cancelled) return
         setEntry((prev) => ({
@@ -1809,7 +1882,6 @@ function DatabaseModal({
           promptKey: 'ANALYZE_FRONT',
           user: 'Analyze front label.',
           images: [{ mimeType: frontImage.mimeType, base64: frontImage.data }],
-          model: 'gpt-4o',
         })) as { name?: string; emoji?: string }
         if (cancelled) return
         setEntry((prev) => {

@@ -3,8 +3,9 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AppRouter } from './AppRouter'
 import { DevLoadingPage } from './dev/DevLoadingPage'
+import { ServingAuditPage } from './dev/servingAudit/ServingAuditPage'
 import './index.css'
-import { isDevLoadingRoute } from './lib/devRoutes'
+import { isDevLoadingRoute, isDevServingAuditRoute } from './lib/devRoutes'
 import { getBasename } from './lib/getBasename'
 import { MxnAuthGate } from './lib/MxnAuthGate'
 import { initPortraitOrientationLock } from './lib/lockOrientation'
@@ -18,7 +19,9 @@ if (import.meta.env.PROD) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {isDevLoadingRoute() ? (
+    {isDevServingAuditRoute() ? (
+      <ServingAuditPage />
+    ) : isDevLoadingRoute() ? (
       <DevLoadingPage />
     ) : (
       <MxnAuthGate>

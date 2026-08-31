@@ -127,42 +127,79 @@ export interface MacroCustomFood {
   createdAt?: number
 }
 
-/** Snapshot from the parser AI for one food item. */
+export type {
+  ConsumptionKind,
+  ConsumptionPortion,
+  NormalizedEstimate,
+  ServingRelationship,
+  UnitFamily,
+  V7ServingRelationship,
+} from '../features/macro/macroAiSchemas'
+
+/** Snapshot from the parser AI for one food item (V8). */
 export type MacroParseSnapshot = {
   emoji?: string
   name: string
+  /** Resolved numeric quantity — drives editable card. */
+  quantity: number
+  /** Display unit (singular or plural form for current quantity). */
+  unit: string
+  /** V8 singular unit form */
+  unitSingular?: string
+  /** V8 plural unit form */
+  unitPlural?: string
+  /** mass | volume | count | serving */
+  unitFamily?: import('../features/macro/macroAiSchemas').UnitFamily
+  /** True when quantity was inferred from vague language. */
+  estimated?: boolean
+  /** Original vague wording when estimated (e.g. "handful"). */
+  originalPortion?: string
+  /** Human-readable portion label (e.g. "2 cookies", "183 g"). */
   amount: string
   notes?: string
   fatSecretSearch?: string
+  /** @deprecated V5 structured consumption */
+  consumption?: import('../features/macro/macroAiSchemas').ConsumptionPortion
 }
 
-/** Raw macro-estimate AI response before resolveMacroEstimate. */
+/** Raw macro-estimate AI response before resolveMacroEstimate (V8). */
 export type MacroEstimateSnapshot = {
   libraryIndex?: number | null
   fatSecretIndex?: number | null
   servingIndex?: number | null
+  /**
+   * Nutrition multiplier. V8/V7: computed by deterministic code from relationship.
+   * V6 stored entries may still have AI-produced multipliers.
+   */
   multiplier?: number
+  /** AI #2 relationship classification. */
+  relationshipV7?: import('../features/macro/macroAiSchemas').V7ServingRelationship | null
+  /** @deprecated V7 NEEDS_ESTIMATE bridge */
+  estimateQuantity?: number | null
+  estimateUnit?: string | null
+  /** V9 AI #2: how many user-units are in one database serving */
+  unitsPerServing?: number | null
+  unitBridgeQuestion?: string | null
+  unitBridgeRan?: boolean
+  deterministicOk?: boolean
+  relationshipRetryRan?: boolean
+  rawMacrosPass1Json?: string
+  rawMacrosPass2Json?: string
+  rawMacrosRetryJson?: string
+  candidateAnnotationsJson?: string
+  /** @deprecated V8 AI #3 */
+  rawUnitBridgeJson?: string
   /** Short unit label for direct AI estimates (e.g. "can", "cup", "slice"). */
   servingType?: string
   calories?: number
   protein?: number
-  /**
-   * Numeric part of the resolved portion. Paired with resolvedUnit.
-   * Examples: 6, 4, 0.5, 25, 2, 1
-   * Preferred over resolvedAmount when present.
-   */
   resolvedQty?: number
-  /**
-   * Singular unit word for the resolved portion. Paired with resolvedQty.
-   * Examples: "gummy", "oz", "sandwich", "g", "slice", "cracker"
-   * Preferred over resolvedAmount when present.
-   */
   resolvedUnit?: string
-  /**
-   * Legacy: machine-readable portion as a single string "<number> <unit>".
-   * Kept for backward compatibility with stored entries. Prefer resolvedQty + resolvedUnit.
-   */
   resolvedAmount?: string
+  /** @deprecated V5 relationship */
+  relationship?: import('../features/macro/macroAiSchemas').ServingRelationship | null
+  /** @deprecated V5 */
+  normalizedEstimate?: import('../features/macro/macroAiSchemas').NormalizedEstimate | null
 }
 
 export interface MacroDayItem {

@@ -5,12 +5,52 @@ import type {
   MacroEstimateSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
-import { applyMassMultiplierCorrection, isPureCountUnit, normalizeSingular, parseMassGrams, parseDbCountServing, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier, roundMultiplier } from './macroMass'
+import type {
+  ConsumptionPortion,
+  NormalizedEstimate,
+  ServingRelationship,
+  UnitFamily,
+  V7ServingRelationship,
+} from './macroAiSchemas'
+import { isValidPositiveNumber, isValidUnitFamily } from './macroAiValidate'
+import { parseLeadingQuantity, parseMassGrams, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier, roundMultiplier } from './macroMass'
+import { consumptionIntentToResolved, parseConsumptionIntent } from './consumptionIntent'
+import {
+  consumptionDisplayResolved,
+  consumptionToMatchResolved,
+  enrichAmountText,
+  ensureConsumption,
+} from './consumptionNormalize'
+import {
+  computeMacroMultiplier,
+  effectiveFatSecretServingDescription,
+} from './macroServingResolve'
+import { computeV7Multiplier } from './macroV7Resolve'
+import { computeV8Multiplier, displayUnitForQuantity, formatQuantityUnitDisplay } from './macroV8Resolve'
 
 export type ParsedFoodItem = {
   emoji?: string
   name: string
-  amount: string
+  /** Resolved numeric quantity from parser. */
+  quantity?: number
+  /** V8 singular display unit */
+  unitSingular?: string
+  /** V8 plural display unit */
+  unitPlural?: string
+  /** Display / math unit (derived from singular/plural, or V7 `unit`) */
+  unit?: string
+  /** mass | volume | count | serving */
+  unitFamily?: UnitFamily
+  /** Quantity was inferred from vague language. */
+  estimated?: boolean
+  /** Original vague wording when estimated. */
+  originalPortion?: string
+  /** @deprecated V5 — legacy parser field */
+  amount?: string
+  /** @deprecated V5 */
+  amountText?: string
+  /** @deprecated V5 */
+  consumption?: ConsumptionPortion
   notes?: string
   fatSecretSearch?: string
 }
@@ -19,27 +59,79 @@ export type MacroEstimateResponse = {
   libraryIndex?: number | null
   fatSecretIndex?: number | null
   servingIndex?: number | null
+  /**
+   * Nutrition multiplier. V8/V7: set by deterministic code from relationship.
+   * V6 may still store AI-produced values on old diary entries.
+   */
   multiplier?: number
+  /** AI #2 relationship classification. */
+  relationshipV7?: V7ServingRelationship | null
+  /** @deprecated V7 NEEDS_ESTIMATE bridge — V9 uses unitsPerServing from AI #2 */
+  estimateQuantity?: number | null
+  estimateUnit?: string | null
+  /** V9 AI #2: how many user-units are in one database serving when NEEDS_UNIT_BRIDGE */
+  unitsPerServing?: number | null
+  unitBridgeQuestion?: string | null
+  unitBridgeRan?: boolean
+  deterministicOk?: boolean
+  relationshipRetryRan?: boolean
+  rawMacrosPass1Json?: string
+  rawMacrosPass2Json?: string
+  rawMacrosRetryJson?: string
+  candidateAnnotationsJson?: string
+  /** @deprecated V8 AI #3 */
+  rawUnitBridgeJson?: string
   servingType?: string
   calories?: number
   protein?: number
-  /**
-   * Numeric part of the resolved portion (JSON number). Paired with resolvedUnit.
-   * Examples: 6, 4, 0.5, 25, 2, 1
-   * Preferred over resolvedAmount when present.
-   */
+  /** @deprecated V5 */
+  relationship?: ServingRelationship | null
+  /** @deprecated V5 */
+  normalizedEstimate?: NormalizedEstimate | null
+  /** @deprecated V5 */
   resolvedQty?: number
-  /**
-   * Singular unit word for the resolved portion. Paired with resolvedQty.
-   * Examples: "gummy", "oz", "sandwich", "g", "slice", "cracker"
-   * Preferred over resolvedAmount when present.
-   */
+  /** @deprecated V5 */
   resolvedUnit?: string
-  /**
-   * Legacy: machine-readable portion as a single string "<number> <unit>".
-   * Kept for backward compatibility with stored entries. Prefer resolvedQty + resolvedUnit.
-   */
+  /** @deprecated V5 */
   resolvedAmount?: string
+}
+
+/** Map structured MACROS AI output (field `relationship`) onto MacroEstimateResponse. */
+export function macrosAiToEstimateResponse(raw: {
+  libraryIndex?: number | null
+  fatSecretIndex?: number | null
+  servingIndex?: number | null
+  relationship?: V7ServingRelationship | null
+  relationshipV7?: V7ServingRelationship | null
+  estimateQuantity?: number | null
+  estimateUnit?: string | null
+  unitsPerServing?: number | null
+  bridgeQuestion?: string | null
+  calories?: number
+  protein?: number
+  servingType?: string
+  multiplier?: number
+}): MacroEstimateResponse {
+  return {
+    libraryIndex: raw.libraryIndex ?? null,
+    fatSecretIndex: raw.fatSecretIndex ?? null,
+    servingIndex: raw.servingIndex ?? null,
+    relationshipV7: raw.relationshipV7 ?? raw.relationship ?? null,
+    estimateQuantity: raw.estimateQuantity ?? null,
+    estimateUnit: raw.estimateUnit ?? null,
+    unitsPerServing: raw.unitsPerServing ?? null,
+    unitBridgeQuestion: raw.bridgeQuestion ?? null,
+    calories: raw.calories ?? 0,
+    protein: raw.protein ?? 0,
+    servingType: raw.servingType ?? '',
+    ...(typeof raw.multiplier === 'number' ? { multiplier: raw.multiplier } : {}),
+  }
+}
+
+/** Format parser quantity + unit for diary display (e.g. "2 cookie", "183 g"). */
+export function formatAmountFromQuantityUnit(quantity: number, unit: string): string {
+  const qty = formatServingQuantity(quantity, unit)
+  return `${qty} ${unit.trim()}`
 }
 
 export type MacroEstimateResult = {
@@ -92,6 +184,7 @@ export function formatNumberedFoodLibrary(foods: MacroCustomFood[]): string {
   return `\n\nFOOD LIBRARY (use libraryIndex only when the item is essentially the same product as a library entry — not merely a shared ingredient):\n${lines.join('\n')}`
 }
 
+/** @deprecated Prefer formatNumberedFatSecretAnnotated with user unit. */
 export function formatNumberedFatSecret(results: FatSecretFoodRef[]): string {
   if (results.length === 0) return ''
   const lines = results.map((f, i) => {
@@ -101,17 +194,50 @@ export function formatNumberedFatSecret(results: FatSecretFoodRef[]): string {
       .join('; ')
     return `${i + 1}. ${label} | servings: ${servingParts}`
   })
-  return `\n\nFATSECRET RESULTS (use fatSecretIndex + servingIndex + multiplier only when essentially the same product — not a shared ingredient):\n${lines.join('\n')}`
+  return `\n\nFATSECRET CANDIDATES (use fatSecretIndex + servingIndex + relationship — do NOT calculate a multiplier):\n${lines.join('\n')}`
 }
 
 export function buildMacroEstimatePrompt(
   name: string,
-  amount: string,
+  quantity: number,
+  unit: string,
   notes?: string,
+  userInput?: string,
   extraCtx = '',
 ): string {
   const notesLine = notes?.trim() ? `\nNotes: ${notes.trim()}` : ''
-  return `Estimate calories and protein for this food serving:\nItem: ${name}\nServing: ${amount}${notesLine}${extraCtx}`
+  const userLine = userInput?.trim() ? `\nOriginal user input: ${userInput.trim()}` : ''
+  return `Match this parsed food to our food library or FatSecret results:\nItem: ${name}\nQuantity: ${quantity}\nUnit: ${unit}${notesLine}${userLine}${extraCtx}`
+}
+
+/** Natural-language case brief for V7 AI #2 (preferred over dumping raw variables). */
+export function buildV7MacrosCaseBrief(input: {
+  userInput?: string
+  name: string
+  quantity: number
+  unit: string
+  unitFamily?: UnitFamily
+  estimated?: boolean
+  originalPortion?: string
+  notes?: string
+  fatSecretSearch?: string
+}): string {
+  const userSaid = input.userInput?.trim() || `${input.quantity} ${input.unit} ${input.name}`
+  const estimated = Boolean(input.estimated)
+  const portion = input.originalPortion?.trim()
+  let estimateSentence = ''
+  if (estimated && portion) {
+    estimateSentence = ` AI #1 identified ${input.name} and estimated the portion as ${input.quantity} ${input.unit}. This amount was estimated because the user said "${portion}."`
+  } else if (estimated) {
+    estimateSentence = ` AI #1 identified ${input.name} and estimated the portion as ${input.quantity} ${input.unit}.`
+  } else {
+    estimateSentence = ` AI #1 identified ${input.name} with an explicit portion of ${input.quantity} ${input.unit}${input.unitFamily ? ` (${input.unitFamily})` : ''}.`
+  }
+  const notesLine = input.notes?.trim() ? ` Notes: ${input.notes.trim()}.` : ''
+  const searchLine = input.fatSecretSearch?.trim()
+    ? ` FatSecret search used: "${input.fatSecretSearch.trim()}".`
+    : ''
+  return `The user said "${userSaid}."${estimateSentence}${notesLine}${searchLine} Below are the best FatSecret candidates for this batch. Classify relationship; do not calculate the multiplier.`
 }
 
 /** Parser classification + original input for user-confirmed database re-estimates. */
@@ -128,7 +254,16 @@ export function formatClassificationContext(item: {
     lines.push('Classification (parser output):')
     if (snap.emoji?.trim()) lines.push(`Emoji: ${snap.emoji.trim()}`)
     if (snap.name?.trim()) lines.push(`Name: ${snap.name.trim()}`)
-    if (snap.amount?.trim()) lines.push(`Serving: ${snap.amount.trim()}`)
+    if (typeof snap.quantity === 'number' && snap.unit?.trim()) {
+      lines.push(`Quantity: ${snap.quantity}`)
+      lines.push(`Unit: ${snap.unit.trim()}`)
+    } else if (snap.amount?.trim()) {
+      lines.push(`Amount: ${snap.amount.trim()}`)
+    }
+    if (snap.unitFamily) lines.push(`Unit family: ${snap.unitFamily}`)
+    if (typeof snap.estimated === 'boolean') lines.push(`Estimated: ${snap.estimated}`)
+    if (snap.originalPortion?.trim()) lines.push(`Original portion: ${snap.originalPortion.trim()}`)
+    if (snap.consumption) lines.push(`Consumption (legacy): ${JSON.stringify(snap.consumption)}`)
     if (snap.notes?.trim()) lines.push(`Notes: ${snap.notes.trim()}`)
     if (snap.fatSecretSearch?.trim()) lines.push(`Database search: ${snap.fatSecretSearch.trim()}`)
   }
@@ -141,12 +276,49 @@ export function macroEstimateInputFields(item: {
   amount: string
   notes?: string
   parseSnapshot?: MacroParseSnapshot
-}): { name: string; amount: string; notes?: string } {
+  userInput?: string
+}): {
+  name: string
+  amount: string
+  quantity: number
+  unit: string
+  unitFamily?: UnitFamily
+  estimated?: boolean
+  originalPortion?: string
+  notes?: string
+  consumption?: ConsumptionPortion
+} {
   const snap = item.parseSnapshot
+  const name = snap?.name?.trim() || item.name
+  const amount = snap?.amount?.trim() || item.amount
+  // Prefer singular unit for math (V8); display unit may be pluralized.
+  const mathUnit =
+    (typeof snap?.unitSingular === 'string' && snap.unitSingular.trim()) ||
+    (typeof snap?.unit === 'string' && snap.unit.trim()) ||
+    undefined
+  const portion = resolveParserPortion({
+    quantity: snap?.quantity,
+    unit: mathUnit,
+    amount,
+    consumption: snap?.consumption ?? null,
+    foodName: name,
+    userInput: item.userInput,
+  })
+  const consumption =
+    snap?.consumption ??
+    (portion
+      ? ensureConsumption(amount, null, { name, userInput: item.userInput }) ?? undefined
+      : undefined)
   return {
-    name: snap?.name?.trim() || item.name,
-    amount: snap?.amount?.trim() || item.amount,
+    name,
+    amount: portion ? formatAmountFromQuantityUnit(portion.qty, portion.unit) : amount,
+    quantity: portion?.qty ?? 1,
+    unit: portion?.unit ?? mathUnit ?? 'serving',
+    unitFamily: snap?.unitFamily,
+    estimated: snap?.estimated,
+    originalPortion: snap?.originalPortion,
     notes: snap?.notes?.trim() || item.notes,
+    consumption,
   }
 }
 
@@ -241,6 +413,16 @@ function parseFractionToken(raw: string): number | null {
 export function parseServingDefinition(text: string): ServingDefinition {
   const trimmed = text.trim()
   if (!trimmed) return { servingSize: 1, servingUnit: 'serving', label: '1 serving' }
+
+  const leadingQty = parseLeadingQuantity(trimmed)
+  if (leadingQty != null) {
+    const unitPart = trimmed
+      .replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '')
+      .trim()
+    if (unitPart) {
+      return { servingSize: leadingQty, servingUnit: unitPart, label: trimmed }
+    }
+  }
 
   const fracMatch = trimmed.match(/^(\d+\s*\/\s*\d+)\s+(.*)$/i)
   if (fracMatch) {
@@ -416,8 +598,53 @@ export function macroEstimateFatSecretIndex(snap?: MacroEstimateSnapshot | null)
 }
 
 export type ResolveMacroEstimateOptions = {
-  /** Parser/classification serving (e.g. "4 lbs") — used to correct weight-based multipliers. */
+  /** V6: parser quantity (authoritative for card display). */
+  quantity?: number
+  /** V6: parser unit (authoritative for card display). */
+  unit?: string
+  /** Legacy display / fallback amount text. */
   userAmount?: string
+  /** @deprecated V5 structured parser consumption */
+  consumption?: ConsumptionPortion | null
+  foodName?: string
+  userInput?: string
+}
+
+function validNutritionMultiplier(n: unknown): number | null {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null
+}
+
+/** Resolve parser quantity + unit from V6 or legacy snapshot fields. */
+export function resolveParserPortion(input: {
+  quantity?: number
+  unit?: string
+  amount?: string
+  consumption?: ConsumptionPortion | null
+  foodName?: string
+  userInput?: string
+}): { qty: number; unit: string } | null {
+  if (isValidPositiveNumber(input.quantity) && input.unit?.trim()) {
+    return { qty: input.quantity, unit: input.unit.trim() }
+  }
+
+  const amount = input.amount?.trim() ?? ''
+  const foodCtx = { name: input.foodName, userInput: input.userInput }
+  const ensured = ensureConsumption(amount, input.consumption ?? null, foodCtx)
+  if (ensured) {
+    const fromConsumption = consumptionToMatchResolved(ensured)
+    if (fromConsumption) {
+      return consumptionDisplayResolved(amount, fromConsumption, foodCtx)
+    }
+  }
+
+  if (amount) {
+    const intent = parseConsumptionIntent(amount)
+    if (intent) {
+      return consumptionDisplayResolved(amount, consumptionIntentToResolved(intent), foodCtx)
+    }
+  }
+
+  return null
 }
 
 /** How many base portions the user ate (editable count in the day log). */
@@ -516,8 +743,13 @@ function resolveCountServingMultiplier(
   // The AI multiplier is unreliable here — return 1 as a safe neutral fallback.
   if (userAmount?.trim() && parseMassGrams(userAmount) != null) return 1
 
-  // Count path: try resolveDbMultiplier (handles tier-2 unit match + tier-3 unit mismatch)
+  // Count path: try parser intent then resolveDbMultiplier
   if (userAmount?.trim()) {
+    const intent = parseConsumptionIntent(userAmount)
+    if (intent) {
+      const dbMult = resolveDbMultiplier(consumptionIntentToResolved(intent), selectedServingDescription)
+      if (dbMult !== null) return dbMult
+    }
     const userParsed = parseResolvedAmount(userAmount)
     if (userParsed) {
       const dbMult = resolveDbMultiplier(userParsed, selectedServingDescription)
@@ -525,8 +757,7 @@ function resolveCountServingMultiplier(
     }
   }
 
-  const legacy = parseLegacyServing(userAmount || '')
-  return legacy.multiplier > 0 ? legacy.multiplier : ai
+  return ai
 }
 
 /**
@@ -544,7 +775,6 @@ function getResolvedParsed(
   return str ? parseResolvedAmount(str) : null
 }
 
-/** Returns a display string for the resolved portion, or null if not present. */
 function getResolvedStr(
   r: Pick<MacroEstimateResponse, 'resolvedQty' | 'resolvedUnit' | 'resolvedAmount'>,
 ): string | null {
@@ -560,161 +790,157 @@ export function resolveMacroEstimate(
   fatSecretResults: FatSecretFoodRef[] = [],
   options?: ResolveMacroEstimateOptions,
 ): MacroEstimateResult {
-  // Skip mass correction when a resolved portion is present — the new resolver handles it
-  const hasResolved = getResolvedParsed(response) !== null
-  const adjusted = !hasResolved && options?.userAmount?.trim()
-    ? applyMassMultiplierCorrection(response, options.userAmount, foods, fatSecretResults)
-    : response
+  const displayPortion = resolveParserPortion({
+    quantity: options?.quantity,
+    unit: options?.unit,
+    amount: options?.userAmount,
+    consumption: options?.consumption ?? null,
+    foodName: options?.foodName,
+    userInput: options?.userInput,
+  })
 
-  // Helper: build the user-honoring return from a resolved amount + macros
-  const resolveFromParsed = (
-    resolvedParsed: { qty: number; unit: string },
+  const buildDisplayResult = (
     totalCal: number,
     totalPro: number,
+    extras: Partial<MacroEstimateResult> = {},
   ): MacroEstimateResult => {
-    const displayQty = resolvedParsed.qty
-    const displayUnit = resolvedParsed.unit
-    return {
-      calories: Math.round(totalCal),
-      protein: Math.round(totalPro * 10) / 10,
-      servingType: displayUnit,
-      servingSize: 1,
-      servingUnit: displayUnit,
-      servingMultiplier: displayQty,
-      baseCalories: displayQty > 0 ? Math.round(totalCal / displayQty) : Math.round(totalCal),
-      baseProtein:
-        displayQty > 0
-          ? Math.round((totalPro / displayQty) * 10) / 10
-          : Math.round(totalPro * 10) / 10,
-    }
-  }
-
-  const libIdx = parseIndex(adjusted.libraryIndex)
-  if (libIdx !== null && libIdx >= 1 && libIdx <= foods.length) {
-    const food = foods[libIdx - 1]!
-
-    // Primary: resolved portion (resolvedQty+resolvedUnit or legacy resolvedAmount) drives both multiplier and display
-    const resolvedParsed = getResolvedParsed(adjusted)
-    if (resolvedParsed) {
-      const dbMult = resolveDbMultiplier(resolvedParsed, food.baseAmount || '1 serving')
-      if (dbMult !== null) {
-        const scaled = scaleLibraryMacros(food, dbMult)
-        return {
-          ...resolveFromParsed(resolvedParsed, scaled.calories, scaled.protein),
-          libraryFoodId: food.id,
-        }
+    if (displayPortion) {
+      const { qty, unit } = displayPortion
+      return {
+        calories: Math.round(totalCal),
+        protein: Math.round(totalPro * 10) / 10,
+        servingType: unit,
+        servingSize: 1,
+        servingUnit: unit,
+        servingMultiplier: qty,
+        baseCalories: qty > 0 ? Math.round(totalCal / qty) : Math.round(totalCal),
+        baseProtein: qty > 0 ? Math.round((totalPro / qty) * 10) / 10 : Math.round(totalPro * 10) / 10,
+        ...extras,
       }
     }
 
-    // Fallback: AI multiplier + FS-derived display (existing behavior)
-    const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
-    const scaled = scaleLibraryMacros(food, multiplier)
-    const def = parseServingDefinition(food.baseAmount || '1 serving')
+    const mult = validNutritionMultiplier(response.multiplier) ?? 1
+    const def = parseServingDefinition(response.servingType?.trim() || 'serving')
     return {
-      calories: scaled.calories,
-      protein: scaled.protein,
-      libraryFoodId: food.id,
+      calories: Math.round(totalCal),
+      protein: Math.round(totalPro * 10) / 10,
       servingType: def.label,
       servingSize: def.servingSize,
       servingUnit: def.servingUnit,
-      servingMultiplier: multiplier,
-      baseCalories: food.calories,
-      baseProtein: food.protein,
+      servingMultiplier: mult,
+      baseCalories: Math.round(totalCal / mult),
+      baseProtein: Math.round((totalPro / mult) * 10) / 10,
+      ...extras,
     }
   }
 
-  const fsIdx = parseIndex(adjusted.fatSecretIndex)
+  const libIdx = parseIndex(response.libraryIndex)
+  if (libIdx !== null && libIdx >= 1 && libIdx <= foods.length) {
+    const food = foods[libIdx - 1]!
+    let nutritionMult = validNutritionMultiplier(response.multiplier)
+    if (nutritionMult === null && displayPortion && response.relationshipV7) {
+      const v8 = computeV8Multiplier({
+        quantity: displayPortion.qty,
+        unit: displayPortion.unit,
+        relationship: response.relationshipV7,
+        servingDescription: food.baseAmount || '1 serving',
+        unitsPerServing: response.unitsPerServing,
+      })
+      nutritionMult = v8.multiplier
+      // V7 NEEDS_ESTIMATE fallback for stored snapshots
+      if (nutritionMult === null && response.estimateQuantity != null) {
+        nutritionMult = computeV7Multiplier({
+          quantity: displayPortion.qty,
+          unit: displayPortion.unit,
+          relationship: response.relationshipV7 as 'NEEDS_ESTIMATE',
+          servingDescription: food.baseAmount || '1 serving',
+          estimateQuantity: response.estimateQuantity,
+          estimateUnit: response.estimateUnit,
+        })
+      }
+    }
+    // Hard invariant: never invent multiplier from user quantity when bridge failed.
+    if (nutritionMult === null && response.relationshipV7 === 'NEEDS_UNIT_BRIDGE') {
+      return buildDisplayResult(0, 0, { libraryFoodId: food.id })
+    }
+    nutritionMult =
+      nutritionMult ??
+      (displayPortion ? resolveDbMultiplier(displayPortion, food.baseAmount || '1 serving') : null)
+    if (nutritionMult === null) {
+      return buildDisplayResult(0, 0, { libraryFoodId: food.id })
+    }
+    const scaled = scaleLibraryMacros(food, nutritionMult)
+    return buildDisplayResult(scaled.calories, scaled.protein, { libraryFoodId: food.id })
+  }
+
+  const fsIdx = parseIndex(response.fatSecretIndex)
   if (fsIdx !== null && fsIdx >= 1 && fsIdx <= fatSecretResults.length) {
     const food = fatSecretResults[fsIdx - 1]!
-    const servIdx = parseIndex(adjusted.servingIndex)
+    const servIdx = parseIndex(response.servingIndex)
     const serving =
       servIdx !== null && servIdx >= 1 && servIdx <= food.servings.length
         ? food.servings[servIdx - 1]!
         : food.servings.find((s) => s.isDefault) ?? food.servings[0]!
 
-    // When FS serving description is a bare "1 serving" or "serving", try to
-    // extract the item count from the food name (e.g. "4 Piece Chicken McNuggets"
-    // → effective description "4 piece"). This handles the common FS pattern where
-    // the count lives in the food name, not the serving description.
-    const rawDesc = serving.description.trim().toLowerCase()
-    let effectiveDesc = serving.description
-    if (rawDesc === '1 serving' || rawDesc === 'serving') {
-      const countMatch = food.name.match(/\b(\d+)\s*(piece|pc|pcs|nugget|nuggets|wing|wings|strip|strips|bite|bites|cookie|cookies|bar|bars|slice|slices|tablet|tablets|capsule|capsules|item|items|count|pack|packs)\b/i)
-      if (countMatch) {
-        effectiveDesc = `${countMatch[1]} ${countMatch[2]!.toLowerCase()}`
+    const effectiveDesc = effectiveFatSecretServingDescription(food, serving)
+
+    let nutritionMult: number | null = null
+    if (response.relationshipV7) {
+      const v8 = computeV8Multiplier({
+        quantity: displayPortion?.qty ?? options?.quantity ?? 1,
+        unit: displayPortion?.unit ?? options?.unit ?? 'serving',
+        relationship: response.relationshipV7,
+        servingDescription: effectiveDesc,
+        unitsPerServing: response.unitsPerServing,
+      })
+      nutritionMult = v8.multiplier
+      if (nutritionMult === null && response.estimateQuantity != null) {
+        nutritionMult = computeV7Multiplier({
+          quantity: displayPortion?.qty ?? options?.quantity ?? 1,
+          unit: displayPortion?.unit ?? options?.unit ?? 'serving',
+          relationship: response.relationshipV7 as 'NEEDS_ESTIMATE',
+          servingDescription: effectiveDesc,
+          estimateQuantity: response.estimateQuantity,
+          estimateUnit: response.estimateUnit,
+        })
       }
     }
-
-    // Primary: resolved portion (resolvedQty+resolvedUnit or legacy resolvedAmount) drives both multiplier and display
-    const resolvedParsed = getResolvedParsed(adjusted)
-    if (resolvedParsed) {
-      let dbMult = resolveDbMultiplier(resolvedParsed, effectiveDesc)
-
-      // Safety net: AI used generic "serving" as unit (e.g. "2 serving") but FS has a
-      // specific count description (e.g. "12 crackers"). Re-interpret resolved qty
-      // as individual items of that count unit so 2 crackers → 2/12 × 140 cal.
-      if (dbMult === null && normalizeSingular(resolvedParsed.unit) === 'serving') {
-        const dbCount = parseDbCountServing(effectiveDesc)
-        if (dbCount && dbCount.qty > 0 && isPureCountUnit(dbCount.unit)) {
-          const reinterpreted = { qty: resolvedParsed.qty, unit: dbCount.unit }
-          const retried = resolveDbMultiplier(reinterpreted, effectiveDesc)
-          if (retried !== null) {
-            dbMult = retried
-            // Update resolvedParsed unit so display shows the specific unit (e.g. "cracker")
-            ;(resolvedParsed as { qty: number; unit: string }).unit = normalizeSingular(dbCount.unit)
-          }
-        }
-      }
-
-      if (dbMult !== null) {
-        const totalCal = serving.calories * dbMult
-        const totalPro = serving.protein * dbMult
-        return resolveFromParsed(resolvedParsed, totalCal, totalPro)
-      }
+    if (nutritionMult === null) {
+      nutritionMult = validNutritionMultiplier(response.multiplier)
+    }
+    // Hard invariant: never treat userQuantity as databaseServingMultiplier.
+    if (nutritionMult === null && response.relationshipV7 === 'NEEDS_UNIT_BRIDGE') {
+      return buildDisplayResult(0, 0)
+    }
+    if (nutritionMult !== null) {
+      const scaled = scaleFatSecretServing(serving, nutritionMult)
+      return buildDisplayResult(scaled.calories, scaled.protein)
     }
 
-    // Fallback: count/mass heuristics + AI multiplier
-    const multiplier = resolveCountServingMultiplier(
-      options?.userAmount,
-      effectiveDesc,
-      adjusted.multiplier,
-    )
-    const scaled = scaleFatSecretServing(serving, multiplier)
-    const def = parseServingDefinition(serving.description)
-    return {
-      calories: scaled.calories,
-      protein: scaled.protein,
-      servingType: def.label,
-      servingSize: def.servingSize,
-      servingUnit: def.servingUnit,
-      servingMultiplier: multiplier,
-      baseCalories: serving.calories,
-      baseProtein: serving.protein,
+    // Legacy V5 fallback when stored snapshot lacks AI multiplier / V7 relationship
+    const legacyMult =
+      displayPortion &&
+      (computeMacroMultiplier(
+        displayPortion,
+        effectiveDesc,
+        response.relationship,
+        response.normalizedEstimate,
+      ) ??
+        resolveDbMultiplier(displayPortion, effectiveDesc))
+    if (legacyMult != null) {
+      const scaled = scaleFatSecretServing(serving, legacyMult)
+      return buildDisplayResult(scaled.calories, scaled.protein)
     }
+
+    const fallbackMult = resolveCountServingMultiplier(options?.userAmount, effectiveDesc, response.multiplier)
+    const scaled = scaleFatSecretServing(serving, fallbackMult)
+    return buildDisplayResult(scaled.calories, scaled.protein)
   }
 
-  // Path 4: direct AI estimate
-  const multiplier = typeof adjusted.multiplier === 'number' && adjusted.multiplier > 0 ? adjusted.multiplier : 1
-  const calories = Math.round(adjusted.calories ?? 0)
-  const protein = Math.round((adjusted.protein ?? 0) * 10) / 10
-
-  // Use resolved portion for display when available (handles "small handful → 25 g")
-  const resolvedParsed = getResolvedParsed(adjusted)
-  if (resolvedParsed) {
-    return resolveFromParsed(resolvedParsed, calories, protein)
-  }
-
-  const def = parseServingDefinition(adjusted.servingType?.trim() || 'serving')
-  return {
-    calories,
-    protein,
-    servingType: def.label,
-    servingSize: def.servingSize,
-    servingUnit: def.servingUnit,
-    servingMultiplier: multiplier,
-    baseCalories: Math.round(calories / multiplier),
-    baseProtein: Math.round((protein / multiplier) * 10) / 10,
-  }
+  // Direct AI estimate
+  const calories = Math.round(response.calories ?? 0)
+  const protein = Math.round((response.protein ?? 0) * 10) / 10
+  return buildDisplayResult(calories, protein)
 }
 
 export type MacroEstimateDescription = {
@@ -777,6 +1003,7 @@ export function describeMacroEstimate(
         { label: 'Product', value: label },
         { label: 'Serving #', value: servIdx !== null ? String(servIdx) : 'default' },
         { label: 'Serving type', value: serving.description },
+        ...(snap.relationshipV7 ? [{ label: 'Relationship', value: snap.relationshipV7 }] : []),
         ...(resolvedStr ? [{ label: 'Your portion', value: resolvedStr }] : []),
         { label: 'Quantity', value: formatMultiplier(auditMult) },
         { label: 'Per serving', value: `${serving.calories} cal · ${serving.protein}g protein` },
@@ -978,19 +1205,66 @@ export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayIte
   }
 }
 
-export function parseSnapshotFromItem(it: ParsedFoodItem): MacroParseSnapshot {
+export function parseSnapshotFromItem(
+  it: ParsedFoodItem,
+  context?: { userInput?: string },
+): MacroParseSnapshot {
   const fallbackName = (it.name || '').trim() || 'Food'
   const { name, emoji } = normalizeDiaryLabel({
     name: it.name,
     emoji: it.emoji,
     fallbackName,
   })
+  const foodCtx = { name, userInput: context?.userInput }
+  const amountText = (it.amountText || it.amount || '').trim()
+
+  const unitSingular =
+    (typeof it.unitSingular === 'string' && it.unitSingular.trim()) ||
+    (typeof it.unit === 'string' && it.unit.trim()) ||
+    ''
+  const unitPlural =
+    (typeof it.unitPlural === 'string' && it.unitPlural.trim()) || unitSingular
+
+  const portion = resolveParserPortion({
+    quantity: it.quantity,
+    unit: unitSingular || it.unit,
+    amount: amountText,
+    consumption: it.consumption ?? null,
+    foodName: name,
+    userInput: context?.userInput,
+  })
+
+  const quantity = portion?.qty ?? (isValidPositiveNumber(it.quantity) ? it.quantity : 1)
+  const singular = portion?.unit ?? (unitSingular || 'serving')
+  const plural = unitPlural || singular
+  const unit = displayUnitForQuantity(quantity, singular, plural)
+  const amount = formatQuantityUnitDisplay(quantity, singular, plural)
+
+  // amountText path no longer needs foodCtx after V8 display helper
+  void foodCtx
+  void amountText
+  void enrichAmountText
+
+  const fatSecretSearch = it.fatSecretSearch?.trim() || undefined
+  const unitFamily = isValidUnitFamily(it.unitFamily) ? it.unitFamily : undefined
+  const estimated = typeof it.estimated === 'boolean' ? it.estimated : undefined
+  const originalPortion =
+    typeof it.originalPortion === 'string' && it.originalPortion.trim()
+      ? it.originalPortion.trim()
+      : undefined
   return {
     emoji,
     name,
-    amount: it.amount || '',
+    quantity,
+    unit,
+    unitSingular: singular,
+    unitPlural: plural,
+    unitFamily,
+    estimated,
+    originalPortion,
+    amount,
     notes: it.notes?.trim() || undefined,
-    fatSecretSearch: it.fatSecretSearch?.trim() || undefined,
+    fatSecretSearch,
   }
 }
 
@@ -1133,13 +1407,16 @@ export function mergeMacroLogs(
   return out
 }
 
-export function parsedItemToDayItem(it: ParsedFoodItem, overrides: Partial<MacroDayItem> = {}): MacroDayItem {
-  const snap = parseSnapshotFromItem(it)
+export function parsedItemToDayItem(
+  it: ParsedFoodItem,
+  overrides: Partial<MacroDayItem> = {},
+): MacroDayItem {
+  const snap = parseSnapshotFromItem(it, { userInput: overrides.userInput })
   return {
     id: crypto.randomUUID(),
     emoji: snap.emoji,
     name: snap.name,
-    amount: it.amount || '',
+    amount: snap.amount,
     notes: snap.notes,
     fatSecretSearch: snap.fatSecretSearch,
     parseSnapshot: snap,

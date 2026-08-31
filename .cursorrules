@@ -95,3 +95,7 @@ If the user provides a "MAKEXNOW DIAGNOSTIC REPORT" or a log copy:
 1. **Check Ports:** If the error is "Address already in use" or "Connection refused," ensure you are using `process.env.PORT` and not a hardcoded value.
 2. **Check Paths:** If assets are 404ing, ensure `base: './'` is in `vite.config.ts`.
 3. **Portability:** Fix the issue in a way that works on any machine (standard Node/Vite patterns), but prioritize the environment variables provided by the host.
+
+## Google Sign-In (MakeXNow Accounts)
+
+This app uses MakeXNow Google auth (`src/lib/mxn-auth.ts`). Local and live both use `https://accounts.makexnow.com`. Do **not** set `VITE_MXN_ACCOUNTS_URL`.

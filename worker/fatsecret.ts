@@ -165,7 +165,8 @@ async function getAccessToken(env: EnvFatSecret): Promise<string> {
 }
 
 function trimFoods(foods: FatSecretFoodRef[]): FatSecretFoodRef[] {
-  return foods.map((f) => ({ ...f, servings: f.servings.slice(0, 4) }))
+  // V7: keep all servings — ranking/UI need full descriptions (e.g. "3 cookies" behind generic fields).
+  return foods.slice(0, 50)
 }
 
 function throwFatSecretApiError(msg: string | null): void {
@@ -283,7 +284,7 @@ export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Pr
     body: new URLSearchParams({
       method: 'foods.search',
       search_expression: q,
-      max_results: '8',
+      max_results: '50',
       format: 'json',
     }),
   })
@@ -303,7 +304,7 @@ export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Pr
 
   const params = new URLSearchParams({
     search_expression: q,
-    max_results: '8',
+    max_results: '50',
     format: 'json',
     flag_default_serving: 'true',
   })
