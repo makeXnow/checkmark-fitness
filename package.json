@@ -26,8 +26,7 @@
     "seed:remote": "npm run seed",
     "db:migrate": "wrangler d1 migrations apply checkmark-fitness --remote",
     "db:migrate:remote": "npm run db:migrate",
-    "deploy": "npm run pages:deploy",
-    "pages:deploy": "npm run build:prod && wrangler deploy"
+    "deploy": "npm run build:prod && wrangler deploy"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.0",
