@@ -35,6 +35,13 @@ import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
 import { useLiftTimer } from './features/lift/useLiftTimer'
 import { workoutWithSessionWeight } from './features/lift/plates'
 import { computeWeekPercentageRange, getWeekDatesFor } from './features/habits/habitsUi'
+import {
+  clearAppHiddenAt,
+  consumePageLoadStaleResume,
+  markPageLoadStaleResumeHandled,
+  recordAppHiddenAt,
+  wasHiddenLongEnough,
+} from './lib/appHiddenAt'
 import { localDateISO } from './lib/localDate'
 import { useMxnAuth } from './lib/MxnAuthGate'
 import { scrollAppMainToTop } from './lib/scrollAppMain'
@@ -135,34 +142,64 @@ export default function App() {
     if (hydrated.persist) void hydrated.persist().catch(() => undefined)
   }, [])
 
+  /** Peek once on mount: reopen after 5+ minutes away → force today. */
+  const staleResumeRef = useRef(consumePageLoadStaleResume())
+
+  const applyPayload = useCallback(
+    (raw: BootstrapResponse) => {
+      const forceToday = staleResumeRef.current
+      const todayIso = localDateISO(new Date())
+      const data =
+        forceToday && raw.appState.selected_date !== todayIso
+          ? { ...raw, appState: { ...raw.appState, selected_date: todayIso } }
+          : raw
+      const hydrated = hydrateBootstrap(data)
+      applyBoot(hydrated)
+      return hydrated
+    },
+    [applyBoot],
+  )
+
   const resyncFromServer = useCallback(async () => {
     try {
       const fresh = await fetchBootstrap()
-      const hydrated = hydrateBootstrap(fresh)
-      applyBoot(hydrated)
+      const hydrated = applyPayload(fresh)
       const profile = getApiProfile()
       if (profile) writeBootstrapCache(profile, hydrated.data)
     } catch {
       /* ignore — user can reload if sync is critical */
     }
-  }, [applyBoot])
+  }, [applyPayload])
 
   const load = useCallback(async () => {
     setError(null)
     const profile = getApiProfile()
+    const forceToday = staleResumeRef.current
+    const todayIso = localDateISO(new Date())
 
     if (profile) {
       const cached = readBootstrapCache(profile)
-      if (cached) applyBoot(hydrateBootstrap(cached))
+      if (cached) applyPayload(cached)
     }
 
     try {
       const fresh = await fetchBootstrap()
-      const hydrated = hydrateBootstrap(fresh)
-      applyBoot(hydrated)
+      const hydrated = applyPayload(fresh)
       if (profile) writeBootstrapCache(profile, hydrated.data)
+      if (forceToday) {
+        staleResumeRef.current = false
+        markPageLoadStaleResumeHandled()
+        void patchAppState({ selected_date: todayIso }).catch(() => undefined)
+      }
     } catch (e) {
-      if (bootRef.current) return
+      if (bootRef.current) {
+        if (forceToday) {
+          staleResumeRef.current = false
+          markPageLoadStaleResumeHandled()
+          void patchAppState({ selected_date: todayIso }).catch(() => undefined)
+        }
+        return
+      }
       const base = e instanceof Error ? e.message : 'Failed to load'
       const apiDown =
         base === 'Internal Server Error' ||
@@ -180,7 +217,7 @@ export default function App() {
           : ''
       setError(base + hint)
     }
-  }, [applyBoot])
+  }, [applyPayload])
 
   useEffect(() => {
     void load()
@@ -284,6 +321,29 @@ export default function App() {
     },
     [mergeAppState],
   )
+
+  useEffect(() => {
+    const onHidden = () => recordAppHiddenAt()
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      const stale = wasHiddenLongEnough()
+      clearAppHiddenAt()
+      if (!stale) return
+      persistAppState({ selected_date: localDateISO(new Date()) })
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onHidden()
+      else onVisible()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onHidden)
+    window.addEventListener('pageshow', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onHidden)
+      window.removeEventListener('pageshow', onVisible)
+    }
+  }, [persistAppState])
 
   const changeDate = useCallback(
     (delta: number) => {
