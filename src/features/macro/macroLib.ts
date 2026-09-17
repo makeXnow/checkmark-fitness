@@ -13,7 +13,15 @@ import type {
   V7ServingRelationship,
 } from './macroAiSchemas'
 import { isValidPositiveNumber, isValidUnitFamily } from './macroAiValidate'
-import { parseLeadingQuantity, parseMassGrams, parseResolvedAmount, parseServingBaseGrams, resolveDbMultiplier, roundMultiplier } from './macroMass'
+import {
+  parseLeadingQuantity,
+  parseMassGrams,
+  parseResolvedAmount,
+  parseServingBaseGrams,
+  resolveDbMultiplier,
+  roundMultiplier,
+  unitsCompatible,
+} from './macroMass'
 import { consumptionIntentToResolved, parseConsumptionIntent } from './consumptionIntent'
 import {
   consumptionDisplayResolved,
@@ -702,18 +710,98 @@ function fatSecretServingFromItem(item: MacroDayItem) {
   return food.servings.find((s) => s.isDefault) ?? food.servings[0] ?? null
 }
 
+/**
+ * True when the day-item "1×" portion is the same as the DB serving line
+ * (multiplier = how many DB servings). False for display-portion rows where
+ * multiplier is user qty (e.g. 168 g) and base is per user unit.
+ */
+function dbServingMatchesItemDisplay(item: MacroDayItem, dbDescription: string): boolean {
+  if (item.fromBarcode) return true
+  const itemUnit = (item.servingUnit || '').trim()
+  if (!itemUnit) return false
+  const dbDef = parseServingDefinition(dbDescription)
+  const itemSize = typeof item.servingSize === 'number' && item.servingSize > 0 ? item.servingSize : 1
+  return unitsCompatible(itemUnit, dbDef.servingUnit) && Math.abs(itemSize - dbDef.servingSize) < 1e-6
+}
+
+/** Scale DB serving macros onto the item's display multiplier; return per-display-unit base + totals. */
+function nutritionFromDbDisplayPortion(
+  item: MacroDayItem,
+  dbDescription: string,
+  dbCalories: number,
+  dbProtein: number,
+): { baseCalories: number; baseProtein: number; calories: number; protein: number } | null {
+  const mult = resolveItemServingMultiplier(item)
+  const unit = (item.servingUnit || item.servingType || '').trim()
+  if (!unit || mult <= 0) return null
+  const nutritionMult = resolveDbMultiplier({ qty: mult, unit }, dbDescription)
+  if (nutritionMult == null) return null
+  const scaled = scaleFatSecretServing({ calories: dbCalories, protein: dbProtein }, nutritionMult)
+  return {
+    calories: scaled.calories,
+    protein: scaled.protein,
+    baseCalories: Math.round(scaled.calories / mult),
+    baseProtein: Math.round((scaled.protein / mult) * 10) / 10,
+  }
+}
+
+/** Full FS serving calories stored as per-gram/oz base while multiplier is still user mass qty. */
+function isCorruptDbServingAsDisplayBase(
+  item: MacroDayItem,
+  dbDescription: string,
+  dbCalories: number,
+): boolean {
+  if (item.baseCalories == null) return false
+  if (Math.abs(item.baseCalories - dbCalories) > 1) return false
+  if (dbServingMatchesItemDisplay(item, dbDescription)) return false
+  const unit = (item.servingUnit || '').trim()
+  if (!unit) return false
+  const displayMult = resolveItemServingMultiplier(item)
+  const nutritionMult = resolveDbMultiplier({ qty: displayMult, unit }, dbDescription)
+  if (nutritionMult == null) return false
+  // Same scale ⇒ already counting DB servings; different ⇒ grams×full-serving bug.
+  return Math.abs(displayMult - nutritionMult) > 0.05
+}
+
 /** Per-serving macros from food library or FatSecret when available. */
 export function resolveCanonicalBaseMacros(
   item: MacroDayItem,
   customFoods: MacroCustomFood[] = [],
 ): { baseCalories: number; baseProtein: number } | null {
-  if (item.libraryFoodId) {
-    const food = customFoods.find((f) => f.id === item.libraryFoodId)
-    if (food) return { baseCalories: food.calories, baseProtein: food.protein }
+  const serving = fatSecretServingFromItem(item)
+
+  // Display-portion FatSecret rows: convert serving → per user-unit base (never raw FS serving × grams).
+  if (serving && !dbServingMatchesItemDisplay(item, serving.description)) {
+    const converted = nutritionFromDbDisplayPortion(
+      item,
+      serving.description,
+      serving.calories,
+      serving.protein,
+    )
+    if (converted) {
+      return { baseCalories: converted.baseCalories, baseProtein: converted.baseProtein }
+    }
   }
 
-  const serving = fatSecretServingFromItem(item)
-  if (serving) return { baseCalories: serving.calories, baseProtein: serving.protein }
+  if (item.libraryFoodId) {
+    const food = customFoods.find((f) => f.id === item.libraryFoodId)
+    if (food) {
+      const libDesc = food.baseAmount || '1 serving'
+      if (dbServingMatchesItemDisplay(item, libDesc)) {
+        return { baseCalories: food.calories, baseProtein: food.protein }
+      }
+      const converted = nutritionFromDbDisplayPortion(item, libDesc, food.calories, food.protein)
+      if (converted) {
+        return { baseCalories: converted.baseCalories, baseProtein: converted.baseProtein }
+      }
+      return { baseCalories: food.calories, baseProtein: food.protein }
+    }
+  }
+
+  // Barcode / matching serving-count model: base is one DB serving.
+  if (serving && dbServingMatchesItemDisplay(item, serving.description)) {
+    return { baseCalories: serving.calories, baseProtein: serving.protein }
+  }
 
   if (item.baseCalories != null && item.baseProtein != null) {
     const mult = resolveItemServingMultiplier(item)
@@ -1325,11 +1413,45 @@ export function backfillMacroItemServingFields(
   const mult = resolveItemServingMultiplier(item)
   const def = servingDefinitionForBackfill(item, customFoods)
   const structured = applyStructuredServingFields(item, mult, def)
-  const base = resolveCanonicalBaseMacros(item, customFoods)
-  if (base) {
-    return { ...structured, ...macrosForServingCount(base.baseCalories, base.baseProtein, mult) }
+
+  const serving = fatSecretServingFromItem(item)
+  if (
+    serving &&
+    isCorruptDbServingAsDisplayBase(item, serving.description, serving.calories)
+  ) {
+    const healed = nutritionFromDbDisplayPortion(
+      item,
+      serving.description,
+      serving.calories,
+      serving.protein,
+    )
+    if (healed) return { ...structured, ...healed }
   }
-  return structured
+
+  // Fill missing base/totals only — do not rescale healthy rows (rounded per-unit base × qty can drift).
+  if (item.baseCalories == null || item.baseProtein == null) {
+    const base = resolveCanonicalBaseMacros(item, customFoods)
+    if (base) {
+      if ((item.calories ?? 0) > 0 || (item.protein ?? 0) > 0) {
+        return {
+          ...structured,
+          calories: item.calories,
+          protein: item.protein,
+          baseCalories: base.baseCalories,
+          baseProtein: base.baseProtein,
+        }
+      }
+      return { ...structured, ...macrosForServingCount(base.baseCalories, base.baseProtein, mult) }
+    }
+  }
+
+  return {
+    ...structured,
+    calories: item.calories,
+    protein: item.protein,
+    baseCalories: item.baseCalories,
+    baseProtein: item.baseProtein,
+  }
 }
 
 function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayItem): boolean {

@@ -1,87 +1,109 @@
 import { describe, expect, it } from 'vitest'
 import { parseServingDefinition } from './macroLib'
 import {
+  buildPackagingAskItem,
   buildPackagingDayItem,
   parsePackagingFront,
   parsePackagingNutrition,
+  PackagingResolveError,
   resolvePackagingAmount,
-  resolvePackagingMultiplier,
+  resolvePackagingConsumption,
 } from './packagingScan'
+
+const pouchNutrition = {
+  baseAmount: '1 pouch',
+  calories: 180,
+  protein: 15,
+  fat: 3,
+  carbs: 20,
+  servingsPerContainer: 2,
+  caloriesPerContainer: 360,
+  proteinPerContainer: 30,
+  fatPerContainer: 6,
+  carbsPerContainer: 40,
+  packageAmount: null as string | null,
+}
 
 describe('resolvePackagingAmount', () => {
   it('maps whole bag to a container fraction', () => {
-    expect(resolvePackagingAmount('whole bag', 3.5)).toEqual({
-      multiplier: 3.5,
+    expect(resolvePackagingAmount('whole bag')).toEqual({
+      multiplier: 1,
       amountLabel: 'whole bag',
       containerFraction: 1,
     })
   })
 
   it('maps half bag', () => {
-    expect(resolvePackagingAmount('half bag', 4).containerFraction).toBe(0.5)
-    expect(resolvePackagingAmount('half bag', 4).multiplier).toBe(2)
+    expect(resolvePackagingAmount('half bag').containerFraction).toBe(0.5)
   })
 
   it('parses serving counts', () => {
-    expect(resolvePackagingAmount('2 servings', 4)).toEqual({
+    expect(resolvePackagingAmount('2 servings')).toEqual({
       multiplier: 2,
       amountLabel: '2 servings',
       containerFraction: null,
     })
   })
-
-  it('defaults empty to one serving', () => {
-    expect(resolvePackagingAmount('', 4).multiplier).toBe(1)
-  })
 })
 
-describe('resolvePackagingMultiplier', () => {
-  const base = {
-    baseAmount: '4 cups (106 g)',
-    calories: 170,
-    protein: 4,
-    fat: 11,
-    carbs: 14,
-    servingsPerContainer: 3,
-    caloriesPerContainer: 0,
-    proteinPerContainer: 0,
-  }
+describe('resolvePackagingConsumption', () => {
+  const front = { name: 'Protein Pouch', emoji: '🍲' }
 
-  it('sanitizes bulky cup serving × SPC for whole bag', () => {
-    const resolved = resolvePackagingAmount('whole bag', 3)
-    expect(resolvePackagingMultiplier(base, resolved)).toBe(1)
+  it('prefers per-container column for whole bag', () => {
+    const result = resolvePackagingConsumption(front, pouchNutrition, 'Whole bag')
+    expect(result.mode).toBe('per_container')
+    expect(result.calories).toBe(360)
+    expect(result.protein).toBe(30)
+    expect(result.multiplier).toBe(2)
   })
 
-  it('uses per-container calories when present', () => {
-    const resolved = resolvePackagingAmount('whole bag', 3)
-    expect(
-      resolvePackagingMultiplier(
-        { ...base, caloriesPerContainer: 170, proteinPerContainer: 4, servingsPerContainer: 1 },
-        resolved,
-      ),
-    ).toBe(1)
+  it('uses SPC when per-container is absent', () => {
+    const result = resolvePackagingConsumption(
+      front,
+      { ...pouchNutrition, caloriesPerContainer: null, proteinPerContainer: null },
+      'whole bag',
+    )
+    expect(result.mode).toBe('servings_per_container')
+    expect(result.multiplier).toBe(2)
+    expect(result.calories).toBe(360)
   })
 
-  it('multiplies normal small servings by SPC', () => {
-    const resolved = resolvePackagingAmount('whole bag', 3.5)
-    expect(
-      resolvePackagingMultiplier(
-        {
-          ...base,
-          baseAmount: '1 1/2 cups (100 g)',
-          calories: 50,
-          servingsPerContainer: 3.5,
-        },
-        resolved,
-      ),
-    ).toBe(3.5)
-  })
-
-  it('throws when whole bag has no SPC and no per-container calories', () => {
-    const resolved = resolvePackagingAmount('whole bag', 0)
+  it('asks when whole bag has neither SPC nor per-container', () => {
     expect(() =>
-      resolvePackagingMultiplier({ ...base, servingsPerContainer: 0 }, resolved),
-    ).toThrow(/container servings/i)
+      resolvePackagingConsumption(
+        front,
+        {
+          ...pouchNutrition,
+          servingsPerContainer: null,
+          caloriesPerContainer: null,
+          proteinPerContainer: null,
+        },
+        'whole bag',
+      ),
+    ).toThrow(PackagingResolveError)
+  })
+
+  it('does not apply salad-kit heuristics — SPC×serving is used as printed', () => {
+    const result = resolvePackagingConsumption(
+      { name: 'Salad Kit', emoji: '🥗' },
+      {
+        baseAmount: '4 cups (106 g)',
+        calories: 170,
+        protein: 4,
+        fat: 11,
+        carbs: 14,
+        servingsPerContainer: 3,
+        caloriesPerContainer: null,
+        proteinPerContainer: null,
+        fatPerContainer: null,
+        carbsPerContainer: null,
+        packageAmount: null,
+      },
+      'whole bag',
+    )
+    expect(result.mode).toBe('servings_per_container')
+    expect(result.multiplier).toBe(3)
+    expect(result.calories).toBe(510)
   })
 })
 
@@ -90,76 +112,90 @@ describe('parseServingDefinition parentheticals', () => {
     const def = parseServingDefinition('4 cups (106 g)')
     expect(def.servingSize).toBe(4)
     expect(def.servingUnit).toBe('cups')
-    expect(def.label).toBe('4 cups (106 g)')
   })
 })
 
 describe('parsePackagingNutrition', () => {
-  it('aligns SPC from per-container calories when mismatched', () => {
+  it('treats 0 optional fields as null', () => {
+    const n = parsePackagingNutrition({
+      baseAmount: '1 cup',
+      calories: 120,
+      protein: 5,
+      fat: 2,
+      carbs: 20,
+      servingsPerContainer: 0,
+      caloriesPerContainer: 0,
+      proteinPerContainer: 0,
+      fatPerContainer: 0,
+      carbsPerContainer: 0,
+      packageAmount: '',
+    })
+    expect(n.servingsPerContainer).toBeNull()
+    expect(n.caloriesPerContainer).toBeNull()
+    expect(n.packageAmount).toBeNull()
+  })
+
+  it('keeps packageAmount when printed', () => {
     expect(
       parsePackagingNutrition({
-        baseAmount: '1 pouch',
-        calories: 180,
-        protein: 15,
-        fat: 3,
-        carbs: 20,
-        servingsPerContainer: 1,
-        caloriesPerContainer: 360,
-        proteinPerContainer: 30,
-      }).servingsPerContainer,
-    ).toBe(2)
+        baseAmount: '1 cup',
+        calories: 50,
+        protein: 2,
+        fat: 1,
+        carbs: 5,
+        servingsPerContainer: 3.5,
+        caloriesPerContainer: null,
+        proteinPerContainer: null,
+        fatPerContainer: null,
+        carbsPerContainer: null,
+        packageAmount: '10 oz (284 g)',
+      }).packageAmount,
+    ).toBe('10 oz (284 g)')
   })
 })
 
 describe('buildPackagingDayItem', () => {
-  it('logs whole bag as one bulky cup serving without FatSecret math', () => {
-    const { item, libraryFood } = buildPackagingDayItem({
-      id: 'x',
-      amountText: 'whole bag',
-      front: { name: 'Lemony Arugula Basil', emoji: '🥗' },
-      nutrition: {
-        baseAmount: '4 cups (106 g)',
-        calories: 170,
-        protein: 4,
-        fat: 11,
-        carbs: 14,
-        servingsPerContainer: 3,
-        caloriesPerContainer: 0,
-        proteinPerContainer: 0,
-      },
-      addToDatabase: true,
-    })
-    expect(item.status).toBe('ready')
-    expect(item.fromPackagingScan).toBe(true)
-    expect(item.amount).toBe('whole bag')
-    expect(item.servingMultiplier).toBe(1)
-    expect(item.calories).toBe(170)
-    expect(item.protein).toBe(4)
-    expect(item.servingUnit).toBe('cups')
-    expect(libraryFood?.calories).toBe(170)
-  })
-
-  it('uses per-container column for whole bag when present', () => {
+  it('stores packaging snapshot and keeps whole bag amount', () => {
     const { item } = buildPackagingDayItem({
-      id: 'y',
+      id: 'x',
       amountText: 'Whole bag',
       front: { name: 'Protein Pouch', emoji: '🍲' },
-      nutrition: {
-        baseAmount: '1 pouch',
-        calories: 180,
-        protein: 15,
-        fat: 3,
-        carbs: 20,
-        servingsPerContainer: 2,
-        caloriesPerContainer: 360,
-        proteinPerContainer: 30,
-      },
+      nutrition: pouchNutrition,
       addToDatabase: false,
     })
+    expect(item.fromPackagingScan).toBe(true)
     expect(item.amount).toBe('Whole bag')
-    expect(item.servingMultiplier).toBe(2)
     expect(item.calories).toBe(360)
-    expect(item.protein).toBe(30)
+    expect(item.packagingSnapshot?.resolveMode).toBe('per_container')
+    expect(item.packagingSnapshot?.servingsPerContainer).toBe(2)
+    expect(item.packagingSnapshot?.caloriesPerContainer).toBe(360)
+  })
+})
+
+describe('buildPackagingAskItem', () => {
+  it('keeps the form for retry when container math cannot close', () => {
+    const error = new PackagingResolveError('need servings', {
+      front: { name: 'Salad', emoji: '🥗' },
+      nutrition: {
+        baseAmount: '1 cup',
+        calories: 50,
+        protein: 2,
+        fat: 1,
+        carbs: 5,
+        servingsPerContainer: null,
+        caloriesPerContainer: null,
+        proteinPerContainer: null,
+        fatPerContainer: null,
+        carbsPerContainer: null,
+        packageAmount: '10 oz',
+      },
+      amountText: 'whole bag',
+    })
+    const item = buildPackagingAskItem({ id: 'a', error })
+    expect(item.status).toBe('editing_raw')
+    expect(item.name).toBe('Salad')
+    expect(item.packagingSnapshot?.packageAmount).toBe('10 oz')
+    expect(item.fromPackagingScan).toBe(true)
   })
 })
 

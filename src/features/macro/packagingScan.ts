@@ -1,4 +1,4 @@
-import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
+import type { MacroCustomFood, MacroDayItem, MacroPackagingSnapshot } from '../../types/domain'
 import { parseLeadingQuantity } from './macroMass'
 import {
   normalizeDiaryLabel,
@@ -11,27 +11,59 @@ export type PackagingFrontData = {
   emoji: string
 }
 
+/** Nutrition-label form. Optional label lines are null when not printed. */
 export type PackagingNutritionData = {
   baseAmount: string
   calories: number
   protein: number
   fat: number
   carbs: number
-  /** Label “about N servings per container”; 0 when missing/unreadable. */
-  servingsPerContainer: number
-  /** Per-container column when printed; 0 if absent. */
-  caloriesPerContainer: number
-  /** Per-container protein when printed; 0 if absent. */
-  proteinPerContainer: number
+  servingsPerContainer: number | null
+  caloriesPerContainer: number | null
+  proteinPerContainer: number | null
+  fatPerContainer: number | null
+  carbsPerContainer: number | null
+  /** Net / package amount when printed (e.g. "10 oz (284 g)"); null if absent. */
+  packageAmount: string | null
 }
 
 export type PackagingAmountResolve = {
-  /** Provisional multiplier before container resolution. */
   multiplier: number
-  /** Diary amount text (keeps phrases like “whole bag”). */
   amountLabel: string
   /** 1 = whole container, 0.5 = half, etc. Null when not a container phrase. */
   containerFraction: number | null
+}
+
+export type PackagingResolveMode =
+  | 'per_container'
+  | 'servings_per_container'
+  | 'explicit_servings'
+  | 'one_serving'
+
+export type PackagingResolveResult = {
+  multiplier: number
+  amountLabel: string
+  mode: PackagingResolveMode
+  containerFraction: number | null
+  calories: number
+  protein: number
+}
+
+export class PackagingResolveError extends Error {
+  front: PackagingFrontData
+  nutrition: PackagingNutritionData
+  amountText: string
+
+  constructor(
+    message: string,
+    opts: { front: PackagingFrontData; nutrition: PackagingNutritionData; amountText: string },
+  ) {
+    super(message)
+    this.name = 'PackagingResolveError'
+    this.front = opts.front
+    this.nutrition = opts.nutrition
+    this.amountText = opts.amountText
+  }
 }
 
 const CONTAINER_NOUN =
@@ -52,57 +84,29 @@ function parseLooseQuantity(raw: string): number | null {
   return parseLeadingQuantity(t)
 }
 
-function containerPhraseError(example: string): Error {
-  return new Error(
-    `Could not read container servings — enter how many servings (e.g. "${example}")`,
-  )
-}
-
 /**
- * Map Quick Scan amount text (e.g. "whole bag", "2 servings") onto a multiplier
- * of the nutrition-label base serving. Container phrases set containerFraction;
- * final multiplier is resolved later with label per-container data.
+ * Map Quick Scan amount text onto a container fraction and/or explicit serving count.
+ * Does not invent servings-per-container.
  */
-export function resolvePackagingAmount(
-  amountText: string,
-  servingsPerContainer: number | null | undefined,
-): PackagingAmountResolve {
+export function resolvePackagingAmount(amountText: string): PackagingAmountResolve {
   const raw = stripScanningPrefix(amountText) || '1 serving'
   const t = raw.toLowerCase().replace(/\s+/g, ' ').trim()
-  const spc =
-    typeof servingsPerContainer === 'number' &&
-    Number.isFinite(servingsPerContainer) &&
-    servingsPerContainer > 0
-      ? servingsPerContainer
-      : null
 
   const wholeRe = new RegExp(
     `^(?:the\\s+)?(?:whole|entire|full)(?:\\s+${CONTAINER_NOUN})?$`,
   )
   if (wholeRe.test(t) || t === 'all' || t === 'the whole thing') {
-    return {
-      multiplier: spc ?? 1,
-      amountLabel: raw,
-      containerFraction: 1,
-    }
+    return { multiplier: 1, amountLabel: raw, containerFraction: 1 }
   }
 
   const halfRe = new RegExp(`^(?:a\\s+)?half(?:\\s+(?:a\\s+)?${CONTAINER_NOUN})?$`)
   if (halfRe.test(t)) {
-    return {
-      multiplier: spc != null ? spc / 2 : 0.5,
-      amountLabel: raw,
-      containerFraction: 0.5,
-    }
+    return { multiplier: 1, amountLabel: raw, containerFraction: 0.5 }
   }
 
   const quarterRe = new RegExp(`^(?:a\\s+)?quarter(?:\\s+(?:of\\s+)?(?:a\\s+)?${CONTAINER_NOUN})?$`)
   if (quarterRe.test(t)) {
-    return {
-      multiplier: spc != null ? spc / 4 : 0.25,
-      amountLabel: raw,
-      containerFraction: 0.25,
-    }
+    return { multiplier: 1, amountLabel: raw, containerFraction: 0.25 }
   }
 
   const servingsMatch = t.match(
@@ -132,41 +136,93 @@ export function resolvePackagingAmount(
 }
 
 /**
- * Resolve how many label servings a container phrase means.
- * Prefers per-container calorie column; sanitizes salad-kit style misreads
- * where a bulky cup serving is multiplied by servings-per-container.
+ * Deterministic whole/half/quarter bag math from the label form.
+ * Prefer per-container column; else servings×per-serving; else ask (throw).
  */
-export function resolvePackagingMultiplier(
+export function resolvePackagingConsumption(
+  front: PackagingFrontData,
   nutrition: PackagingNutritionData,
-  resolved: PackagingAmountResolve,
-): number {
+  amountText: string,
+): PackagingResolveResult {
+  const resolved = resolvePackagingAmount(amountText)
+
   if (resolved.containerFraction == null) {
-    return resolved.multiplier > 0 ? resolved.multiplier : 1
+    const mult = resolved.multiplier > 0 ? resolved.multiplier : 1
+    const scaled = scaleLibraryMacros(
+      {
+        id: 'tmp',
+        name: front.name,
+        calories: nutrition.calories,
+        protein: nutrition.protein,
+        fat: nutrition.fat,
+        carbs: nutrition.carbs,
+      },
+      mult,
+    )
+    return {
+      multiplier: mult,
+      amountLabel: resolved.amountLabel,
+      mode: mult === 1 ? 'one_serving' : 'explicit_servings',
+      containerFraction: null,
+      calories: scaled.calories,
+      protein: scaled.protein,
+    }
   }
 
   const fraction = resolved.containerFraction
 
-  if (nutrition.caloriesPerContainer > 0 && nutrition.calories > 0) {
-    const implied = nutrition.caloriesPerContainer / nutrition.calories
-    if (Number.isFinite(implied) && implied > 0) {
-      return implied * fraction
+  if (nutrition.caloriesPerContainer != null && nutrition.caloriesPerContainer > 0) {
+    const calories = Math.round(nutrition.caloriesPerContainer * fraction)
+    const protein =
+      nutrition.proteinPerContainer != null && nutrition.proteinPerContainer > 0
+        ? Math.round(nutrition.proteinPerContainer * fraction * 10) / 10
+        : Math.round(
+            nutrition.protein *
+              (nutrition.caloriesPerContainer / Math.max(nutrition.calories, 1)) *
+              fraction *
+              10,
+          ) / 10
+    const multiplier =
+      nutrition.calories > 0
+        ? (nutrition.caloriesPerContainer / nutrition.calories) * fraction
+        : fraction
+    return {
+      multiplier,
+      amountLabel: resolved.amountLabel,
+      mode: 'per_container',
+      containerFraction: fraction,
+      calories,
+      protein,
     }
   }
 
-  const spc = nutrition.servingsPerContainer
-  if (!(spc > 0)) {
-    throw containerPhraseError(fraction === 1 ? '3 servings' : '1.5 servings')
+  if (nutrition.servingsPerContainer != null && nutrition.servingsPerContainer > 0) {
+    const multiplier = nutrition.servingsPerContainer * fraction
+    const scaled = scaleLibraryMacros(
+      {
+        id: 'tmp',
+        name: front.name,
+        calories: nutrition.calories,
+        protein: nutrition.protein,
+        fat: nutrition.fat,
+        carbs: nutrition.carbs,
+      },
+      multiplier,
+    )
+    return {
+      multiplier,
+      amountLabel: resolved.amountLabel,
+      mode: 'servings_per_container',
+      containerFraction: fraction,
+      calories: scaled.calories,
+      protein: scaled.protein,
+    }
   }
 
-  // Large cup “serving size” on bagged salad kits is usually one prepared portion
-  // of the bag — multiplying by SPC double-counts package yield.
-  const def = parseServingDefinition(nutrition.baseAmount)
-  const bulkyCupServing = /cups?/i.test(def.servingUnit) && def.servingSize >= 3
-  if (bulkyCupServing && spc >= 2) {
-    return fraction
-  }
-
-  return spc * fraction
+  throw new PackagingResolveError(
+    'Label has no servings-per-container or per-container calories — enter how many servings (e.g. "2 servings")',
+    { front, nutrition, amountText },
+  )
 }
 
 export function parsePackagingFront(data: Record<string, unknown> | null | undefined): PackagingFrontData {
@@ -177,9 +233,27 @@ export function parsePackagingFront(data: Record<string, unknown> | null | undef
   return { name, emoji }
 }
 
-function nonNegNumber(raw: unknown, fallback = 0): number {
+function optionalNonNegNumber(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null
+  if (typeof raw === 'string' && !raw.trim()) return null
   const n = Number(raw)
-  return Number.isFinite(n) && n >= 0 ? n : fallback
+  if (!Number.isFinite(n) || n < 0) return null
+  // Treat 0 as absent for optional container fields (legacy / model filler).
+  if (n === 0) return null
+  return n
+}
+
+function requiredNonNegNumber(raw: unknown, label: string): number {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Could not read ${label} from label`)
+  return n
+}
+
+function optionalAmountString(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null
+  if (typeof raw !== 'string') return null
+  const t = raw.trim()
+  return t ? t : null
 }
 
 export function parsePackagingNutrition(
@@ -190,36 +264,68 @@ export function parsePackagingNutrition(
     typeof data.baseAmount === 'string' && data.baseAmount.trim()
       ? data.baseAmount.trim()
       : '1 serving'
-  const calories = Number(data.calories)
-  const protein = Number(data.protein)
-  if (!Number.isFinite(calories) || calories < 0) throw new Error('Could not read calories from label')
-  if (!Number.isFinite(protein) || protein < 0) throw new Error('Could not read protein from label')
-
-  let servingsPerContainer = nonNegNumber(data.servingsPerContainer)
-  const caloriesPerContainer = nonNegNumber(data.caloriesPerContainer)
-  const proteinPerContainer = nonNegNumber(data.proteinPerContainer)
-
-  // Prefer SPC implied by per-container / per-serving when both columns exist.
-  if (caloriesPerContainer > 0 && calories > 0) {
-    const implied = caloriesPerContainer / calories
-    if (Number.isFinite(implied) && implied > 0) {
-      const rounded = Math.round(implied * 100) / 100
-      if (servingsPerContainer <= 0 || Math.abs(servingsPerContainer - implied) > 0.35) {
-        servingsPerContainer = rounded
-      }
-    }
-  }
+  const calories = requiredNonNegNumber(data.calories, 'calories')
+  const protein = requiredNonNegNumber(data.protein, 'protein')
 
   return {
     baseAmount,
     calories,
-    protein: Number.isFinite(protein) ? protein : 0,
-    fat: nonNegNumber(data.fat),
-    carbs: nonNegNumber(data.carbs),
-    servingsPerContainer,
-    caloriesPerContainer,
-    proteinPerContainer,
+    protein,
+    fat: requiredNonNegNumber(data.fat ?? 0, 'fat'),
+    carbs: requiredNonNegNumber(data.carbs ?? 0, 'carbs'),
+    servingsPerContainer: optionalNonNegNumber(data.servingsPerContainer),
+    caloriesPerContainer: optionalNonNegNumber(data.caloriesPerContainer),
+    proteinPerContainer: optionalNonNegNumber(data.proteinPerContainer),
+    fatPerContainer: optionalNonNegNumber(data.fatPerContainer),
+    carbsPerContainer: optionalNonNegNumber(data.carbsPerContainer),
+    packageAmount: optionalAmountString(data.packageAmount),
   }
+}
+
+export function toPackagingSnapshot(
+  front: PackagingFrontData,
+  nutrition: PackagingNutritionData,
+  amountText: string,
+  resolve?: Pick<PackagingResolveResult, 'multiplier' | 'mode'>,
+): MacroPackagingSnapshot {
+  return {
+    name: front.name,
+    emoji: front.emoji,
+    baseAmount: nutrition.baseAmount,
+    calories: nutrition.calories,
+    protein: nutrition.protein,
+    fat: nutrition.fat,
+    carbs: nutrition.carbs,
+    servingsPerContainer: nutrition.servingsPerContainer,
+    caloriesPerContainer: nutrition.caloriesPerContainer,
+    proteinPerContainer: nutrition.proteinPerContainer,
+    fatPerContainer: nutrition.fatPerContainer,
+    carbsPerContainer: nutrition.carbsPerContainer,
+    packageAmount: nutrition.packageAmount,
+    amountText: stripScanningPrefix(amountText) || '1 serving',
+    resolvedMultiplier: resolve?.multiplier,
+    resolveMode: resolve?.mode,
+  }
+}
+
+export function nutritionFromPackagingSnapshot(snap: MacroPackagingSnapshot): PackagingNutritionData {
+  return {
+    baseAmount: snap.baseAmount,
+    calories: snap.calories,
+    protein: snap.protein,
+    fat: snap.fat,
+    carbs: snap.carbs,
+    servingsPerContainer: snap.servingsPerContainer,
+    caloriesPerContainer: snap.caloriesPerContainer,
+    proteinPerContainer: snap.proteinPerContainer,
+    fatPerContainer: snap.fatPerContainer ?? null,
+    carbsPerContainer: snap.carbsPerContainer ?? null,
+    packageAmount: snap.packageAmount,
+  }
+}
+
+export function frontFromPackagingSnapshot(snap: MacroPackagingSnapshot): PackagingFrontData {
+  return { name: snap.name, emoji: snap.emoji || '🥗' }
 }
 
 export function buildPackagingDayItem(input: {
@@ -235,40 +341,10 @@ export function buildPackagingDayItem(input: {
     emoji: input.front.emoji,
     fallbackName: input.front.name || 'Food',
   })
-  const resolved = resolvePackagingAmount(
-    input.amountText,
-    input.nutrition.servingsPerContainer || null,
-  )
-  const multiplier = resolvePackagingMultiplier(input.nutrition, resolved)
+  const front = { name: label.name, emoji: label.emoji }
+  const consumption = resolvePackagingConsumption(front, input.nutrition, input.amountText)
   const def = parseServingDefinition(input.nutrition.baseAmount)
-
-  const scaled = scaleLibraryMacros(
-    {
-      id: 'tmp',
-      name: label.name,
-      calories: input.nutrition.calories,
-      protein: input.nutrition.protein,
-      fat: input.nutrition.fat,
-      carbs: input.nutrition.carbs,
-    },
-    multiplier,
-  )
-
-  let finalCalories = scaled.calories
-  let finalProtein = scaled.protein
-
-  // Prefer explicit per-container column when logging a container fraction.
-  if (
-    resolved.containerFraction != null &&
-    resolved.containerFraction > 0 &&
-    input.nutrition.caloriesPerContainer > 0
-  ) {
-    finalCalories = Math.round(input.nutrition.caloriesPerContainer * resolved.containerFraction)
-    if (input.nutrition.proteinPerContainer > 0) {
-      finalProtein =
-        Math.round(input.nutrition.proteinPerContainer * resolved.containerFraction * 10) / 10
-    }
-  }
+  const snapshot = toPackagingSnapshot(front, input.nutrition, input.amountText, consumption)
 
   let libraryFood: MacroCustomFood | null = null
   let libraryFoodId: string | undefined
@@ -293,20 +369,52 @@ export function buildPackagingDayItem(input: {
     status: 'ready',
     name: label.name,
     emoji: label.emoji,
-    amount: resolved.amountLabel,
-    calories: finalCalories,
-    protein: finalProtein,
+    amount: consumption.amountLabel,
+    calories: consumption.calories,
+    protein: consumption.protein,
     servingType: def.label,
     servingSize: def.servingSize,
     servingUnit: def.servingUnit,
-    servingMultiplier: multiplier,
+    servingMultiplier: consumption.multiplier,
     baseCalories: input.nutrition.calories,
     baseProtein: input.nutrition.protein,
     libraryFoodId,
     fromPackagingScan: true,
+    packagingSnapshot: snapshot,
     userInput: `Scanning: ${amountText}`,
     timestamp: input.timestamp ?? Date.now(),
   }
 
   return { item, libraryFood }
+}
+
+/** Partial day item when container math cannot close — keep the label form for retry. */
+export function buildPackagingAskItem(input: {
+  id: string
+  error: PackagingResolveError
+  timestamp?: number
+}): MacroDayItem {
+  const label = normalizeDiaryLabel({
+    name: input.error.front.name,
+    emoji: input.error.front.emoji,
+    fallbackName: input.error.front.name || 'Food',
+  })
+  const front = { name: label.name, emoji: label.emoji }
+  const amountText = stripScanningPrefix(input.error.amountText) || '1 serving'
+  return {
+    id: input.id,
+    status: 'editing_raw',
+    name: label.name,
+    emoji: label.emoji,
+    amount: '',
+    rawText: input.error.message,
+    calories: 0,
+    protein: 0,
+    baseCalories: input.error.nutrition.calories,
+    baseProtein: input.error.nutrition.protein,
+    fromPackagingScan: true,
+    packagingSnapshot: toPackagingSnapshot(front, input.error.nutrition, amountText),
+    userInput: `Scanning: ${amountText}`,
+    timestamp: input.timestamp ?? Date.now(),
+  }
 }

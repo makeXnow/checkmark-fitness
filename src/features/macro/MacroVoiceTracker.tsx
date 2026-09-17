@@ -59,7 +59,11 @@ import {
 import { useDebouncedCallback } from '../../lib/useDebouncedCallback'
 import { QuickScanPanel, prewarmCameraStream } from './QuickScanPanel'
 import {
+  buildPackagingAskItem,
   buildPackagingDayItem,
+  frontFromPackagingSnapshot,
+  nutritionFromPackagingSnapshot,
+  PackagingResolveError,
   parsePackagingFront,
   parsePackagingNutrition,
 } from './packagingScan'
@@ -710,21 +714,30 @@ export function MacroVoiceTracker({
         if (controller.signal.aborted) return
         const front = parsePackagingFront(frontRaw)
         const nutrition = parsePackagingNutrition(nutritionRaw)
-        const { item, libraryFood } = buildPackagingDayItem({
-          id,
-          amountText,
-          front,
-          nutrition,
-          addToDatabase,
-        })
-        if (libraryFood) {
-          const nextFoods = [...customFoodsRef.current, libraryFood]
-          customFoodsRef.current = nextFoods
-          onSaveFoods(nextFoods)
+        try {
+          const { item, libraryFood } = buildPackagingDayItem({
+            id,
+            amountText,
+            front,
+            nutrition,
+            addToDatabase,
+          })
+          if (libraryFood) {
+            const nextFoods = [...customFoodsRef.current, libraryFood]
+            customFoodsRef.current = nextFoods
+            onSaveFoods(nextFoods)
+          }
+          if (controller.signal.aborted) return
+          replaceDay((prev) => prev.map((i) => (i.id === id ? item : i)))
+          scrollDietListToTop()
+        } catch (e) {
+          if (e instanceof PackagingResolveError) {
+            if (controller.signal.aborted) return
+            replaceDay((prev) => prev.map((i) => (i.id === id ? buildPackagingAskItem({ id, error: e }) : i)))
+            return
+          }
+          throw e
         }
-        if (controller.signal.aborted) return
-        replaceDay((prev) => prev.map((i) => (i.id === id ? item : i)))
-        scrollDietListToTop()
       } catch (e) {
         if (controller.signal.aborted) return
         const msg = e instanceof Error ? e.message : 'Packaging scan failed'
@@ -734,6 +747,51 @@ export function MacroVoiceTracker({
       }
     },
     [failPackagingItem, onSaveFoods, replaceDay, scrollDietListToTop],
+  )
+
+  const retryPackagingFromSnapshot = useCallback(
+    (id: string, amountText: string, addToDatabase: boolean) => {
+      const existing = (logsRef.current[dateKey] || []).find((i) => i.id === id)
+      const snap = existing?.packagingSnapshot
+      if (!snap) {
+        void startParsingFlow(id, amountText)
+        return
+      }
+      replaceDay((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                status: 'processing_cancellable',
+                rawText: `Scanning: ${amountText.trim() || '1 serving'}`,
+              }
+            : i,
+        ),
+      )
+      try {
+        const { item, libraryFood } = buildPackagingDayItem({
+          id,
+          amountText,
+          front: frontFromPackagingSnapshot(snap),
+          nutrition: nutritionFromPackagingSnapshot(snap),
+          addToDatabase,
+        })
+        if (libraryFood) {
+          const nextFoods = [...customFoodsRef.current, libraryFood]
+          customFoodsRef.current = nextFoods
+          onSaveFoods(nextFoods)
+        }
+        replaceDay((prev) => prev.map((i) => (i.id === id ? item : i)))
+      } catch (e) {
+        if (e instanceof PackagingResolveError) {
+          replaceDay((prev) => prev.map((i) => (i.id === id ? buildPackagingAskItem({ id, error: e }) : i)))
+          return
+        }
+        const msg = e instanceof Error ? e.message : 'Packaging scan failed'
+        failPackagingItem(id, msg)
+      }
+    },
+    [dateKey, failPackagingItem, onSaveFoods, replaceDay, startParsingFlow],
   )
 
   const refreshItemMacros = useCallback(
@@ -1312,6 +1370,11 @@ export function MacroVoiceTracker({
                   cancelProcessing(item.id)
                 }}
                 onReprocess={(raw) => {
+                  const latest = logsRef.current[dateKey]?.find((i) => i.id === item.id) ?? item
+                  if (latest.packagingSnapshot) {
+                    retryPackagingFromSnapshot(item.id, raw, quickScanRef.current.addToDatabase)
+                    return
+                  }
                   replaceDay((prev) =>
                     prev.map((i) => (i.id === item.id ? { ...i, status: 'processing_cancellable', rawText: raw } : i)),
                   )

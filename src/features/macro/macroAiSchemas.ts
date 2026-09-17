@@ -236,12 +236,13 @@ export const ANALYZE_NUTRITION_JSON_SCHEMA = {
       protein: { type: 'number' },
       fat: { type: 'number' },
       carbs: { type: 'number' },
-      /** Servings per container from the label; 0 if missing or unreadable. */
-      servingsPerContainer: { type: 'number' },
-      /** Per-container calories column when printed; 0 if absent. */
-      caloriesPerContainer: { type: 'number' },
-      /** Per-container protein column when printed; 0 if absent. */
-      proteinPerContainer: { type: 'number' },
+      servingsPerContainer: { type: ['number', 'null'] },
+      caloriesPerContainer: { type: ['number', 'null'] },
+      proteinPerContainer: { type: ['number', 'null'] },
+      fatPerContainer: { type: ['number', 'null'] },
+      carbsPerContainer: { type: ['number', 'null'] },
+      /** Net weight / package amount when printed; null if absent. */
+      packageAmount: { type: ['string', 'null'] },
     },
     required: [
       'baseAmount',
@@ -252,6 +253,9 @@ export const ANALYZE_NUTRITION_JSON_SCHEMA = {
       'servingsPerContainer',
       'caloriesPerContainer',
       'proteinPerContainer',
+      'fatPerContainer',
+      'carbsPerContainer',
+      'packageAmount',
     ],
     additionalProperties: false,
   },

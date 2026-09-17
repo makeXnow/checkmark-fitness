@@ -9,6 +9,7 @@ import type {
   MacroCustomFood,
   MacroDayItem,
   MacroEstimateSnapshot,
+  MacroPackagingSnapshot,
   MacroParseSnapshot,
 } from '../../types/domain'
 import {
@@ -28,6 +29,7 @@ export type MacroFoodAuditTrail = {
   classification?: MacroParseSnapshot
   fatSecretResults?: FatSecretFoodRef[]
   macroEstimate?: MacroEstimateSnapshot
+  packagingSnapshot?: MacroPackagingSnapshot
 }
 
 export function macroItemAuditTrail(item: {
@@ -41,10 +43,11 @@ export function macroItemAuditTrail(item: {
   fatSecretSearch?: string
   fatSecretResults?: FatSecretFoodRef[]
   macroEstimateSnapshot?: MacroEstimateSnapshot
+  packagingSnapshot?: MacroPackagingSnapshot
 }): MacroFoodAuditTrail {
   const classification =
     item.parseSnapshot ??
-    (item.name?.trim()
+    (item.name?.trim() && !item.packagingSnapshot
       ? (() => {
           const portion = resolveParserPortion({
             amount: item.amount || '',
@@ -70,6 +73,7 @@ export function macroItemAuditTrail(item: {
     classification,
     fatSecretResults: item.fatSecretResults,
     macroEstimate: item.macroEstimateSnapshot,
+    packagingSnapshot: item.packagingSnapshot,
   }
 }
 
@@ -98,6 +102,46 @@ function ClassificationBody({ snap }: { snap: MacroParseSnapshot }) {
   ]
   if (snap.notes?.trim()) rows.push({ label: 'Notes', value: snap.notes.trim() })
   if (snap.fatSecretSearch?.trim()) rows.push({ label: 'FatSecret search', value: snap.fatSecretSearch.trim() })
+
+  return (
+    <dl className="space-y-1.5">
+      {rows.map((row) => (
+        <div key={row.label} className="flex gap-2 text-xs">
+          <dt className="text-white/40 font-bold uppercase tracking-wide shrink-0 w-[7.5rem]">{row.label}</dt>
+          <dd className="text-white/90 font-medium break-words min-w-0">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function formatNullableNum(n: number | null | undefined, suffix = ''): string {
+  if (n == null) return '—'
+  return `${n}${suffix}`
+}
+
+function PackagingSnapshotBody({ snap }: { snap: MacroPackagingSnapshot }) {
+  const rows: { label: string; value: string }[] = [
+    { label: 'Name', value: `${snap.emoji || ''} ${snap.name}`.trim() },
+    { label: 'Serving size', value: snap.baseAmount || '—' },
+    { label: 'Per serving', value: `${snap.calories} cal · ${snap.protein}g protein` },
+    { label: 'Servings / container', value: formatNullableNum(snap.servingsPerContainer) },
+    {
+      label: 'Per container',
+      value:
+        snap.caloriesPerContainer == null
+          ? '—'
+          : `${snap.caloriesPerContainer} cal · ${formatNullableNum(snap.proteinPerContainer, 'g protein')}`,
+    },
+    { label: 'Package amount', value: snap.packageAmount?.trim() || '—' },
+    { label: 'Amount entered', value: snap.amountText || '—' },
+  ]
+  if (snap.resolveMode) {
+    rows.push({
+      label: 'Resolve',
+      value: `${snap.resolveMode}${snap.resolvedMultiplier != null ? ` × ${snap.resolvedMultiplier}` : ''}`,
+    })
+  }
 
   return (
     <dl className="space-y-1.5">
@@ -379,6 +423,9 @@ export function MacroFoodAuditPanel({
             {audit.userInput.trim()}
           </p>
         ) : undefined}
+      </AuditStepCard>
+      <AuditStepCard label="Nutrition label form">
+        {audit.packagingSnapshot ? <PackagingSnapshotBody snap={audit.packagingSnapshot} /> : undefined}
       </AuditStepCard>
       <AuditStepCard label="Classification">
         {audit.classification ? <ClassificationBody snap={audit.classification} /> : undefined}

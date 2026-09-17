@@ -246,6 +246,29 @@ export interface MacroDayItem {
   fromBarcode?: boolean
   /** Macros came from front + nutrition packaging photos (label math, not FatSecret). */
   fromPackagingScan?: boolean
+  /** Nutrition-label form + resolve notes from packaging Quick Scan. */
+  packagingSnapshot?: MacroPackagingSnapshot
+}
+
+/** Vision form captured from package front + nutrition photos. */
+export type MacroPackagingSnapshot = {
+  name: string
+  emoji: string
+  baseAmount: string
+  calories: number
+  protein: number
+  fat: number
+  carbs: number
+  servingsPerContainer: number | null
+  caloriesPerContainer: number | null
+  proteinPerContainer: number | null
+  fatPerContainer?: number | null
+  carbsPerContainer?: number | null
+  /** Net / package size when printed on the label. */
+  packageAmount: string | null
+  amountText: string
+  resolvedMultiplier?: number
+  resolveMode?: 'per_container' | 'servings_per_container' | 'explicit_servings' | 'one_serving'
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'
