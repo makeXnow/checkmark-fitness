@@ -5,6 +5,7 @@ const BIND_TIMEOUT_MS = 8_000
 let cachedStream: MediaStream | null = null
 let cachedAt = 0
 let releaseTimer: ReturnType<typeof setTimeout> | null = null
+let prewarmPromise: Promise<MediaStream | null> | null = null
 
 function isLikelyMobile(): boolean {
   if (typeof navigator === 'undefined') return false
@@ -84,13 +85,29 @@ export function clearCachedCameraStream(): void {
 /** Start opening the camera before the scan panel mounts (e.g. on scan button press). */
 export function prewarmCameraStream(): void {
   if (takeLiveCachedCameraStream()) return
-  void openCameraStream()
+  if (prewarmPromise) return
+  prewarmPromise = openCameraStream()
     .then((stream) => {
       cacheCameraStream(stream)
+      return stream
     })
-    .catch(() => {
-      /* panel will retry and surface errors */
+    .catch(() => null)
+    .finally(() => {
+      prewarmPromise = null
     })
+}
+
+/** Await an in-flight prewarm or open a new stream. Avoids double getUserMedia on open. */
+export async function acquireCameraStream(): Promise<MediaStream> {
+  const cached = takeLiveCachedCameraStream()
+  if (cached) return cached
+  if (prewarmPromise) {
+    const warmed = await prewarmPromise
+    if (warmed && isLiveStream(warmed)) return warmed
+  }
+  const stream = await openCameraStream()
+  cacheCameraStream(stream)
+  return stream
 }
 
 /** Keep cache warm briefly after closing the panel so reopen feels instant. */

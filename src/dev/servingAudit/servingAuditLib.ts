@@ -22,6 +22,7 @@ function parseIndex(raw: unknown): number | null {
 }
 
 function isNutritionLabelScan(item: MacroDayItem): boolean {
+  if (item.fromPackagingScan) return true
   const input = item.userInput?.trim() || item.rawText?.trim() || ''
   return input.startsWith('Scanning:')
 }

@@ -244,6 +244,8 @@ export interface MacroDayItem {
   barcodeLookup?: boolean
   /** Macros came from a barcode scan (single fixed FatSecret match). */
   fromBarcode?: boolean
+  /** Macros came from front + nutrition packaging photos (label math, not FatSecret). */
+  fromPackagingScan?: boolean
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

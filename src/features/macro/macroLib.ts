@@ -1338,6 +1338,7 @@ export function macroDayItemHasStoredMacros(item: MacroDayItem): boolean {
   if (item.baseCalories != null || item.baseProtein != null) return true
   if ((item.calories ?? 0) > 0 || (item.protein ?? 0) > 0) return true
   if (item.fromBarcode) return true
+  if (item.fromPackagingScan) return true
   return false
 }
 

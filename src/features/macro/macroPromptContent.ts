@@ -360,24 +360,25 @@ Package: Kirkland Organic Extra Virgin Olive Oil → {"name":"Olive Oil","emoji"
 export const ANALYZE_NUTRITION_PROMPT = `Read the nutrition label and extract one base serving plus nutrition for exactly that base serving. Respond with JSON.
 
 Calories, protein, fat, and carbs must all correspond to the same baseAmount.
-Do not multiply by servings per container.
+Do not multiply calories/macros by servings per container — report per base serving only.
+Also extract servingsPerContainer from “servings per container” (or equivalent). Use 0 if missing or unreadable.
 If multiple columns exist, use the standard per-serving column unless context says otherwise.
 
 EXAMPLES
 Serving size 1 bar (60g), 200 cal, 20g protein, 7g fat, 22g carbs
-→ {"baseAmount":"1 bar (60 g)","calories":200,"protein":20,"fat":7,"carbs":22}
+→ {"baseAmount":"1 bar (60 g)","calories":200,"protein":20,"fat":7,"carbs":22,"servingsPerContainer":0}
 
 About 4 servings per container, Serving size 1 cup, 120 cal, 5g protein
-→ {"baseAmount":"1 cup","calories":120,"protein":5,"fat":2,"carbs":20} (NOT 480 cal)
+→ {"baseAmount":"1 cup","calories":120,"protein":5,"fat":2,"carbs":20,"servingsPerContainer":4}
 
-Serving size 3 cookies (34g), 160 cal
-→ {"baseAmount":"3 cookies (34 g)","calories":160,"protein":2,"fat":7,"carbs":25}
+Serving size 3 cookies (34g), 160 cal, about 12 servings per container
+→ {"baseAmount":"3 cookies (34 g)","calories":160,"protein":2,"fat":7,"carbs":25,"servingsPerContainer":12}
 
 Serving size 1 1/4 cups (40g), 150 cal
-→ {"baseAmount":"1 1/4 cups (40 g)","calories":150,"protein":4,"fat":2,"carbs":30}
+→ {"baseAmount":"1 1/4 cups (40 g)","calories":150,"protein":4,"fat":2,"carbs":30,"servingsPerContainer":0}
 
 Per serving 180 cal / Per container 360 cal, Serving size 1 pouch, 2 per container
-→ {"baseAmount":"1 pouch","calories":180,"protein":15,"fat":3,"carbs":20}`
+→ {"baseAmount":"1 pouch","calories":180,"protein":15,"fat":3,"carbs":20,"servingsPerContainer":2}`
 
 export const BARCODE_SCAN_PROMPT = `Create a short diet-diary name and one food emoji for the barcode-matched product. Respond with JSON.
 

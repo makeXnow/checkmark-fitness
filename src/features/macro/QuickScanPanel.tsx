@@ -1,9 +1,9 @@
 import { Camera, CameraOff, Loader2, NotebookText, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+  acquireCameraStream,
   bindStreamToVideo,
   cacheCameraStream,
-  openCameraStream,
   scheduleReleaseCachedCameraStream,
   takeLiveCachedCameraStream,
 } from './cameraStream'
@@ -100,6 +100,11 @@ function CaptureSlot({
               OK
             </span>
           )}
+          {status === 'error' && (
+            <span className="absolute top-1.5 left-1.5 z-10 text-[8px] font-black uppercase tracking-wider text-red-400 bg-black/70 px-1.5 py-0.5 rounded">
+              Fail
+            </span>
+          )}
           <button
             type="button"
             onClick={onClear}
@@ -142,21 +147,23 @@ export function QuickScanPanel({
   const cameraSessionRef = useRef(0)
   const attachInFlightRef = useRef(false)
   const pendingStreamRef = useRef<MediaStream | null>(null)
+  const retryAttachRef = useRef(false)
   const zxingControlsRef = useRef<{ stop: () => void } | null>(null)
   const detectorRef = useRef<InstanceType<NonNullable<typeof window.BarcodeDetector>> | null>(null)
   const barcodeCandidateRef = useRef<BarcodeStableTracker | null>(null)
 
-  const [hasPermission, setHasPermission] = useState<boolean | null>(() =>
-    takeLiveCachedCameraStream() ? true : null,
-  )
+  // Do NOT seed pendingStream from cache here — that races with startCamera's session bump
+  // and leaves the preview visible with cameraReady stuck false (spinner forever).
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [cameraReady, setCameraReady] = useState(false)
   const [scanningEnabled, setScanningEnabled] = useState(false)
-  const [pendingStream, setPendingStream] = useState<MediaStream | null>(() => takeLiveCachedCameraStream())
+  const [pendingStream, setPendingStream] = useState<MediaStream | null>(null)
 
   const stopCamera = useCallback(() => {
     cameraSessionRef.current += 1
     attachInFlightRef.current = false
+    retryAttachRef.current = false
     zxingControlsRef.current?.stop()
     zxingControlsRef.current = null
     streamRef.current = null
@@ -167,43 +174,64 @@ export function QuickScanPanel({
     scheduleReleaseCachedCameraStream()
   }, [])
 
-  const attachStreamToVideo = useCallback(async (stream: MediaStream, session: number) => {
-    // Never stop a stream while another attach is in flight — cache TTL can expire mid-bind
-    // and incorrectly treat the live stream as disposable.
-    if (attachInFlightRef.current) return
-    if (session !== cameraSessionRef.current) {
-      if (stream !== streamRef.current && stream !== takeLiveCachedCameraStream()) {
-        stream.getTracks().forEach((t) => t.stop())
-      }
-      return
-    }
-    const video = videoRef.current
-    if (!video) return
-
-    attachInFlightRef.current = true
-    try {
-      await bindStreamToVideo(video, stream)
-      if (session !== cameraSessionRef.current) return
-      streamRef.current = stream
-      cacheCameraStream(stream)
-      setPendingStream(null)
-      pendingStreamRef.current = null
-      setCameraReady(true)
-      setHasPermission(true)
-      setErrorMsg('')
-    } catch (err) {
-      if (session !== cameraSessionRef.current) return
-      // Keep the stream cached so Retry can re-bind without re-prompting getUserMedia.
-      cacheCameraStream(stream)
-      setHasPermission(false)
-      setErrorMsg(cameraErrorMessage(err))
-      setCameraReady(false)
-      setPendingStream(null)
-      pendingStreamRef.current = null
-    } finally {
-      attachInFlightRef.current = false
-    }
+  const streamStillWanted = useCallback((stream: MediaStream) => {
+    // Do not use the module cache here — stopCamera leaves the cache warm on purpose,
+    // which would incorrectly keep a cancelled bind "wanted".
+    return pendingStreamRef.current === stream || streamRef.current === stream
   }, [])
+
+  const attachStreamToVideo = useCallback(
+    async (stream: MediaStream, session: number) => {
+      if (session !== cameraSessionRef.current) return
+
+      if (attachInFlightRef.current) {
+        // Another bind is running; retry once it finishes so we don't drop readiness.
+        retryAttachRef.current = true
+        pendingStreamRef.current = stream
+        return
+      }
+
+      const video = videoRef.current
+      if (!video) {
+        pendingStreamRef.current = stream
+        return
+      }
+
+      attachInFlightRef.current = true
+      retryAttachRef.current = false
+      try {
+        await bindStreamToVideo(video, stream)
+        // Session may bump during bind (Strict Mode / reopen). Keep success if this
+        // stream is still the one we want — otherwise the live preview sits under a
+        // forever spinner with Front/Nutrition disabled.
+        if (session !== cameraSessionRef.current && !streamStillWanted(stream)) return
+        if (videoRef.current?.srcObject !== stream && videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+        streamRef.current = stream
+        cacheCameraStream(stream)
+        pendingStreamRef.current = stream
+        setPendingStream(stream)
+        setCameraReady(true)
+        setHasPermission(true)
+        setErrorMsg('')
+      } catch (err) {
+        if (session !== cameraSessionRef.current && !streamStillWanted(stream)) return
+        cacheCameraStream(stream)
+        setHasPermission(false)
+        setErrorMsg(cameraErrorMessage(err))
+        setCameraReady(false)
+      } finally {
+        attachInFlightRef.current = false
+        if (retryAttachRef.current && pendingStreamRef.current) {
+          retryAttachRef.current = false
+          const next = pendingStreamRef.current
+          void attachStreamToVideo(next, cameraSessionRef.current)
+        }
+      }
+    },
+    [streamStillWanted],
+  )
 
   useEffect(() => {
     pendingStreamRef.current = pendingStream
@@ -228,12 +256,17 @@ export function QuickScanPanel({
     const session = ++cameraSessionRef.current
     setErrorMsg('')
     setCameraReady(false)
+    attachInFlightRef.current = false
+    retryAttachRef.current = false
 
     const cached = takeLiveCachedCameraStream()
     if (cached) {
       setHasPermission(true)
-      setPendingStream(cached)
       pendingStreamRef.current = cached
+      setPendingStream(cached)
+      // Attach immediately — don't wait for a useLayoutEffect that may no-op when the
+      // stream reference is unchanged across remounts.
+      void attachStreamToVideo(cached, session)
       return
     }
 
@@ -244,14 +277,18 @@ export function QuickScanPanel({
     if (videoRef.current) videoRef.current.srcObject = null
 
     try {
-      const stream = await openCameraStream()
+      const stream = await acquireCameraStream()
       if (session !== cameraSessionRef.current) {
-        stream.getTracks().forEach((t) => t.stop())
+        // Only stop if this isn't the shared cache/prewarm stream.
+        if (takeLiveCachedCameraStream() !== stream) {
+          stream.getTracks().forEach((t) => t.stop())
+        }
         return
       }
       cacheCameraStream(stream)
-      setPendingStream(stream)
       pendingStreamRef.current = stream
+      setPendingStream(stream)
+      void attachStreamToVideo(stream, session)
     } catch (err) {
       if (session !== cameraSessionRef.current) return
       setHasPermission(false)

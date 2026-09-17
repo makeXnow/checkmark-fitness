@@ -49,7 +49,8 @@ export const MACRO_PROMPT_DESCRIPTIONS: Record<MacroPromptKey, string> = {
   PARSER: 'Splits spoken or typed food input into diary items (structured JSON).',
   MACROS: 'Matches consumption to library/FatSecret, classifies relationship, optional unit bridge.',
   ANALYZE_FRONT: 'Reads product name and emoji from packaging photos.',
-  ANALYZE_NUTRITION: 'Reads serving size and macros from nutrition label photos.',
+  ANALYZE_NUTRITION:
+    'Reads serving size, servings per container, and macros from nutrition label photos.',
   BARCODE_SCAN: 'Short diary name + emoji for barcode-matched packaged foods.',
 }
 

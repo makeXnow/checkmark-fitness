@@ -236,8 +236,10 @@ export const ANALYZE_NUTRITION_JSON_SCHEMA = {
       protein: { type: 'number' },
       fat: { type: 'number' },
       carbs: { type: 'number' },
+      /** Servings per container from the label; 0 if missing or unreadable. */
+      servingsPerContainer: { type: 'number' },
     },
-    required: ['baseAmount', 'calories', 'protein', 'fat', 'carbs'],
+    required: ['baseAmount', 'calories', 'protein', 'fat', 'carbs', 'servingsPerContainer'],
     additionalProperties: false,
   },
 } as const

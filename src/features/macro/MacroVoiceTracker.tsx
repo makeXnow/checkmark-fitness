@@ -58,6 +58,11 @@ import {
 } from './MacroFoodCard'
 import { useDebouncedCallback } from '../../lib/useDebouncedCallback'
 import { QuickScanPanel, prewarmCameraStream } from './QuickScanPanel'
+import {
+  buildPackagingDayItem,
+  parsePackagingFront,
+  parsePackagingNutrition,
+} from './packagingScan'
 
 type QuickScanState = {
   isOpen: boolean
@@ -647,52 +652,13 @@ export function MacroVoiceTracker({
   )
 
   const startParsingFlow = useCallback(
-    async (id: string, rawText: string, baseFood?: Record<string, unknown> | null, addToDatabase = false) => {
+    async (id: string, rawText: string) => {
       const controller = new AbortController()
       processingRefs.current[id] = controller
       try {
-        let promptInput = `Input: ${rawText}`
-        if (baseFood && baseFood.name) {
-          promptInput += `\n\nContext: The user scanned "${String(baseFood.name)}".`
-          const nf = await aiJson({
-            promptKey: 'PARSER',
-            user: promptInput,
-          }).catch(() => null)
-          if (!nf || typeof nf !== 'object') throw new Error('parse')
-          const data = nf as { items?: ParsedFoodItem[] }
-          if (addToDatabase) {
-            const scanLabel = normalizeDiaryLabel({
-              name: baseFood.name,
-              emoji: baseFood.emoji,
-              fallbackName: String(baseFood.name || 'Food'),
-            })
-            const libItem: MacroCustomFood = {
-              id: crypto.randomUUID(),
-              name: scanLabel.name,
-              emoji: scanLabel.emoji,
-              baseAmount: String(baseFood.baseAmount || '1 serving'),
-              calories: Number(baseFood.calories) || 0,
-              protein: Number(baseFood.protein) || 0,
-              fat: Number(baseFood.fat) || 0,
-              carbs: Number(baseFood.carbs) || 0,
-              createdAt: Date.now(),
-            }
-            onSaveFoods([...customFoodsRef.current, libItem])
-          }
-          replaceDay((prev) => prev.filter((i) => i.id !== id))
-          if (data.items?.length) {
-            const newItems = parsedItemsToDayItems(data.items, { userInput: rawText })
-            replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
-            scrollDietListToTop()
-            newItems.forEach((it) =>
-              void estimateMacrosForItem(it, `\n\nScanned base: ${JSON.stringify(baseFood)}`),
-            )
-          }
-          return
-        }
         const parsed = await aiJson({
           promptKey: 'PARSER',
-          user: promptInput,
+          user: `Input: ${rawText}`,
         })
         const data = parsed as { items?: ParsedFoodItem[] }
         replaceDay((prev) => prev.filter((i) => i.id !== id))
@@ -708,7 +674,66 @@ export function MacroVoiceTracker({
         delete processingRefs.current[id]
       }
     },
-    [estimateMacrosForItem, onSaveFoods, replaceDay, scrollDietListToTop],
+    [estimateMacrosForItem, replaceDay, scrollDietListToTop],
+  )
+
+  const failPackagingItem = useCallback(
+    (id: string, message: string) => {
+      replaceDay((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                status: 'editing_raw',
+                rawText: message,
+                name: '',
+                amount: '',
+              }
+            : i,
+        ),
+      )
+    },
+    [replaceDay],
+  )
+
+  const startPackagingFlow = useCallback(
+    async (
+      id: string,
+      amountText: string,
+      frontRaw: Record<string, unknown>,
+      nutritionRaw: Record<string, unknown>,
+      addToDatabase: boolean,
+    ) => {
+      const controller = new AbortController()
+      processingRefs.current[id] = controller
+      try {
+        if (controller.signal.aborted) return
+        const front = parsePackagingFront(frontRaw)
+        const nutrition = parsePackagingNutrition(nutritionRaw)
+        const { item, libraryFood } = buildPackagingDayItem({
+          id,
+          amountText,
+          front,
+          nutrition,
+          addToDatabase,
+        })
+        if (libraryFood) {
+          const nextFoods = [...customFoodsRef.current, libraryFood]
+          customFoodsRef.current = nextFoods
+          onSaveFoods(nextFoods)
+        }
+        if (controller.signal.aborted) return
+        replaceDay((prev) => prev.map((i) => (i.id === id ? item : i)))
+        scrollDietListToTop()
+      } catch (e) {
+        if (controller.signal.aborted) return
+        const msg = e instanceof Error ? e.message : 'Packaging scan failed'
+        failPackagingItem(id, msg)
+      } finally {
+        delete processingRefs.current[id]
+      }
+    },
+    [failPackagingItem, onSaveFoods, replaceDay, scrollDietListToTop],
   )
 
   const refreshItemMacros = useCallback(
@@ -851,7 +876,7 @@ export function MacroVoiceTracker({
                 : i,
             ),
           )
-          void startParsingFlow(tempId, text.trim(), null)
+          void startParsingFlow(tempId, text.trim())
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'Transcription failed'
           if (msg.startsWith('No speech detected')) {
@@ -882,6 +907,7 @@ export function MacroVoiceTracker({
     const addToDatabase = quickScan.addToDatabase
     const capturedFrontPreview = quickScan.frontPreview
     const capturedNutritionPreview = quickScan.nutritionPreview
+    const packagingAttempt = quickWasOpen && hadQuickMedia
     setInputText('')
     const fp = frontPromiseRef.current
     const np = nutritionPromiseRef.current
@@ -897,21 +923,67 @@ export function MacroVoiceTracker({
     if (capturedFrontPreview && capturedNutritionPreview) {
       scanPreviewsRef.current.set(tempId, { front: capturedFrontPreview, nutrition: capturedNutritionPreview })
     }
-    const logText = quickWasOpen || fp || np ? `Scanning: ${text}` : text
-    replaceDay((prev) => [...prev, { id: tempId, status: 'processing_cancellable', rawText: logText, timestamp: Date.now(), name: '', amount: '' }])
-    scrollDietListToTop()
-    let baseFood: Record<string, unknown> | null = null
-    if (fp && np) {
-      try {
-        const fData = (await fp) as Record<string, unknown>
-        const nData = (await np) as Record<string, unknown>
-        baseFood = { ...fData, ...nData }
-      } catch {
-        baseFood = null
+
+    if (packagingAttempt) {
+      const logText = `Scanning: ${text}`
+      replaceDay((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          status: 'processing_cancellable',
+          rawText: logText,
+          timestamp: Date.now(),
+          name: '',
+          amount: text,
+        },
+      ])
+      scrollDietListToTop()
+
+      if (!capturedFrontPreview || !capturedNutritionPreview || !fp || !np) {
+        failPackagingItem(tempId, 'Capture both front and nutrition photos before sending')
+        return
       }
+
+      void (async () => {
+        try {
+          const [fData, nData] = await Promise.all([fp, np])
+          await startPackagingFlow(
+            tempId,
+            text,
+            fData as Record<string, unknown>,
+            nData as Record<string, unknown>,
+            addToDatabase,
+          )
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Packaging scan failed'
+          failPackagingItem(tempId, msg)
+        }
+      })()
+      return
     }
-    void startParsingFlow(tempId, logText, baseFood, addToDatabase)
-  }, [inputText, quickScan, replaceDay, scrollDietListToTop, startParsingFlow])
+
+    replaceDay((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        status: 'processing_cancellable',
+        rawText: text,
+        timestamp: Date.now(),
+        name: '',
+        amount: '',
+      },
+    ])
+    scrollDietListToTop()
+    void startParsingFlow(tempId, text)
+  }, [
+    failPackagingItem,
+    inputText,
+    quickScan,
+    replaceDay,
+    scrollDietListToTop,
+    startPackagingFlow,
+    startParsingFlow,
+  ])
 
   const handleQuickCapture = useCallback((kind: 'front' | 'nutrition', dataUrl: string) => {
     const base64 = dataUrl.split(',')[1]
@@ -1239,7 +1311,7 @@ export function MacroVoiceTracker({
                   replaceDay((prev) =>
                     prev.map((i) => (i.id === item.id ? { ...i, status: 'processing_cancellable', rawText: raw } : i)),
                   )
-                  void startParsingFlow(item.id, raw, null)
+                  void startParsingFlow(item.id, raw)
                 }}
                 onCancelTranscription={() => {
                   abortRef.current?.abort()
@@ -1789,7 +1861,9 @@ function InteractionDock({
                   else if (inputText.trim() || isQuickReady) onSend()
                   else onMic()
                 }}
-                placeholder={quickScan.isOpen ? 'How much?' : 'What did you eat today?'}
+                placeholder={
+                  quickScan.isOpen ? 'How much? (whole bag, 2 servings…)' : 'What did you eat today?'
+                }
                 className="w-full bg-transparent text-white font-medium text-base resize-none placeholder:opacity-30 leading-snug outline-none py-3"
                 rows={1}
               />
