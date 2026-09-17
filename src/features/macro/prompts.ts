@@ -50,7 +50,7 @@ export const MACRO_PROMPT_DESCRIPTIONS: Record<MacroPromptKey, string> = {
   MACROS: 'Matches consumption to library/FatSecret, classifies relationship, optional unit bridge.',
   ANALYZE_FRONT: 'Reads product name and emoji from packaging photos.',
   ANALYZE_NUTRITION:
-    'Reads serving size, servings per container, and macros from nutrition label photos.',
+    'Reads serving size, servings/container, optional per-container macros, and per-serving macros from nutrition label photos.',
   BARCODE_SCAN: 'Short diary name + emoji for barcode-matched packaged foods.',
 }
 

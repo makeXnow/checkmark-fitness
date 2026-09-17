@@ -256,7 +256,6 @@ export function QuickScanPanel({
     const session = ++cameraSessionRef.current
     setErrorMsg('')
     setCameraReady(false)
-    attachInFlightRef.current = false
     retryAttachRef.current = false
 
     const cached = takeLiveCachedCameraStream()
@@ -306,6 +305,25 @@ export function QuickScanPanel({
     const t = setTimeout(() => setScanningEnabled(true), 250)
     return () => clearTimeout(t)
   }, [cameraReady])
+
+  // Safety net: if the live preview already has frames but readiness was lost in a
+  // session race, clear the spinner instead of hanging forever.
+  useEffect(() => {
+    if (cameraReady || hasPermission === false) return
+    const id = window.setInterval(() => {
+      const video = videoRef.current
+      const stream = streamRef.current ?? pendingStreamRef.current
+      if (!video || !stream) return
+      if (video.srcObject === stream && video.videoWidth > 0) {
+        streamRef.current = stream
+        cacheCameraStream(stream)
+        setCameraReady(true)
+        setHasPermission(true)
+        setErrorMsg('')
+      }
+    }, 400)
+    return () => window.clearInterval(id)
+  }, [cameraReady, hasPermission])
 
   useEffect(() => {
     if (typeof window.BarcodeDetector !== 'undefined') {

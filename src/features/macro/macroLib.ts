@@ -409,6 +409,12 @@ function parseFractionToken(raw: string): number | null {
   return num / den
 }
 
+/** Drop trailing "(106 g)" style notes so unit math uses "cups", not "cups (106 g)". */
+function stripTrailingUnitNote(unit: string): string {
+  const cleaned = unit.replace(/\s*\([^)]*\)\s*$/g, '').trim()
+  return cleaned || unit.trim()
+}
+
 /** Split a base serving string into numeric size, unit, and display label. */
 export function parseServingDefinition(text: string): ServingDefinition {
   const trimmed = text.trim()
@@ -420,7 +426,11 @@ export function parseServingDefinition(text: string): ServingDefinition {
       .replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '')
       .trim()
     if (unitPart) {
-      return { servingSize: leadingQty, servingUnit: unitPart, label: trimmed }
+      return {
+        servingSize: leadingQty,
+        servingUnit: stripTrailingUnitNote(unitPart),
+        label: trimmed,
+      }
     }
   }
 
@@ -429,7 +439,7 @@ export function parseServingDefinition(text: string): ServingDefinition {
     const size = parseFractionToken(fracMatch[1]!)
     const unit = fracMatch[2]!.trim() || 'serving'
     if (size != null && size > 0) {
-      return { servingSize: size, servingUnit: unit, label: trimmed }
+      return { servingSize: size, servingUnit: stripTrailingUnitNote(unit), label: trimmed }
     }
   }
 
@@ -438,7 +448,7 @@ export function parseServingDefinition(text: string): ServingDefinition {
     const size = parseFloat(numMatch[1]!)
     const unit = numMatch[2]!.trim()
     if (Number.isFinite(size) && size > 0 && unit) {
-      return { servingSize: size, servingUnit: unit, label: trimmed }
+      return { servingSize: size, servingUnit: stripTrailingUnitNote(unit), label: trimmed }
     }
   }
 
@@ -455,7 +465,7 @@ export function parseServingDefinition(text: string): ServingDefinition {
     return { servingSize: 1, servingUnit: 'serving', label: '1 serving' }
   }
 
-  return { servingSize: 1, servingUnit: trimmed, label: `1 ${trimmed}` }
+  return { servingSize: 1, servingUnit: stripTrailingUnitNote(trimmed), label: `1 ${trimmed}` }
 }
 
 /** Collapsed-card total: count × base size + unit (e.g. "0.63 cup prepared"). */
@@ -558,13 +568,18 @@ function applyStructuredServingFields(
   mult: number,
   def: ServingDefinition,
 ): MacroDayItem {
+  // Packaging scans keep phrases like "whole bag" instead of regenerating "12 cups".
+  const amount =
+    item.fromPackagingScan && item.amount?.trim()
+      ? item.amount.trim()
+      : formatServingTotal(mult, def.servingSize, def.servingUnit)
   return {
     ...item,
     servingType: def.label,
     servingSize: def.servingSize,
     servingUnit: def.servingUnit,
     servingMultiplier: mult,
-    amount: formatServingTotal(mult, def.servingSize, def.servingUnit),
+    amount,
   }
 }
 

@@ -1188,6 +1188,10 @@ export function MacroVoiceTracker({
             emoji: fields.emoji || '🍱',
             name: fields.name,
             ...serving,
+            amount:
+              i.fromPackagingScan && !servingChanged && i.amount?.trim()
+                ? i.amount
+                : serving.amount,
             calories,
             protein,
             baseCalories,

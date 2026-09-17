@@ -359,26 +359,39 @@ Package: Kirkland Organic Extra Virgin Olive Oil → {"name":"Olive Oil","emoji"
 
 export const ANALYZE_NUTRITION_PROMPT = `Read the nutrition label and extract one base serving plus nutrition for exactly that base serving. Respond with JSON.
 
-Calories, protein, fat, and carbs must all correspond to the same baseAmount.
+Calories, protein, fat, and carbs must all correspond to the same baseAmount (the Serving Size line).
 Do not multiply calories/macros by servings per container — report per base serving only.
-Also extract servingsPerContainer from “servings per container” (or equivalent). Use 0 if missing or unreadable.
-If multiple columns exist, use the standard per-serving column unless context says otherwise.
+Also extract:
+- servingsPerContainer from “servings per container” (or equivalent). Use 0 if missing or unreadable.
+- caloriesPerContainer / proteinPerContainer from a “per container” / “per package” column when printed. Use 0 if that column is absent.
+
+CRITICAL
+- baseAmount must be the Serving Size line only — never package yield marketing (“makes 4 cups”, “family size”).
+- If a salad kit / bag lists a large cup serving (e.g. 4 cups) that is clearly one prepared portion of the bag, and servings per container is about 1 (or per-container calories ≈ per-serving calories), use servingsPerContainer 1.
+- Do not invent servingsPerContainer. If unclear, use 0.
+- When both per-serving and per-container columns exist, servingsPerContainer should match caloriesPerContainer ÷ calories (approximately).
 
 EXAMPLES
 Serving size 1 bar (60g), 200 cal, 20g protein, 7g fat, 22g carbs
-→ {"baseAmount":"1 bar (60 g)","calories":200,"protein":20,"fat":7,"carbs":22,"servingsPerContainer":0}
+→ {"baseAmount":"1 bar (60 g)","calories":200,"protein":20,"fat":7,"carbs":22,"servingsPerContainer":0,"caloriesPerContainer":0,"proteinPerContainer":0}
 
 About 4 servings per container, Serving size 1 cup, 120 cal, 5g protein
-→ {"baseAmount":"1 cup","calories":120,"protein":5,"fat":2,"carbs":20,"servingsPerContainer":4}
+→ {"baseAmount":"1 cup","calories":120,"protein":5,"fat":2,"carbs":20,"servingsPerContainer":4,"caloriesPerContainer":0,"proteinPerContainer":0}
 
 Serving size 3 cookies (34g), 160 cal, about 12 servings per container
-→ {"baseAmount":"3 cookies (34 g)","calories":160,"protein":2,"fat":7,"carbs":25,"servingsPerContainer":12}
+→ {"baseAmount":"3 cookies (34 g)","calories":160,"protein":2,"fat":7,"carbs":25,"servingsPerContainer":12,"caloriesPerContainer":0,"proteinPerContainer":0}
 
 Serving size 1 1/4 cups (40g), 150 cal
-→ {"baseAmount":"1 1/4 cups (40 g)","calories":150,"protein":4,"fat":2,"carbs":30,"servingsPerContainer":0}
+→ {"baseAmount":"1 1/4 cups (40 g)","calories":150,"protein":4,"fat":2,"carbs":30,"servingsPerContainer":0,"caloriesPerContainer":0,"proteinPerContainer":0}
 
 Per serving 180 cal / Per container 360 cal, Serving size 1 pouch, 2 per container
-→ {"baseAmount":"1 pouch","calories":180,"protein":15,"fat":3,"carbs":20,"servingsPerContainer":2}`
+→ {"baseAmount":"1 pouch","calories":180,"protein":15,"fat":3,"carbs":20,"servingsPerContainer":2,"caloriesPerContainer":360,"proteinPerContainer":30}
+
+Salad kit: Serving size 4 cups (106g) as prepared, 170 cal, 4g protein; about 1 serving per container (or per container also 170)
+→ {"baseAmount":"4 cups (106 g)","calories":170,"protein":4,"fat":11,"carbs":14,"servingsPerContainer":1,"caloriesPerContainer":170,"proteinPerContainer":4}
+
+Salad kit: Serving size 1 1/2 cups (100g), about 3.5 servings per container, 50 cal / 2g protein per serving; per container 175 cal
+→ {"baseAmount":"1 1/2 cups (100 g)","calories":50,"protein":2,"fat":3,"carbs":5,"servingsPerContainer":3.5,"caloriesPerContainer":175,"proteinPerContainer":7}`
 
 export const BARCODE_SCAN_PROMPT = `Create a short diet-diary name and one food emoji for the barcode-matched product. Respond with JSON.
 
