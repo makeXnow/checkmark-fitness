@@ -31,6 +31,7 @@ import {
 } from './lib/goalSnapshots'
 import { readBootstrapCache, writeBootstrapCache } from './lib/bootstrapCache'
 import { hydrateBootstrap } from './lib/bootstrapHydrate'
+import { preferNewerBootstrapBundles } from './lib/preferNewerBootstrapBundles'
 import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
 import { useLiftTimer } from './features/lift/useLiftTimer'
 import { workoutWithSessionWeight } from './features/lift/plates'
@@ -135,18 +136,28 @@ export default function App() {
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
 
-  const applyBoot = useCallback((hydrated: ReturnType<typeof hydrateBootstrap>) => {
-    setBoot(hydrated.data)
-    bootRef.current = hydrated.data
-    setLiftAssumptionPrompt(hydrated.data.liftAssumption?.pendingPrompt ?? null)
-    if (hydrated.persist) void hydrated.persist().catch(() => undefined)
+  const habitsSaveSeq = useRef(Promise.resolve())
+  const macroSaveSeq = useRef(Promise.resolve())
+  const liftSaveSeq = useRef(Promise.resolve())
+
+  const cacheBootSnapshot = useCallback(() => {
+    const profile = getApiProfile()
+    const snap = bootRef.current
+    if (profile && snap) writeBootstrapCache(profile, snap)
   }, [])
 
   /** Peek once on mount: reopen after 5+ minutes away → force today. */
   const staleResumeRef = useRef(consumePageLoadStaleResume())
 
   const applyPayload = useCallback(
-    (raw: BootstrapResponse) => {
+    (
+      raw: BootstrapResponse,
+      opts?: {
+        /** When false, skip hydrate write-backs (local cache is display-only). */
+        allowPersist?: boolean
+      },
+    ) => {
+      const allowPersist = opts?.allowPersist !== false
       const forceToday = staleResumeRef.current
       const todayIso = localDateISO(new Date())
       const data =
@@ -154,10 +165,65 @@ export default function App() {
           ? { ...raw, appState: { ...raw.appState, selected_date: todayIso } }
           : raw
       const hydrated = hydrateBootstrap(data)
-      applyBoot(hydrated)
-      return hydrated
+      const { data: merged, keptLocal } = preferNewerBootstrapBundles(hydrated.data, bootRef.current)
+
+      bootRef.current = merged
+      setBoot(merged)
+      setLiftAssumptionPrompt(merged.liftAssumption?.pendingPrompt ?? null)
+
+      // Never write hydrate fixes from a stale payload, and never race ahead of user saves.
+      if (allowPersist) {
+        const expectedMacroAt = Number(merged.macro.updatedAt) || 0
+        const expectedHabitsAt = Number(merged.habits.updatedAt) || 0
+        const expectedLiftAt = Number(merged.lift.updatedAt) || 0
+
+        if (hydrated.persist.macro && !keptLocal.macro) {
+          macroSaveSeq.current = macroSaveSeq.current
+            .then(async () => {
+              const cur = bootRef.current
+              if (!cur || (Number(cur.macro.updatedAt) || 0) !== expectedMacroAt) return
+              await putMacro({
+                goals: cur.macro.goals,
+                goalsSnapshotsByDay: cur.macro.goalsSnapshotsByDay,
+                goalsHistory: cur.macro.goalsHistory,
+                customFoods: cur.macro.customFoods,
+                logs: cur.macro.logs,
+              })
+              cacheBootSnapshot()
+            })
+            .catch(() => undefined)
+        }
+        if (hydrated.persist.habits && !keptLocal.habits) {
+          habitsSaveSeq.current = habitsSaveSeq.current
+            .then(async () => {
+              const cur = bootRef.current
+              if (!cur || (Number(cur.habits.updatedAt) || 0) !== expectedHabitsAt) return
+              await putHabits({
+                goals: cur.habits.goals,
+                goalsSnapshotsByWeek: cur.habits.goalsSnapshotsByWeek,
+                goalsHistory: cur.habits.goalsHistory,
+                logs: cur.habits.logs,
+                appSettings: cur.habits.appSettings,
+              })
+              cacheBootSnapshot()
+            })
+            .catch(() => undefined)
+        }
+        if (hydrated.persist.lift && !keptLocal.lift) {
+          liftSaveSeq.current = liftSaveSeq.current
+            .then(async () => {
+              const cur = bootRef.current
+              if (!cur || (Number(cur.lift.updatedAt) || 0) !== expectedLiftAt) return
+              await putLift(cur.lift.payload)
+              cacheBootSnapshot()
+            })
+            .catch(() => undefined)
+        }
+      }
+
+      return { data: merged }
     },
-    [applyBoot],
+    [cacheBootSnapshot],
   )
 
   const resyncFromServer = useCallback(async () => {
@@ -179,7 +245,8 @@ export default function App() {
 
     if (profile) {
       const cached = readBootstrapCache(profile)
-      if (cached) applyPayload(cached)
+      // Local cache is for instant UI only — never PUT it back (it can be older than the server).
+      if (cached) applyPayload(cached, { allowPersist: false })
     }
 
     try {
@@ -476,8 +543,6 @@ export default function App() {
     }
   }, [rawLiftDayIndex, safeLiftDayIndex, setLiftDayIndex, sortedLiftDays.length])
 
-  const habitsSaveSeq = useRef(Promise.resolve())
-
   const saveHabitsBundle = useCallback(
     (next: { goals?: HabitsGoals; logs?: Record<string, DayLog>; appSettings?: { firstDayOfWeek: number } }) => {
       habitsSaveSeq.current = habitsSaveSeq.current
@@ -523,14 +588,13 @@ export default function App() {
             logs: habits.logs,
             appSettings: habits.appSettings,
           })
+          cacheBootSnapshot()
         })
         .catch(() => resyncFromServer())
       return habitsSaveSeq.current
     },
-    [currentDate, resyncFromServer, todayDateStr],
+    [cacheBootSnapshot, currentDate, resyncFromServer, todayDateStr],
   )
-
-  const macroSaveSeq = useRef(Promise.resolve())
 
   const saveMacroBundle = useCallback(
     (next: {
@@ -579,14 +643,13 @@ export default function App() {
             customFoods: macro.customFoods,
             logs: macro.logs,
           })
+          cacheBootSnapshot()
         })
         .catch(() => resyncFromServer())
       return macroSaveSeq.current
     },
-    [resyncFromServer, todayDateStr],
+    [cacheBootSnapshot, resyncFromServer, todayDateStr],
   )
-
-  const liftSaveSeq = useRef(Promise.resolve())
 
   const saveLiftBundle = useCallback((next: LiftPayload) => {
     setBoot((prev) => {
@@ -599,10 +662,11 @@ export default function App() {
     liftSaveSeq.current = liftSaveSeq.current
       .then(async () => {
         await putLift(next)
+        cacheBootSnapshot()
       })
       .catch(() => resyncFromServer())
     return liftSaveSeq.current
-  }, [resyncFromServer])
+  }, [cacheBootSnapshot, resyncFromServer])
 
   const liftTimerEnabled =
     selectedTab === 'lift' && !settingsOpen && liftSubRoute === 'workout'

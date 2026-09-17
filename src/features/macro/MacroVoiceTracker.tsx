@@ -33,7 +33,6 @@ import {
   macroItemServingFields,
   macroDayItemHasStoredMacros,
   macroDayItemNeedsEstimate,
-  mergeMacroLogs,
   normalizeDiaryLabel,
   normalizeMacroDayItemStatus,
   parsedItemsToDayItems,
@@ -255,7 +254,11 @@ export function MacroVoiceTracker({
     [customFoods, logs],
   )
   const logsRef = useRef(logs)
-  logsRef.current = mergeMacroLogs(logs, logsRef.current)
+  // Parent props are authoritative for membership (deletes must stick). replaceDay updates
+  // the ref first for in-flight edits; sync when props catch up — never merge-resurrect.
+  useEffect(() => {
+    logsRef.current = logs
+  }, [logs])
   const customFoodsRef = useRef(customFoods)
   customFoodsRef.current = customFoods
   const estimatingIdsRef = useRef(new Set<string>())

@@ -168,7 +168,10 @@ export function QuickScanPanel({
   }, [])
 
   const attachStreamToVideo = useCallback(async (stream: MediaStream, session: number) => {
-    if (attachInFlightRef.current || session !== cameraSessionRef.current) {
+    // Never stop a stream while another attach is in flight — cache TTL can expire mid-bind
+    // and incorrectly treat the live stream as disposable.
+    if (attachInFlightRef.current) return
+    if (session !== cameraSessionRef.current) {
       if (stream !== streamRef.current && stream !== takeLiveCachedCameraStream()) {
         stream.getTracks().forEach((t) => t.stop())
       }
@@ -187,9 +190,11 @@ export function QuickScanPanel({
       pendingStreamRef.current = null
       setCameraReady(true)
       setHasPermission(true)
+      setErrorMsg('')
     } catch (err) {
-      if (stream !== streamRef.current) stream.getTracks().forEach((t) => t.stop())
       if (session !== cameraSessionRef.current) return
+      // Keep the stream cached so Retry can re-bind without re-prompting getUserMedia.
+      cacheCameraStream(stream)
       setHasPermission(false)
       setErrorMsg(cameraErrorMessage(err))
       setCameraReady(false)

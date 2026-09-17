@@ -313,8 +313,9 @@ profileApi.get('/bootstrap', async (c) => {
       },
     }
 
+    // Mutable per-user diary — never HTTP-cache (stale bootstrap was overwriting newer puts).
     return c.json(jsonSafe(body), 200, {
-      'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+      'Cache-Control': 'private, no-store',
     })
   } catch (e) {
     console.error('[bootstrap]', e)

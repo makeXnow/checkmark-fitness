@@ -1,4 +1,3 @@
-import { putHabits, putLift, putMacro } from '../core/api'
 import {
   normalizeLiftHistoryOnLoad,
   reconcileWorkoutMainWeightsFromHistory,
@@ -19,11 +18,11 @@ import type { BootstrapResponse, HabitsGoals, LiftPayload } from '../types/domai
 
 export type BootstrapHydrateResult = {
   data: BootstrapResponse
-  /** When set, persist normalized state to the server without blocking UI. */
-  persist: (() => Promise<void>) | null
+  /** Which bundles were normalized and should be written back (via the App save queues). */
+  persist: { macro: boolean; habits: boolean; lift: boolean }
 }
 
-/** Apply client-side normalization / snapshot cement; optionally queue server PUTs. */
+/** Apply client-side normalization / snapshot cement; caller decides when to PUT. */
 export function hydrateBootstrap(raw: BootstrapResponse): BootstrapHydrateResult {
   const data = raw
   const todayISO = localDateISO(new Date())
@@ -73,10 +72,11 @@ export function hydrateBootstrap(raw: BootstrapResponse): BootstrapHydrateResult
     }
   }
 
-  const needsPersist =
-    logsChanged || foodsChanged || macroCement.changed || habitsCement.changed || liftHistoryChanged
+  const persistMacro = logsChanged || foodsChanged || macroCement.changed
+  const persistHabits = habitsCement.changed
+  const persistLift = liftHistoryChanged
 
-  if (needsPersist) {
+  if (persistMacro || persistHabits) {
     data.macro.logs = logs
     data.macro.goals = macroBundle.current
     data.macro.goalsSnapshotsByDay = macroBundle.snapshotsByDay
@@ -86,30 +86,8 @@ export function hydrateBootstrap(raw: BootstrapResponse): BootstrapHydrateResult
     data.habits.goalsHistory = cementedHabitsBundle.goalHistory
   }
 
-  const persist = needsPersist
-    ? () => {
-        const tasks: Promise<unknown>[] = [
-          putMacro({
-            goals: macroBundle.current,
-            goalsSnapshotsByDay: macroBundle.snapshotsByDay,
-            goalsHistory: macroBundle.goalHistory,
-            customFoods: data.macro.customFoods || [],
-            logs,
-          }),
-          putHabits({
-            goals: cementedHabitsBundle.current,
-            goalsSnapshotsByWeek: cementedHabitsBundle.snapshotsByWeek,
-            goalsHistory: cementedHabitsBundle.goalHistory,
-            logs: data.habits.logs,
-            appSettings: data.habits.appSettings,
-          }),
-        ]
-        if (liftHistoryChanged) {
-          tasks.push(putLift(data.lift.payload as LiftPayload))
-        }
-        return Promise.all(tasks).then(() => undefined)
-      }
-    : null
-
-  return { data, persist }
+  return {
+    data,
+    persist: { macro: persistMacro, habits: persistHabits, lift: persistLift },
+  }
 }

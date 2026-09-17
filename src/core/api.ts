@@ -58,7 +58,7 @@ export async function checkProfileExists(profile: string): Promise<boolean> {
 }
 
 export async function fetchBootstrap(): Promise<BootstrapResponse> {
-  const res = await apiFetch('/api/bootstrap')
+  const res = await apiFetch('/api/bootstrap', { cache: 'no-store' })
   return parseJson<BootstrapResponse>(res)
 }
 

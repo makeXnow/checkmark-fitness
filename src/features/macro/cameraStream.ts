@@ -1,5 +1,6 @@
 const CACHE_TTL_MS = 20_000
 const RELEASE_DELAY_MS = 12_000
+const BIND_TIMEOUT_MS = 8_000
 
 let cachedStream: MediaStream | null = null
 let cachedAt = 0
@@ -101,31 +102,76 @@ export function scheduleReleaseCachedCameraStream(): void {
   }, RELEASE_DELAY_MS)
 }
 
+function videoHasUsableFrames(video: HTMLVideoElement): boolean {
+  return video.readyState >= 2 && video.videoWidth > 0
+}
+
+/**
+ * Attach a MediaStream to a video element and wait until preview is usable.
+ * Must not hang: iOS/Safari often skip re-firing `playing` when reusing a stream,
+ * and autoplay `play()` rejection must not leave us waiting forever.
+ */
 export async function bindStreamToVideo(video: HTMLVideoElement, stream: MediaStream): Promise<void> {
   video.srcObject = stream
   video.muted = true
   video.playsInline = true
+  video.setAttribute('playsinline', '')
+  video.setAttribute('webkit-playsinline', '')
 
-  if (video.readyState >= 2) {
+  if (videoHasUsableFrames(video)) {
     await video.play().catch(() => undefined)
     return
   }
 
   await new Promise<void>((resolve, reject) => {
-    const onPlaying = () => {
+    let settled = false
+
+    const finish = (ok: boolean, err?: Error) => {
+      if (settled) return
+      settled = true
       cleanup()
-      resolve()
+      if (ok) resolve()
+      else reject(err ?? new Error('Camera preview failed to load'))
     }
-    const onError = () => {
-      cleanup()
-      reject(new Error('Camera preview failed to load'))
+
+    const tryReady = () => {
+      if (videoHasUsableFrames(video) || (!video.paused && video.videoWidth > 0)) {
+        finish(true)
+      }
     }
+
+    const onError = () => finish(false, new Error('Camera preview failed to load'))
+
     const cleanup = () => {
-      video.removeEventListener('playing', onPlaying)
+      clearTimeout(timer)
+      video.removeEventListener('playing', tryReady)
+      video.removeEventListener('loadeddata', tryReady)
+      video.removeEventListener('canplay', tryReady)
       video.removeEventListener('error', onError)
     }
-    video.addEventListener('playing', onPlaying, { once: true })
-    video.addEventListener('error', onError, { once: true })
-    void video.play().catch(() => undefined)
+
+    const timer = setTimeout(() => {
+      // Frames visible without a playing event still count as ready (common on iOS).
+      if (video.videoWidth > 0 || video.readyState >= 2) {
+        finish(true)
+        return
+      }
+      finish(false, new Error('Camera preview timed out. Tap Retry.'))
+    }, BIND_TIMEOUT_MS)
+
+    video.addEventListener('playing', tryReady)
+    video.addEventListener('loadeddata', tryReady)
+    video.addEventListener('canplay', tryReady)
+    video.addEventListener('error', onError)
+
+    void video
+      .play()
+      .then(() => {
+        tryReady()
+      })
+      .catch(() => {
+        // Autoplay blocked — still succeed if frames are already available.
+        tryReady()
+      })
   })
 }
