@@ -436,3 +436,50 @@ export function buildPackagingAskItem(input: {
     timestamp: input.timestamp ?? Date.now(),
   }
 }
+
+/**
+ * Failure card that still keeps photo keys / any partial label form for debugging and retry.
+ */
+export function buildPackagingFailItem(input: {
+  id: string
+  message: string
+  amountText: string
+  front?: PackagingFrontData | null
+  nutrition?: PackagingNutritionData | null
+  imageKeys?: { frontKey?: string; nutritionKey?: string }
+  timestamp?: number
+}): MacroDayItem {
+  const emoji = parseAiEmoji(input.front?.emoji, '🥗')
+  let name = stripLeadingEmojiFromName(String(input.front?.name || '').trim())
+  if (name.length > 40) name = name.slice(0, 40).trim()
+
+  const amountText = stripScanningPrefix(input.amountText) || '1 serving'
+  const nutrition: PackagingNutritionData = input.nutrition ?? {
+    baseAmount: '',
+    calories: 0,
+    protein: 0,
+    fat: 0,
+    carbs: 0,
+    servingsPerContainer: null,
+    caloriesPerContainer: null,
+    proteinPerContainer: null,
+    fatPerContainer: null,
+    carbsPerContainer: null,
+    packageAmount: null,
+  }
+  const front = { name: name || 'Food', emoji }
+  const snapshot = toPackagingSnapshot(front, nutrition, amountText, undefined, input.imageKeys)
+
+  return {
+    id: input.id,
+    status: 'editing_raw',
+    name: name || '',
+    emoji,
+    amount: '',
+    rawText: input.message,
+    fromPackagingScan: true,
+    packagingSnapshot: snapshot,
+    userInput: `Scanning: ${amountText}`,
+    timestamp: input.timestamp ?? Date.now(),
+  }
+}

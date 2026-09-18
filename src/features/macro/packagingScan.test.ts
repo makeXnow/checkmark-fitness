@@ -3,6 +3,7 @@ import { parseServingDefinition } from './macroLib'
 import {
   buildPackagingAskItem,
   buildPackagingDayItem,
+  buildPackagingFailItem,
   parsePackagingFront,
   parsePackagingNutrition,
   PackagingResolveError,
@@ -242,6 +243,28 @@ describe('buildPackagingAskItem', () => {
     expect(item.name).toBe('Salad')
     expect(item.packagingSnapshot?.packageAmount).toBe('10 oz')
     expect(item.fromPackagingScan).toBe(true)
+  })
+})
+
+describe('buildPackagingFailItem', () => {
+  it('keeps image keys when vision/parse fails', () => {
+    const item = buildPackagingFailItem({
+      id: 'f',
+      message: 'Could not read nutrition label — retake a clearer photo of the facts panel',
+      amountText: 'Whole bag',
+      front: { name: 'Lemony Arugula Basil', emoji: '🥗' },
+      imageKeys: {
+        frontKey: 'alexander/f/front.jpg',
+        nutritionKey: 'alexander/f/nutrition.jpg',
+      },
+    })
+    expect(item.status).toBe('editing_raw')
+    expect(item.fromPackagingScan).toBe(true)
+    expect(item.rawText).toMatch(/retake/i)
+    expect(item.name).toBe('Lemony Arugula Basil')
+    expect(item.packagingSnapshot?.frontImageKey).toBe('alexander/f/front.jpg')
+    expect(item.packagingSnapshot?.nutritionImageKey).toBe('alexander/f/nutrition.jpg')
+    expect(item.userInput).toBe('Scanning: Whole bag')
   })
 })
 

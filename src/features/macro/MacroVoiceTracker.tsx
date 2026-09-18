@@ -61,6 +61,7 @@ import { QuickScanPanel, prewarmCameraStream } from './QuickScanPanel'
 import {
   buildPackagingAskItem,
   buildPackagingDayItem,
+  buildPackagingFailItem,
   frontFromPackagingSnapshot,
   nutritionFromPackagingSnapshot,
   PackagingResolveError,
@@ -682,19 +683,40 @@ export function MacroVoiceTracker({
   )
 
   const failPackagingItem = useCallback(
-    (id: string, message: string) => {
+    (
+      id: string,
+      message: string,
+      ctx?: {
+        amountText?: string
+        front?: { name: string; emoji: string } | null
+        nutrition?: import('./packagingScan').PackagingNutritionData | null
+        imageKeys?: { frontKey?: string; nutritionKey?: string }
+      },
+    ) => {
       replaceDay((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                status: 'editing_raw',
-                rawText: message,
-                name: '',
-                amount: '',
-              }
-            : i,
-        ),
+        prev.map((i) => {
+          if (i.id !== id) return i
+          const amountText =
+            ctx?.amountText ||
+            i.packagingSnapshot?.amountText ||
+            (i.userInput || '').replace(/^Scanning:\s*/i, '') ||
+            i.amount ||
+            '1 serving'
+          return buildPackagingFailItem({
+            id,
+            message,
+            amountText,
+            front: ctx?.front ?? (i.packagingSnapshot ? frontFromPackagingSnapshot(i.packagingSnapshot) : null),
+            nutrition:
+              ctx?.nutrition ??
+              (i.packagingSnapshot ? nutritionFromPackagingSnapshot(i.packagingSnapshot) : null),
+            imageKeys: ctx?.imageKeys ?? {
+              frontKey: i.packagingSnapshot?.frontImageKey,
+              nutritionKey: i.packagingSnapshot?.nutritionImageKey,
+            },
+            timestamp: i.timestamp,
+          })
+        }),
       )
     },
     [replaceDay],
@@ -711,14 +733,17 @@ export function MacroVoiceTracker({
         front: { mimeType: string; base64: string }
         nutrition: { mimeType: string; base64: string }
       },
+      preexistingImageKeys?: { frontKey?: string; nutritionKey?: string },
     ) => {
       const controller = new AbortController()
       processingRefs.current[id] = controller
+      let imageKeys = preexistingImageKeys
+      let frontParsed: { name: string; emoji: string } | null = null
+      let nutritionParsed: import('./packagingScan').PackagingNutritionData | null = null
       try {
         if (controller.signal.aborted) return
 
-        let imageKeys: { frontKey?: string; nutritionKey?: string } | undefined
-        if (imagePayloads) {
+        if (!imageKeys?.frontKey && imagePayloads) {
           try {
             imageKeys = await uploadPackagingScanImages({
               itemId: id,
@@ -726,18 +751,18 @@ export function MacroVoiceTracker({
               nutrition: imagePayloads.nutrition,
             })
           } catch {
-            /* upload is best-effort for retest; don't block logging */
+            /* upload best-effort — still keep going so the diary shows the error */
           }
         }
 
-        const front = parsePackagingFront(frontRaw)
-        const nutrition = parsePackagingNutrition(nutritionRaw)
+        frontParsed = parsePackagingFront(frontRaw)
+        nutritionParsed = parsePackagingNutrition(nutritionRaw)
         try {
           const { item, libraryFood } = buildPackagingDayItem({
             id,
             amountText,
-            front,
-            nutrition,
+            front: frontParsed,
+            nutrition: nutritionParsed,
             addToDatabase,
             imageKeys,
           })
@@ -762,7 +787,12 @@ export function MacroVoiceTracker({
       } catch (e) {
         if (controller.signal.aborted) return
         const msg = e instanceof Error ? e.message : 'Packaging scan failed'
-        failPackagingItem(id, msg)
+        failPackagingItem(id, msg, {
+          amountText,
+          front: frontParsed,
+          nutrition: nutritionParsed,
+          imageKeys,
+        })
       } finally {
         delete processingRefs.current[id]
       }
@@ -796,6 +826,10 @@ export function MacroVoiceTracker({
           front: frontFromPackagingSnapshot(snap),
           nutrition: nutritionFromPackagingSnapshot(snap),
           addToDatabase,
+          imageKeys: {
+            frontKey: snap.frontImageKey,
+            nutritionKey: snap.nutritionImageKey,
+          },
         })
         if (libraryFood) {
           const nextFoods = [...customFoodsRef.current, libraryFood]
@@ -805,11 +839,32 @@ export function MacroVoiceTracker({
         replaceDay((prev) => prev.map((i) => (i.id === id ? item : i)))
       } catch (e) {
         if (e instanceof PackagingResolveError) {
-          replaceDay((prev) => prev.map((i) => (i.id === id ? buildPackagingAskItem({ id, error: e }) : i)))
+          replaceDay((prev) =>
+            prev.map((i) =>
+              i.id === id
+                ? buildPackagingAskItem({
+                    id,
+                    error: e,
+                    imageKeys: {
+                      frontKey: snap.frontImageKey,
+                      nutritionKey: snap.nutritionImageKey,
+                    },
+                  })
+                : i,
+            ),
+          )
           return
         }
         const msg = e instanceof Error ? e.message : 'Packaging scan failed'
-        failPackagingItem(id, msg)
+        failPackagingItem(id, msg, {
+          amountText,
+          front: frontFromPackagingSnapshot(snap),
+          nutrition: nutritionFromPackagingSnapshot(snap),
+          imageKeys: {
+            frontKey: snap.frontImageKey,
+            nutritionKey: snap.nutritionImageKey,
+          },
+        })
       }
     },
     [dateKey, failPackagingItem, onSaveFoods, replaceDay, startParsingFlow],
@@ -1024,26 +1079,44 @@ export function MacroVoiceTracker({
       }
 
       void (async () => {
+        const frontB64 = capturedFrontPreview.split(',')[1]
+        const nutritionB64 = capturedNutritionPreview.split(',')[1]
+        const imagePayloads =
+          frontB64 && nutritionB64
+            ? {
+                front: { mimeType: 'image/jpeg' as const, base64: frontB64 },
+                nutrition: { mimeType: 'image/jpeg' as const, base64: nutritionB64 },
+              }
+            : undefined
+
+        // Upload photos before awaiting vision so network/vision failures still keep keys.
+        let imageKeys: { frontKey?: string; nutritionKey?: string } | undefined
+        if (imagePayloads) {
+          try {
+            imageKeys = await uploadPackagingScanImages({
+              itemId: tempId,
+              front: imagePayloads.front,
+              nutrition: imagePayloads.nutrition,
+            })
+          } catch {
+            /* best-effort */
+          }
+        }
+
         try {
           const [fData, nData] = await Promise.all([fp, np])
-          const frontB64 = capturedFrontPreview.split(',')[1]
-          const nutritionB64 = capturedNutritionPreview.split(',')[1]
           await startPackagingFlow(
             tempId,
             text,
             fData as Record<string, unknown>,
             nData as Record<string, unknown>,
             addToDatabase,
-            frontB64 && nutritionB64
-              ? {
-                  front: { mimeType: 'image/jpeg', base64: frontB64 },
-                  nutrition: { mimeType: 'image/jpeg', base64: nutritionB64 },
-                }
-              : undefined,
+            imageKeys?.frontKey && imageKeys?.nutritionKey ? undefined : imagePayloads,
+            imageKeys,
           )
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'Packaging scan failed'
-          failPackagingItem(tempId, msg)
+          failPackagingItem(tempId, msg, { amountText: text, imageKeys })
         }
       })()
       return
