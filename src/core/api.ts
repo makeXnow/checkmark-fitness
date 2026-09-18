@@ -355,3 +355,32 @@ export async function aiVisionJson(body: {
   if (data.result === undefined) throw new Error(data.error || 'Vision AI failed')
   return data.result
 }
+
+export async function uploadPackagingScanImages(body: {
+  itemId: string
+  front: { mimeType: string; base64: string }
+  nutrition: { mimeType: string; base64: string }
+}): Promise<{ frontKey: string; nutritionKey: string }> {
+  const res = await apiFetch('/api/macro/scan-images', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await parseJson<{ frontKey?: string; nutritionKey?: string; error?: string }>(res)
+  if (!data.frontKey || !data.nutritionKey) throw new Error(data.error || 'Scan image upload failed')
+  return { frontKey: data.frontKey, nutritionKey: data.nutritionKey }
+}
+
+export async function packagingRetest(body: {
+  frontKey: string
+  nutritionKey: string
+  amountText?: string
+  runs?: number
+}): Promise<{ runs: number; results: unknown[] }> {
+  const res = await apiFetch('/api/macro/packaging-retest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return parseJson(res)
+}

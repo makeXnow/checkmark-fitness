@@ -372,6 +372,8 @@ CRITICAL
 - baseAmount must be the Serving Size line only — never package yield marketing.
 - Prefer null over guessing. Most single-serve or unclear labels should leave optional fields null.
 - When both per-serving and per-container columns exist, keep both; do not force them to match by inventing numbers.
+- Never use placeholder strings like "unknown" or "n/a" for baseAmount. If the Serving Size line is unreadable, still return the best literal you can see; the app rejects empty/unknown forms.
+- Multi-column labels (Per serving / Per package / Per serving salad only): use the primary “Per serving” column that matches Serving Size (usually salad + dressing). Put the Per package column into caloriesPerContainer / proteinPerContainer / etc. Ignore “salad only” unless it is the only column.
 
 EXAMPLES
 Serving size 1 bar (60g), 200 cal, 20g protein, 7g fat, 22g carbs (no container column)
@@ -387,7 +389,10 @@ Per serving 180 cal 15g protein / Per container 360 cal 30g protein, Serving siz
 → {"baseAmount":"1 pouch","calories":180,"protein":15,"fat":3,"carbs":20,"servingsPerContainer":2,"caloriesPerContainer":360,"proteinPerContainer":30,"fatPerContainer":6,"carbsPerContainer":40,"packageAmount":null}
 
 Serving size 1 1/2 cups (100 g), 50 cal, about 3.5 servings; per container 175 cal / 7g protein
-→ {"baseAmount":"1 1/2 cups (100 g)","calories":50,"protein":2,"fat":3,"carbs":5,"servingsPerContainer":3.5,"caloriesPerContainer":175,"proteinPerContainer":7,"fatPerContainer":null,"carbsPerContainer":null,"packageAmount":null}`
+→ {"baseAmount":"1 1/2 cups (100 g)","calories":50,"protein":2,"fat":3,"carbs":5,"servingsPerContainer":3.5,"caloriesPerContainer":175,"proteinPerContainer":7,"fatPerContainer":null,"carbsPerContainer":null,"packageAmount":null}
+
+Salad kit: Servings about 3; Serving size 4 cups (100g) salad + dressing; columns Per serving 170 cal / 4g protein / 14g fat / 7g carbs, Per package 470 cal / 12g protein / 40g fat / 19g carbs, plus a salad-only column
+→ {"baseAmount":"4 cups (100 g) salad + dressing","calories":170,"protein":4,"fat":14,"carbs":7,"servingsPerContainer":3,"caloriesPerContainer":470,"proteinPerContainer":12,"fatPerContainer":40,"carbsPerContainer":19,"packageAmount":null}`
 
 export const BARCODE_SCAN_PROMPT = `Create a short diet-diary name and one food emoji for the barcode-matched product. Respond with JSON.
 

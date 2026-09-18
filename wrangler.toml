@@ -13,6 +13,10 @@ migrations_dir = "migrations"
 # remote = true: local `npm run dev` and production share the same live D1 (requires internet + `wrangler login`).
 remote = true
 
+[[r2_buckets]]
+binding = "SCAN_IMAGES"
+bucket_name = "checkmark-fitness-scans"
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"

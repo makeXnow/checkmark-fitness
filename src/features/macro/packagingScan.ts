@@ -1,9 +1,10 @@
 import type { MacroCustomFood, MacroDayItem, MacroPackagingSnapshot } from '../../types/domain'
 import { parseLeadingQuantity } from './macroMass'
 import {
-  normalizeDiaryLabel,
+  parseAiEmoji,
   parseServingDefinition,
   scaleLibraryMacros,
+  stripLeadingEmojiFromName,
 } from './macroLib'
 
 export type PackagingFrontData = {
@@ -256,6 +257,8 @@ function optionalAmountString(raw: unknown): string | null {
   return t ? t : null
 }
 
+const BOGUS_BASE_AMOUNTS = /^(unknown|n\/?a|none|null|undefined|unreadable|not\s*found|—|-)?$/i
+
 export function parsePackagingNutrition(
   data: Record<string, unknown> | null | undefined,
 ): PackagingNutritionData {
@@ -263,9 +266,16 @@ export function parsePackagingNutrition(
   const baseAmount =
     typeof data.baseAmount === 'string' && data.baseAmount.trim()
       ? data.baseAmount.trim()
-      : '1 serving'
+      : ''
+  if (!baseAmount || BOGUS_BASE_AMOUNTS.test(baseAmount)) {
+    throw new Error('Could not read nutrition label — retake a clearer photo of the facts panel')
+  }
   const calories = requiredNonNegNumber(data.calories, 'calories')
   const protein = requiredNonNegNumber(data.protein, 'protein')
+  // All-zero macros with a placeholder serving usually means the model failed to read the panel.
+  if (calories === 0 && protein === 0) {
+    throw new Error('Could not read nutrition label — retake a clearer photo of the facts panel')
+  }
 
   return {
     baseAmount,
@@ -287,6 +297,7 @@ export function toPackagingSnapshot(
   nutrition: PackagingNutritionData,
   amountText: string,
   resolve?: Pick<PackagingResolveResult, 'multiplier' | 'mode'>,
+  imageKeys?: { frontKey?: string; nutritionKey?: string },
 ): MacroPackagingSnapshot {
   return {
     name: front.name,
@@ -305,6 +316,8 @@ export function toPackagingSnapshot(
     amountText: stripScanningPrefix(amountText) || '1 serving',
     resolvedMultiplier: resolve?.multiplier,
     resolveMode: resolve?.mode,
+    frontImageKey: imageKeys?.frontKey,
+    nutritionImageKey: imageKeys?.nutritionKey,
   }
 }
 
@@ -335,24 +348,30 @@ export function buildPackagingDayItem(input: {
   nutrition: PackagingNutritionData
   addToDatabase: boolean
   timestamp?: number
+  imageKeys?: { frontKey?: string; nutritionKey?: string }
 }): { item: MacroDayItem; libraryFood: MacroCustomFood | null } {
-  const label = normalizeDiaryLabel({
-    name: input.front.name,
-    emoji: input.front.emoji,
-    fallbackName: input.front.name || 'Food',
-  })
-  const front = { name: label.name, emoji: label.emoji }
+  const emoji = parseAiEmoji(input.front.emoji, '🥗')
+  let name = stripLeadingEmojiFromName(String(input.front.name || '').trim())
+  if (name.length > 40) name = name.slice(0, 40).trim()
+  if (!name) name = 'Food'
+  const front = { name, emoji }
   const consumption = resolvePackagingConsumption(front, input.nutrition, input.amountText)
   const def = parseServingDefinition(input.nutrition.baseAmount)
-  const snapshot = toPackagingSnapshot(front, input.nutrition, input.amountText, consumption)
+  const snapshot = toPackagingSnapshot(
+    front,
+    input.nutrition,
+    input.amountText,
+    consumption,
+    input.imageKeys,
+  )
 
   let libraryFood: MacroCustomFood | null = null
   let libraryFoodId: string | undefined
   if (input.addToDatabase) {
     libraryFood = {
       id: crypto.randomUUID(),
-      name: label.name,
-      emoji: label.emoji,
+      name: front.name,
+      emoji: front.emoji,
       baseAmount: input.nutrition.baseAmount,
       calories: input.nutrition.calories,
       protein: input.nutrition.protein,
@@ -367,8 +386,8 @@ export function buildPackagingDayItem(input: {
   const item: MacroDayItem = {
     id: input.id,
     status: 'ready',
-    name: label.name,
-    emoji: label.emoji,
+    name: front.name,
+    emoji: front.emoji,
     amount: consumption.amountLabel,
     calories: consumption.calories,
     protein: consumption.protein,
@@ -393,27 +412,26 @@ export function buildPackagingAskItem(input: {
   id: string
   error: PackagingResolveError
   timestamp?: number
+  imageKeys?: { frontKey?: string; nutritionKey?: string }
 }): MacroDayItem {
-  const label = normalizeDiaryLabel({
-    name: input.error.front.name,
-    emoji: input.error.front.emoji,
-    fallbackName: input.error.front.name || 'Food',
-  })
-  const front = { name: label.name, emoji: label.emoji }
+  const emoji = parseAiEmoji(input.error.front.emoji, '🥗')
+  let name = stripLeadingEmojiFromName(String(input.error.front.name || '').trim())
+  if (name.length > 40) name = name.slice(0, 40).trim()
+  if (!name) name = 'Food'
+  const front = { name, emoji }
   const amountText = stripScanningPrefix(input.error.amountText) || '1 serving'
+  const snapshot = toPackagingSnapshot(front, input.error.nutrition, amountText)
+  if (input.imageKeys?.frontKey) snapshot.frontImageKey = input.imageKeys.frontKey
+  if (input.imageKeys?.nutritionKey) snapshot.nutritionImageKey = input.imageKeys.nutritionKey
   return {
     id: input.id,
     status: 'editing_raw',
-    name: label.name,
-    emoji: label.emoji,
+    name: front.name,
+    emoji: front.emoji,
     amount: '',
     rawText: input.error.message,
-    calories: 0,
-    protein: 0,
-    baseCalories: input.error.nutrition.calories,
-    baseProtein: input.error.nutrition.protein,
     fromPackagingScan: true,
-    packagingSnapshot: toPackagingSnapshot(front, input.error.nutrition, amountText),
+    packagingSnapshot: snapshot,
     userInput: `Scanning: ${amountText}`,
     timestamp: input.timestamp ?? Date.now(),
   }

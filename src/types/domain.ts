@@ -269,6 +269,9 @@ export type MacroPackagingSnapshot = {
   amountText: string
   resolvedMultiplier?: number
   resolveMode?: 'per_container' | 'servings_per_container' | 'explicit_servings' | 'one_serving'
+  /** R2 object keys for re-running vision on the same photos. */
+  frontImageKey?: string
+  nutritionImageKey?: string
 }
 
 export type LiftWeightUnit = 'lbs' | 'kg'

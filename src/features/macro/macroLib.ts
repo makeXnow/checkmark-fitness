@@ -1472,10 +1472,15 @@ function macroItemServingBackfillChanged(before: MacroDayItem, after: MacroDayIt
 export function macroDayItemHasStoredMacros(item: MacroDayItem): boolean {
   if (item.status === 'ready') return true
   if (item.libraryFoodId || item.macroEstimateSnapshot) return true
-  if (item.baseCalories != null || item.baseProtein != null) return true
   if ((item.calories ?? 0) > 0 || (item.protein ?? 0) > 0) return true
   if (item.fromBarcode) return true
-  if (item.fromPackagingScan) return true
+  // Incomplete packaging asks (0 cal / unreadable label) must stay editable.
+  if (item.fromPackagingScan) {
+    return (item.packagingSnapshot?.calories ?? 0) > 0 && (item.calories ?? 0) > 0
+  }
+  if (item.baseCalories != null || item.baseProtein != null) {
+    return (item.baseCalories ?? 0) > 0 || (item.baseProtein ?? 0) > 0
+  }
   return false
 }
 
@@ -1483,12 +1488,18 @@ export function macroDayItemHasStoredMacros(item: MacroDayItem): boolean {
 export function macroDayItemNeedsEstimate(item: MacroDayItem): boolean {
   if (!item.name?.trim()) return false
   if (macroDayItemHasStoredMacros(item)) return false
+  // Packaging ask / failed label read — user must enter servings or retake; do not FatSecret-estimate.
+  if (item.fromPackagingScan || item.packagingSnapshot) return false
   return item.status === 'pending' || item.status === 'editing_raw'
 }
 
 /** Heal stale statuses without wiping saved macro values. */
 export function normalizeMacroDayItemStatus(item: MacroDayItem): MacroDayItem {
   if (!item.name?.trim() || item.status === 'ready') return item
+  // Keep packaging “enter servings” / failed-read cards editable.
+  if (item.status === 'editing_raw' && (item.fromPackagingScan || item.packagingSnapshot)) {
+    return item
+  }
   if (macroDayItemHasStoredMacros(item)) {
     return { ...item, status: 'ready' as const }
   }

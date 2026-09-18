@@ -116,6 +116,24 @@ describe('parseServingDefinition parentheticals', () => {
 })
 
 describe('parsePackagingNutrition', () => {
+  it('rejects unknown/empty baseAmount', () => {
+    expect(() =>
+      parsePackagingNutrition({
+        baseAmount: 'unknown',
+        calories: 0,
+        protein: 0,
+        fat: 0,
+        carbs: 0,
+        servingsPerContainer: null,
+        caloriesPerContainer: null,
+        proteinPerContainer: null,
+        fatPerContainer: null,
+        carbsPerContainer: null,
+        packageAmount: null,
+      }),
+    ).toThrow(/retake/i)
+  })
+
   it('treats 0 optional fields as null', () => {
     const n = parsePackagingNutrition({
       baseAmount: '1 cup',
@@ -169,6 +187,34 @@ describe('buildPackagingDayItem', () => {
     expect(item.packagingSnapshot?.resolveMode).toBe('per_container')
     expect(item.packagingSnapshot?.servingsPerContainer).toBe(2)
     expect(item.packagingSnapshot?.caloriesPerContainer).toBe(360)
+  })
+
+  it('Trader Joe salad kit: whole bag uses Per package 470 not 170×3=510', () => {
+    const { item } = buildPackagingDayItem({
+      id: 'tj',
+      amountText: 'Whole bag',
+      front: { name: 'Lemony Arugula Basil Salad Kit', emoji: '🥗' },
+      nutrition: {
+        baseAmount: '4 cups (100 g) salad + dressing',
+        calories: 170,
+        protein: 4,
+        fat: 14,
+        carbs: 7,
+        servingsPerContainer: 3,
+        caloriesPerContainer: 470,
+        proteinPerContainer: 12,
+        fatPerContainer: 40,
+        carbsPerContainer: 19,
+        packageAmount: null,
+      },
+      addToDatabase: false,
+    })
+    expect(item.name).toBe('Lemony Arugula Basil Salad Kit')
+    expect(item.amount).toBe('Whole bag')
+    expect(item.packagingSnapshot?.resolveMode).toBe('per_container')
+    expect(item.calories).toBe(470)
+    expect(item.protein).toBe(12)
+    expect(item.calories).not.toBe(510)
   })
 })
 

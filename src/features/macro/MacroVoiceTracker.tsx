@@ -16,7 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { fireConfettiFromElement } from '../../lib/confetti'
 import { createPortal } from 'react-dom'
-import { aiJson, aiVisionJson, fatSecretBarcodeLookup, MacroEstimateError, macroEstimateItem, transcribeAudio } from '../../core/api'
+import { aiJson, aiVisionJson, fatSecretBarcodeLookup, MacroEstimateError, macroEstimateItem, transcribeAudio, uploadPackagingScanImages } from '../../core/api'
 import {
   scheduleScrollContainerToTop,
   useScrollIntoViewWithin,
@@ -707,11 +707,29 @@ export function MacroVoiceTracker({
       frontRaw: Record<string, unknown>,
       nutritionRaw: Record<string, unknown>,
       addToDatabase: boolean,
+      imagePayloads?: {
+        front: { mimeType: string; base64: string }
+        nutrition: { mimeType: string; base64: string }
+      },
     ) => {
       const controller = new AbortController()
       processingRefs.current[id] = controller
       try {
         if (controller.signal.aborted) return
+
+        let imageKeys: { frontKey?: string; nutritionKey?: string } | undefined
+        if (imagePayloads) {
+          try {
+            imageKeys = await uploadPackagingScanImages({
+              itemId: id,
+              front: imagePayloads.front,
+              nutrition: imagePayloads.nutrition,
+            })
+          } catch {
+            /* upload is best-effort for retest; don't block logging */
+          }
+        }
+
         const front = parsePackagingFront(frontRaw)
         const nutrition = parsePackagingNutrition(nutritionRaw)
         try {
@@ -721,6 +739,7 @@ export function MacroVoiceTracker({
             front,
             nutrition,
             addToDatabase,
+            imageKeys,
           })
           if (libraryFood) {
             const nextFoods = [...customFoodsRef.current, libraryFood]
@@ -733,7 +752,9 @@ export function MacroVoiceTracker({
         } catch (e) {
           if (e instanceof PackagingResolveError) {
             if (controller.signal.aborted) return
-            replaceDay((prev) => prev.map((i) => (i.id === id ? buildPackagingAskItem({ id, error: e }) : i)))
+            replaceDay((prev) =>
+              prev.map((i) => (i.id === id ? buildPackagingAskItem({ id, error: e, imageKeys }) : i)),
+            )
             return
           }
           throw e
@@ -1005,12 +1026,20 @@ export function MacroVoiceTracker({
       void (async () => {
         try {
           const [fData, nData] = await Promise.all([fp, np])
+          const frontB64 = capturedFrontPreview.split(',')[1]
+          const nutritionB64 = capturedNutritionPreview.split(',')[1]
           await startPackagingFlow(
             tempId,
             text,
             fData as Record<string, unknown>,
             nData as Record<string, unknown>,
             addToDatabase,
+            frontB64 && nutritionB64
+              ? {
+                  front: { mimeType: 'image/jpeg', base64: frontB64 },
+                  nutrition: { mimeType: 'image/jpeg', base64: nutritionB64 },
+                }
+              : undefined,
           )
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'Packaging scan failed'

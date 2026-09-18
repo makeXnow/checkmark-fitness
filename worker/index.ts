@@ -35,6 +35,7 @@ import { isValidUsername, normalizeUsername } from './username'
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
+  SCAN_IMAGES?: R2Bucket
   /** Public site origin for PWA manifest URLs (e.g. https://makexnow.com). */
   PUBLIC_APP_ORIGIN?: string
   /** URL path prefix where the app is mounted (e.g. /checkmark-fitness). */
@@ -547,6 +548,143 @@ profileApi.put('/macro/prompts', async (c) => {
   const body = (await c.req.json()) as Partial<MacroPrompts>
   const prompts = await saveMacroPrompts(c.env.DB, body)
   return c.json({ prompts, updatedAt: Date.now() })
+})
+
+profileApi.post('/macro/scan-images', async (c) => {
+  const bucket = c.env.SCAN_IMAGES
+  if (!bucket) return c.json({ error: 'SCAN_IMAGES bucket not configured' }, 500)
+  const profileId = c.get('profileId')
+  const body = (await c.req.json()) as {
+    itemId?: string
+    front?: { mimeType?: string; base64?: string }
+    nutrition?: { mimeType?: string; base64?: string }
+  }
+  const itemId = body.itemId?.trim()
+  if (!itemId) return c.json({ error: 'itemId required' }, 400)
+  if (!body.front?.base64 || !body.nutrition?.base64) {
+    return c.json({ error: 'front and nutrition images required' }, 400)
+  }
+
+  const putSide = async (side: 'front' | 'nutrition', img: { mimeType?: string; base64?: string }) => {
+    const mime = img.mimeType?.trim() || 'image/jpeg'
+    const ext = mime.includes('png') ? 'png' : 'jpg'
+    const objectKey = `${profileId}/${itemId}/${side}.${ext}`
+    const bin = atob(img.base64!)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    await bucket.put(objectKey, bytes, {
+      httpMetadata: { contentType: mime },
+      customMetadata: { profileId, itemId, side },
+    })
+    return objectKey
+  }
+
+  const frontKey = await putSide('front', body.front)
+  const nutritionKey = await putSide('nutrition', body.nutrition)
+  return c.json({ frontKey, nutritionKey })
+})
+
+profileApi.get('/macro/scan-images/*', async (c) => {
+  const bucket = c.env.SCAN_IMAGES
+  if (!bucket) return c.json({ error: 'SCAN_IMAGES bucket not configured' }, 500)
+  const profileId = c.get('profileId')
+  const rawPath = c.req.path
+  const marker = '/macro/scan-images/'
+  const idx = rawPath.indexOf(marker)
+  const key = idx >= 0 ? decodeURIComponent(rawPath.slice(idx + marker.length)) : ''
+  if (!key || !key.startsWith(`${profileId}/`)) return c.json({ error: 'Not found' }, 404)
+  const obj = await bucket.get(key)
+  if (!obj) return c.json({ error: 'Not found' }, 404)
+  const headers = new Headers()
+  headers.set('Content-Type', obj.httpMetadata?.contentType || 'image/jpeg')
+  headers.set('Cache-Control', 'private, max-age=3600')
+  return new Response(obj.body, { headers })
+})
+
+/** Re-run nutrition vision N times on stored scan photos (for debugging consistency). */
+profileApi.post('/macro/packaging-retest', async (c) => {
+  const bucket = c.env.SCAN_IMAGES
+  const key = c.env.OPENAI_API_KEY
+  if (!bucket) return c.json({ error: 'SCAN_IMAGES bucket not configured' }, 500)
+  if (!key) return c.json({ error: 'OPENAI_API_KEY missing' }, 500)
+  const profileId = c.get('profileId')
+  const body = (await c.req.json()) as {
+    frontKey?: string
+    nutritionKey?: string
+    amountText?: string
+    runs?: number
+  }
+  const frontKey = body.frontKey?.trim()
+  const nutritionKey = body.nutritionKey?.trim()
+  if (!frontKey?.startsWith(`${profileId}/`) || !nutritionKey?.startsWith(`${profileId}/`)) {
+    return c.json({ error: 'frontKey and nutritionKey required for this profile' }, 400)
+  }
+  const runs = Math.min(Math.max(Number(body.runs) || 3, 1), 5)
+  const amountText = body.amountText?.trim() || '1 serving'
+
+  const loadB64 = async (objectKey: string) => {
+    const obj = await bucket.get(objectKey)
+    if (!obj) throw new Error(`Missing image ${objectKey}`)
+    const buf = await obj.arrayBuffer()
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
+    return {
+      mimeType: obj.httpMetadata?.contentType || 'image/jpeg',
+      base64: btoa(binary),
+    }
+  }
+
+  const frontImg = await loadB64(frontKey)
+  const nutritionImg = await loadB64(nutritionKey)
+
+  let system: string
+  try {
+    const prompts = await getMacroPrompts(c.env.DB)
+    system = resolveMacroPromptSystem(prompts, 'ANALYZE_NUTRITION', undefined)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Invalid prompt'
+    return c.json({ error: msg }, 400)
+  }
+
+  const jsonSchema = schemaForPromptKey('ANALYZE_NUTRITION')
+  const results: unknown[] = []
+  for (let i = 0; i < runs; i++) {
+    const content: unknown[] = [
+      { type: 'text', text: 'Analyze this nutrition facts panel.' },
+      { type: 'image_url', image_url: { url: `data:${nutritionImg.mimeType};base64,${nutritionImg.base64}` } },
+    ]
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODELS.chatVision,
+        ...(OPENAI_MODELS.chatVision.includes('gpt-5') ? {} : { temperature: 0 }),
+        response_format: openAiResponseFormat(jsonSchema),
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content },
+        ],
+      }),
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      results.push({ error: errText })
+      continue
+    }
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
+    const raw = data.choices?.[0]?.message?.content || ''
+    try {
+      results.push({ run: i + 1, amountText, vision: JSON.parse(raw), frontIgnored: Boolean(frontImg.base64) })
+    } catch {
+      results.push({ run: i + 1, parseError: true, raw })
+    }
+  }
+
+  return c.json({ runs, results })
 })
 
 api.route('/api/u/:username', profileApi)
