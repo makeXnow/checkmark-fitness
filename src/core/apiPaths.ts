@@ -101,7 +101,8 @@ async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
       const localPath = !base || base === '/' ? path : `${base.replace(/\/$/, '')}${path}`
       const local = await fetch(localPath, init)
       if (local.ok) return local
-    } catch {
+    } catch (e) {
+      if (isAbortError(e)) throw e
       /* local wrangler unavailable */
     }
 
@@ -109,7 +110,8 @@ async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
       try {
         const local = await fetch(apiUrl(path), init)
         if (local.ok) return local
-      } catch {
+      } catch (e) {
+        if (isAbortError(e)) throw e
         /* local wrangler unavailable or errored */
       }
       return fetch(`${remote}${path}`, init)
@@ -119,6 +121,11 @@ async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
   }
 
   return fetch(apiUrl(path), init)
+}
+
+function isAbortError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false
+  return e.name === 'AbortError' || e.name === 'TimeoutError' || /aborted|timed?\s*out/i.test(e.message)
 }
 
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {

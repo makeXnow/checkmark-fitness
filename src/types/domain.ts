@@ -216,6 +216,8 @@ export interface MacroDayItem {
   status?: string
   timestamp?: number
   rawText?: string
+  /** Shown when status is `error` after a macro estimate failure (timeout, API, etc.). */
+  estimateError?: string
   /** Original voice/text input (shared when one utterance splits into multiple items). */
   userInput?: string
   /** Parser classification snapshot for the info panel. */

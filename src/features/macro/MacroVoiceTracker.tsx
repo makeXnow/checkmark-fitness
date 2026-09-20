@@ -558,27 +558,34 @@ export function MacroVoiceTracker({
                   : i.amount,
               fatSecretResults: result.fatSecretResults,
               macroEstimateSnapshot: result.macroEstimateSnapshot ?? i.macroEstimateSnapshot,
+              estimateError: undefined,
               status: 'ready',
             }
           }),
         )
       } catch (e) {
-        console.error('[macro] database match re-estimate failed', e)
+        console.error('[macro] estimate failed', e)
         const fs = e instanceof MacroEstimateError ? e.fatSecretResults : undefined
+        const msg =
+          e instanceof Error && e.message.trim()
+            ? e.message.trim()
+            : 'Macro estimate failed'
         replaceDay((prev) =>
           prev.map((i) => {
             if (i.id !== id) return i
             if (i.name?.trim()) {
               return {
                 ...i,
-                status: 'pending' as const,
+                status: 'error' as const,
+                estimateError: msg,
                 ...(fs?.length ? { fatSecretResults: fs } : {}),
               }
             }
             return {
               ...i,
               status: 'editing_raw' as const,
-              rawText: [item.name, item.amount].filter(Boolean).join(' '),
+              rawText: msg,
+              estimateError: msg,
               ...(fs?.length ? { fatSecretResults: fs } : {}),
             }
           }),
@@ -887,6 +894,7 @@ export function MacroVoiceTracker({
                 baseProtein: undefined,
                 fatSecretResults: undefined,
                 macroEstimateSnapshot: undefined,
+                estimateError: undefined,
               }
             : i,
         ),
@@ -1837,6 +1845,37 @@ function FoodRow({
         </button>
       )
     }
+  }
+
+  if (item.status === 'error') {
+    return (
+      <div className="bg-white/5 p-4 rounded-[var(--radius-card)] border border-red-500/40 flex flex-col gap-3">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={18} />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-white text-sm truncate">
+              {item.emoji ? `${item.emoji} ` : ''}
+              {item.name || 'Food'}
+            </p>
+            <p className="text-red-300/90 text-xs mt-1 break-words whitespace-pre-wrap">
+              {item.estimateError || 'Macro estimate failed'}
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onRemove} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg">
+            <Trash2 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={onReestimate}
+            className="px-4 py-2 bg-emerald-600 text-white text-xs font-black uppercase rounded-lg"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (item.status === 'editing_raw' && !item.name?.trim()) {

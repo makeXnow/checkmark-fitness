@@ -1487,6 +1487,7 @@ export function macroDayItemHasStoredMacros(item: MacroDayItem): boolean {
 /** Pending/editing_raw item still waiting on its first macro estimate. */
 export function macroDayItemNeedsEstimate(item: MacroDayItem): boolean {
   if (!item.name?.trim()) return false
+  if (item.status === 'error') return false
   if (macroDayItemHasStoredMacros(item)) return false
   // Packaging ask / failed label read — user must enter servings or retake; do not FatSecret-estimate.
   if (item.fromPackagingScan || item.packagingSnapshot) return false
@@ -1495,7 +1496,7 @@ export function macroDayItemNeedsEstimate(item: MacroDayItem): boolean {
 
 /** Heal stale statuses without wiping saved macro values. */
 export function normalizeMacroDayItemStatus(item: MacroDayItem): MacroDayItem {
-  if (!item.name?.trim() || item.status === 'ready') return item
+  if (!item.name?.trim() || item.status === 'ready' || item.status === 'error') return item
   // Keep packaging “enter servings” / failed-read cards editable.
   if (item.status === 'editing_raw' && (item.fromPackagingScan || item.packagingSnapshot)) {
     return item

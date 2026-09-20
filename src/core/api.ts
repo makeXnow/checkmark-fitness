@@ -292,6 +292,14 @@ export class MacroEstimateError extends Error {
   fatSecretSource?: MacroEstimateApiResult['fatSecretSource']
 }
 
+/** Client ceiling so a hung Worker/OpenAI call cannot spin the diary forever. Normal path is ~30s. */
+export const MACRO_ESTIMATE_TIMEOUT_MS = 90_000
+
+function isAbortOrTimeoutError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false
+  return e.name === 'AbortError' || e.name === 'TimeoutError' || /aborted|timed?\s*out/i.test(e.message)
+}
+
 export async function macroEstimateItem(body: {
   name: string
   amount: string
@@ -315,11 +323,26 @@ export async function macroEstimateItem(body: {
     estimateUnit?: string | null
   }
 }): Promise<MacroEstimateApiResult> {
-  const res = await apiFetch('/api/macro/estimate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, extraCtx: withJsonHint(body.extraCtx ?? '') }),
-  })
+  const signal =
+    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+      ? AbortSignal.timeout(MACRO_ESTIMATE_TIMEOUT_MS)
+      : undefined
+  let res: Response
+  try {
+    res = await apiFetch('/api/macro/estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, extraCtx: withJsonHint(body.extraCtx ?? '') }),
+      signal,
+    })
+  } catch (e) {
+    if (isAbortOrTimeoutError(e)) {
+      throw new MacroEstimateError(
+        `Macro estimate timed out after ${Math.round(MACRO_ESTIMATE_TIMEOUT_MS / 1000)}s — tap Retry to try again.`,
+      )
+    }
+    throw e
+  }
   const text = await res.text()
   let data: MacroEstimateApiResult & { error?: string }
   try {

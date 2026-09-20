@@ -46,14 +46,29 @@ export async function callOpenAiJson(
     payload.temperature = 0.2
   }
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
+  // Bound each OpenAI call so a hung upstream cannot pin the Worker (and client spinner) forever.
+  const signal =
+    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+      ? AbortSignal.timeout(45_000)
+      : undefined
+  let res: Response
+  try {
+    res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/aborted|timed?\s*out/i.test(msg) || (e instanceof Error && (e.name === 'AbortError' || e.name === 'TimeoutError'))) {
+      throw new Error('OpenAI chat timed out after 45s')
+    }
+    throw e
+  }
 
   if (!res.ok) {
     const errText = await res.text()
