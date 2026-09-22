@@ -21,6 +21,7 @@ import { OPENAI_MODELS } from './openaiModels'
 import { openAiResponseFormat, callOpenAiJsonWithRetry, ensureJsonObjectUser } from './openaiJson'
 import { schemaForPromptKey } from '../src/features/macro/macroAiSchemas'
 import { parserValidationErrors, validateParserResponse } from '../src/features/macro/macroAiValidate'
+import { rewriteFatSecretSearch, rewriteSpokenFoodLog } from '../src/features/macro/macroBrandAliases'
 import { MACRO_PROMPTS_OWNER, type MacroPrompts } from '../src/features/macro/prompts'
 import {
   clearLiftAssumption,
@@ -770,7 +771,11 @@ api.post('/api/ai/json', async (c) => {
 
   const model = body.model || OPENAI_MODELS.chatFast
   const jsonSchema = body.promptKey ? schemaForPromptKey(body.promptKey) : null
-  const userText = jsonSchema ? body.user : ensureJsonObjectUser(system ?? '', body.user)
+  const parserUser =
+    body.promptKey === 'PARSER' && !(body.images?.length)
+      ? rewriteSpokenFoodLog(body.user)
+      : body.user
+  const userText = jsonSchema ? parserUser : ensureJsonObjectUser(system ?? '', body.user)
   const content: unknown[] = [{ type: 'text', text: userText }]
   for (const img of body.images || []) {
     content.push({
@@ -781,7 +786,7 @@ api.post('/api/ai/json', async (c) => {
 
   try {
     if (body.promptKey === 'PARSER' && jsonSchema && !(body.images?.length)) {
-      const parsed = await callOpenAiJsonWithRetry(key, system ?? '', body.user, {
+      const parsed = await callOpenAiJsonWithRetry(key, system ?? '', parserUser, {
         model,
         schema: jsonSchema,
         validate: validateParserResponse,
@@ -922,15 +927,15 @@ api.post('/api/macro/estimate', async (c) => {
 
 /** FatSecret food search (OAuth + foods.search). */
 api.post('/api/fatsecret/search', async (c) => {
-  const body = (await c.req.json()) as { query?: string }
-  const query = body.query?.trim()
+  const body = (await c.req.json()) as { query?: string; userInput?: string }
+  const query = rewriteFatSecretSearch(body.query?.trim() || '', body.userInput)
   if (!query) return c.json({ error: 'query required' }, 400)
   if (!c.env.FATSECRET_CLIENT_ID || !c.env.FATSECRET_CLIENT_SECRET) {
     return c.json({ error: 'FatSecret credentials missing' }, 500)
   }
   try {
     const foods = await fatSecretSearchFoods(c.env, query)
-    return c.json({ foods })
+    return c.json({ foods, query })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'FatSecret search failed'
     return c.json({ error: msg }, 502)

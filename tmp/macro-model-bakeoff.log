@@ -1,0 +1,70 @@
+
+> checkmark-fitness@1.0.0 bakeoff:macro
+> node scripts/macro-model-bakeoff.mjs
+
+Worker: http://127.0.0.1:8787
+Models: gpt-5-nano, gpt-5.4-nano, gpt-5.6-luna, gpt-5-mini
+Cases: 10
+
+
+######## gpt-5-nano ########
+  one-maple-bar ... PASS 4/4 — 230c/20p pick=ONE Maple Glazed Doughnut [ok]
+  one-maple-quantity-control ... PASS 4/4 — 580c/7p pick=Top Pot Maple Bar [ok]
+  goodles-75-box ... FAIL 3/4 — 203c/11.3p pick=Goodles Cheddy Mac (Dry Mix) [macros]
+  goodles-half-box ... FAIL 2/4 — 90c/5.5p pick=Goodles Protein Pasta [select,macros]
+  walmart-chicken-75-can ... FAIL 3/4 — 85c/16.9p pick=Great Value Canned Chunk Chicken Breast [macros]
+  walmart-chicken-full-can ... PASS 4/4 — 240c/52p pick=Great Value Canned Chicken [ok]
+  half-can-chicken ... FAIL 3/4 — 38c/8.2p pick=Kirkland Signature Canned Chicken [macros]
+  chicken-breast-168g ... PASS 4/4 — 327c/49.5p pick=Grilled Chicken Breast [ok]
+  beef-jerky-4oz ... FAIL 3/4 — 280c/56p pick=Tillamook Beef Jerky [macros]
+  chobani-flip ... PASS 4/4 — 190c/11p pick=Chobani Flip Cookies & Cream (150g) [ok]
+
+######## gpt-5.4-nano ########
+  one-maple-bar ... PASS 4/4 — 230c/20p pick=ONE Maple Glazed Doughnut [ok]
+  one-maple-quantity-control ... PASS 4/4 — 580c/7p pick=Top Pot Maple Bar [ok]
+  goodles-75-box ... FAIL 0/4 — 1059c/41.9p pick=Macaroni or Noodles with Cheese (Boxed Mix with Cheese Sauce) [parse,fatsecret,select,macros]
+  goodles-half-box ... PASS 4/4 — 338c/18.8p pick=Goodles Cheddy Mac [ok]
+  walmart-chicken-75-can ... FAIL 2/4 — 75c/16.5p pick=Great Value Chunk Chicken Breast with Rib Meat (Can) [parse,macros]
+  walmart-chicken-full-can ... FAIL 3/4 — 100c/22p pick=Great Value Chunk Chicken Breast with Rib Meat (Can) [macros]
+  half-can-chicken ... FAIL 3/4 — 92c/12.7p pick=Canned Chicken (Meat Only) [macros]
+  chicken-breast-168g ... PASS 4/4 — 327c/49.5p pick=Grilled Chicken Breast [ok]
+  beef-jerky-4oz ... PASS 4/4 — 280c/44p pick=Great Value Original Beef Jerky [ok]
+  chobani-flip ... FAIL 3/4 — 160c/8p pick=Chobani Flip Mint Chocolate Chip [parse]
+
+######## gpt-5.6-luna ########
+  one-maple-bar ... PASS 4/4 — 230c/20p pick=ONE Maple Glazed Doughnut [ok]
+  one-maple-quantity-control ... PASS 4/4 — 580c/7p pick=Top Pot Maple Bar [ok]
+  goodles-75-box ... PASS 4/4 — 508c/28.2p pick=Goodles Cheddy Mac [ok]
+  goodles-half-box ... PASS 4/4 — 338c/18.8p pick=Goodles Cheddy Mac [ok]
+  walmart-chicken-75-can ... PASS 4/4 — 188c/40.7p pick=Great Value Canned Chicken [ok]
+  walmart-chicken-full-can ... FAIL 3/4 — 100c/22p pick=Great Value Chunk Chicken Breast with Rib Meat (Can) [macros]
+  half-can-chicken ... FAIL 3/4 — 55c/11p pick=Hormel Canned Chicken Breast (142g) [macros]
+  chicken-breast-168g ... PASS 4/4 — 327c/49.5p pick=Grilled Chicken Breast [ok]
+  beef-jerky-4oz ... FAIL 3/4 — 463c/37.5p pick=Beef Jerky [macros]
+  chobani-flip ... PASS 4/4 — 160c/10p pick=Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry [ok]
+
+######## gpt-5-mini ########
+  one-maple-bar ... PASS 4/4 — 230c/20p pick=ONE Maple Glazed Doughnut [ok]
+  one-maple-quantity-control ... PASS 4/4 — 580c/7p pick=Top Pot Maple Bar [ok]
+  goodles-75-box ... PASS 4/4 — 508c/28.2p pick=Goodles Cheddy Mac [ok]
+  goodles-half-box ... PASS 4/4 — 338c/18.8p pick=Goodles Cheddy Mac [ok]
+  walmart-chicken-75-can ... PASS 4/4 — 180c/39p pick=Great Value Canned Chicken [ok]
+  walmart-chicken-full-can ... PASS 4/4 — 240c/52p pick=Great Value Canned Chicken [ok]
+  half-can-chicken ... FAIL 3/4 — 55c/11p pick=Hormel Canned Chicken Breast (142g) [macros]
+  chicken-breast-168g ... PASS 4/4 — 327c/49.5p pick=Grilled Chicken Breast [ok]
+  beef-jerky-4oz ... PASS 4/4 — 280c/44p pick=Great Value Original Beef Jerky [ok]
+  chobani-flip ... PASS 4/4 — 160c/10p pick=Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry [ok]
+
+======== SUMMARY ========
+98%  39/40  gpt-5-mini
+93%  37/40  gpt-5.6-luna
+85%  34/40  gpt-5-nano
+78%  31/40  gpt-5.4-nano
+
+Hard cases only:
+100%  20/20  gpt-5-mini
+95%  19/20  gpt-5.6-luna
+80%  16/20  gpt-5-nano
+65%  13/20  gpt-5.4-nano
+
+Wrote /Users/alexandersimone/All%20Code%20Projects/Code%20Projects/Checkmark%20Fitness/tmp/macro-model-bakeoff.json

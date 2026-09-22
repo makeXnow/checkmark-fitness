@@ -9,6 +9,8 @@ import {
 import type { FatSecretFoodRef } from './fatsecret'
 import type { MacroParseSnapshot } from '../src/types/domain'
 import { fatSecretSearchFoods } from './fatsecret'
+import { rewriteFatSecretSearch } from '../src/features/macro/macroBrandAliases'
+import { OPENAI_MODELS } from './openaiModels'
 import { getMacroPrompt } from './macroPromptsStore'
 import { callOpenAiJsonWithRetry } from './openaiJson'
 import { MACROS_JSON_SCHEMA, type UnitFamily, type V7ServingRelationship } from '../src/features/macro/macroAiSchemas'
@@ -60,6 +62,8 @@ export type MacroEstimateApiBody = {
   skipFatSecretFetch?: boolean
   customFoods?: MacroEstimateApiFood[]
   extraCtx?: string
+  /** Override default chat model (bakeoffs / experiments). */
+  model?: string
   /**
    * Cache hit: reuse prior FatSecret selection + relationship; skip AI #2.
    * Bridge unitsPerServing must already be on the cache entry when needed.
@@ -277,7 +281,7 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
   let fatSecretResults = body.fatSecretResults ?? []
   let fatSecretSource: MacroEstimateApiResult['fatSecretSource'] = fatSecretResults.length > 0 ? 'cache' : 'none'
 
-  const searchQ = body.fatSecretSearch?.trim()
+  const searchQ = rewriteFatSecretSearch(body.fatSecretSearch?.trim() || '', body.userInput)
   if (!body.skipFatSecretFetch && searchQ && fatSecretResults.length === 0) {
     if (env.FATSECRET_CLIENT_ID && env.FATSECRET_CLIENT_SECRET) {
       try {
@@ -288,6 +292,7 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
       }
     }
   }
+  const chatModel = body.model?.trim() || OPENAI_MODELS.chatFast
 
   const estimateFields = macroEstimateInputFields({
     name: body.name,
@@ -378,6 +383,7 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
         macrosPrompt,
         `${promptUser}${RELATIONSHIP_RETRY_HINTS[reason]}`,
         {
+          model: chatModel,
           schema: MACROS_JSON_SCHEMA,
           validate: validateMacrosResponse,
           validationHint: (raw) => macrosValidationErrors(raw).join('; '),
@@ -449,6 +455,7 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
 
     try {
       const raw = await callOpenAiJsonWithRetry(key, macrosPrompt, user, {
+        model: chatModel,
         schema: MACROS_JSON_SCHEMA,
         validate: validateMacrosResponse,
         validationHint: (rawResp) => macrosValidationErrors(rawResp).join('; '),
@@ -563,6 +570,7 @@ export async function runMacroEstimate(env: EnvMacro, body: MacroEstimateApiBody
     })
     const promptUser = `${caseBrief}${foodLibraryBlock}${formatNumberedFatSecretAnnotated(batchFoods, userUnit)}${opts.passHint}${body.extraCtx ?? ''}`
     const raw = await callOpenAiJsonWithRetry(key, macrosPrompt, promptUser, {
+      model: chatModel,
       schema: MACROS_JSON_SCHEMA,
       validate: validateMacrosResponse,
       validationHint: (r) => macrosValidationErrors(r).join('; '),
@@ -655,6 +663,7 @@ If none are adequate, set relationship NEED_MORE_CANDIDATES. When requesting mor
     })
     lastPromptUser = `${caseBrief}\n\nNo adequate FatSecret candidates. Use direct AI estimate (fatSecretIndex null, libraryIndex null).${body.extraCtx ?? ''}`
     const raw = await callOpenAiJsonWithRetry(key, macrosPrompt, lastPromptUser, {
+      model: chatModel,
       schema: MACROS_JSON_SCHEMA,
       validate: validateMacrosResponse,
       validationHint: (r) => macrosValidationErrors(r).join('; '),

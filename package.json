@@ -18,6 +18,7 @@
     "audit:v7": "AUDIT_GENERATE=1 vitest run src/dev/servingAudit/generateServingAuditV7Fixture.test.ts",
     "audit:v8": "AUDIT_GENERATE=1 vitest run src/dev/servingAudit/generateServingAuditV8Fixture.test.ts",
     "audit:v9": "AUDIT_GENERATE=1 vitest run src/dev/servingAudit/generateServingAuditV9Fixture.test.ts",
+    "bakeoff:macro": "node scripts/macro-model-bakeoff.mjs",
     "preview": "vite preview",
     "dev:worker": "npm run dev:ensure-assets && npm run db:migrate && wrangler dev",
     "migrate:lift": "node scripts/migrate-liftcalc.mjs",

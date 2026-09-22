@@ -55,6 +55,12 @@ Output: {"items":[{"emoji":"🍤","name":"Shrimp","quantity":4,"unitSingular":"o
 
 Input: A bottled chocolate milk, a banana, and two tablespoons of almond butter. Wait, the almond butter was only one tablespoon.
 Output: {"items":[{"emoji":"🥛","name":"Chocolate Milk","quantity":1,"unitSingular":"bottle","unitPlural":"bottles","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"chocolate milk"},{"emoji":"🍌","name":"Banana","quantity":1,"unitSingular":"banana","unitPlural":"bananas","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"banana"},{"emoji":"🥜","name":"Almond Butter","quantity":1,"unitSingular":"tbsp","unitPlural":"tbsp","unitFamily":"volume","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"almond butter"}]}
+
+Input: Maple one bar.
+Output: {"items":[{"emoji":"🍫","name":"ONE Maple","quantity":1,"unitSingular":"bar","unitPlural":"bars","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"ONE maple bar"}]}
+
+Input: One maple bar.
+Output: {"items":[{"emoji":"🍩","name":"Maple Bar","quantity":1,"unitSingular":"bar","unitPlural":"bars","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"maple bar"}]}
 `
 
 export const PARSER_PROMPT = `You convert a user's spoken or typed food log into structured JSON food items.
@@ -137,6 +143,12 @@ Examples:
 - User says "Siggi's yogurt" → preserve "Siggi's yogurt"
 - User says simply "yogurt" → do not invent a brand
 
+Brand names that look like ordinary English must stay in the search when the user said them:
+- "maple one bar" → fatSecretSearch "ONE maple bar" (ONE is the brand; this is not "one maple bar")
+- "one maple bar" → quantity 1 of a maple bar (leading "one" is a count)
+- "two good yogurt" → preserve "Two Good"
+- "kind bar" → preserve "KIND"
+
 A product-category noun is important identity information. If the user says smoothie, cereal, yogurt, soup, cookie, pasta, shake, or sandwich, preserve that product class in the search when it matters.
 
 SPLITTING
@@ -175,6 +187,18 @@ NO-BRIDGE 2 — protein bar vs "1 serving"
 Current food: Chocolate Protein Bar, qty 1, unitSingular bar
 Candidate: Chocolate Protein Bar | serving "1 serving" | deterministicUnitMatch=false
 → {"libraryIndex":null,"fatSecretIndex":1,"servingIndex":1,"relationship":"WHOLE_ITEM","bridgeQuestion":null,"unitsPerServing":null,"calories":0,"protein":0,"servingType":"bar"}
+
+NO-BRIDGE 2b — boxed mac vs oz dry-mix serving (pick the BOX product, not the cup)
+Current food: Goodles Mac N Cheese, qty 0.75, unitSingular box, unitFamily count
+Pass 1 has: Goodles Cheesy Mac Cup (1 cup), Goodles Cheddy Mac (2.6 oz)
+→ pick Cheddy Mac (box product). Database serving is 2.6 oz ≈ 0.4 box, not a cup-as-box.
+→ {"libraryIndex":null,"fatSecretIndex":2,"servingIndex":1,"relationship":"NEEDS_UNIT_BRIDGE","bridgeQuestion":"How many boxes are represented by 2.6 oz of Goodles Cheddy Mac dry mix?","unitsPerServing":0.4,"calories":0,"protein":0,"servingType":"box"}
+
+BRIDGE 1 — canned chicken vs 3 oz drained (USER CAN vs PORTION serving)
+Current food: Canned Chicken, qty 1, unitSingular can, unitFamily count
+Candidate: Great Value Canned Chicken | serving "3 oz drained" | deterministicUnitMatch=false
+→ a standard large retail can is ~12.5 oz, which is about 4 servings of 3 oz.
+→ {"libraryIndex":null,"fatSecretIndex":1,"servingIndex":1,"relationship":"NEEDS_UNIT_BRIDGE","bridgeQuestion":"How many retail cans are represented by 3 oz drained?","unitsPerServing":0.25,"calories":0,"protein":0,"servingType":"can"}
 
 NO-BRIDGE 3 — half burger vs restaurant "1 serving"
 Current food: Veggie Burger, qty 0.5, unitSingular burger

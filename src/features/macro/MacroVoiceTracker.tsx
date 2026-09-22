@@ -124,6 +124,21 @@ function createMicWaveMeter(): MicWaveMeter {
   return { noiseFloor: 0, calibrationFrames: 0, speechPeak: 72 }
 }
 
+/** Stop mic tracks and close AudioContext so other apps (e.g. music) can resume. */
+function releaseMicCapture(
+  stream: MediaStream | null | undefined,
+  audioCtx: AudioContext | null | undefined,
+  rafId: number,
+): void {
+  if (rafId) cancelAnimationFrame(rafId)
+  stream?.getTracks().forEach((t) => {
+    if (t.readyState === 'live') t.stop()
+  })
+  if (audioCtx && audioCtx.state !== 'closed') {
+    void audioCtx.close().catch(() => {})
+  }
+}
+
 /** UI-only mic level for the recording waveform (not used for transcription). */
 function measureMicWaveLevel(analyser: AnalyserNode, sampleRate: number, meter: MicWaveMeter): number {
   const freqBuffer = new Uint8Array(analyser.frequencyBinCount)
@@ -288,6 +303,7 @@ export function MacroVoiceTracker({
   const [waveHistory, setWaveHistory] = useState<number[]>(() => createMicWaveHistory())
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const micStreamRef = useRef<MediaStream | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const audioCtxRef = useRef<AudioContext | null>(null)
   const rafRef = useRef<number>(0)
@@ -336,13 +352,28 @@ export function MacroVoiceTracker({
     }
   }, [])
 
+  const releaseMicHardware = useCallback(() => {
+    releaseMicCapture(micStreamRef.current, audioCtxRef.current, rafRef.current)
+    rafRef.current = 0
+    micStreamRef.current = null
+    audioCtxRef.current = null
+    mediaRecorderRef.current = null
+  }, [])
+
   const stopRecording = useCallback(() => {
     clearRecordingLimitTimer()
     setRecording(false)
     mediaRecorderRef.current?.stop()
   }, [clearRecordingLimitTimer])
 
-  useEffect(() => () => clearRecordingLimitTimer(), [clearRecordingLimitTimer])
+  useEffect(
+    () => () => {
+      clearRecordingLimitTimer()
+      mediaRecorderRef.current?.stop()
+      releaseMicHardware()
+    },
+    [clearRecordingLimitTimer, releaseMicHardware],
+  )
 
   const totals = useMemo(() => {
     return items.reduce(
@@ -951,6 +982,7 @@ export function MacroVoiceTracker({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      micStreamRef.current = stream
       const audioCtx = new AudioContext()
       audioCtxRef.current = audioCtx
       micWaveMeterRef.current = createMicWaveMeter()
@@ -990,9 +1022,8 @@ export function MacroVoiceTracker({
       audioChunksRef.current = []
       rec.ondataavailable = (e) => audioChunksRef.current.push(e.data)
       rec.onstop = async () => {
-        cancelAnimationFrame(rafRef.current)
+        releaseMicHardware()
         setWaveHistory(createMicWaveHistory())
-        await audioCtx.close()
         if (audioChunksRef.current.length === 0) return
         const tempId = crypto.randomUUID()
         replaceDay((prev) => [...prev, { id: tempId, status: 'transcribing', timestamp: Date.now(), name: '', amount: '' }])
@@ -1029,16 +1060,23 @@ export function MacroVoiceTracker({
             prev.map((i) => (i.id === tempId ? { ...i, status: 'editing_raw', rawText: msg } : i)),
           )
         }
-        stream.getTracks().forEach((t) => t.stop())
       }
       rec.start()
       setRecording(true)
       clearRecordingLimitTimer()
       recordingLimitTimerRef.current = setTimeout(() => stopRecording(), MAX_RECORDING_MS)
     } catch {
-      /* mic denied */
+      releaseMicHardware()
     }
-  }, [clearRecordingLimitTimer, recording, replaceDay, scrollDietListToTop, startParsingFlow, stopRecording])
+  }, [
+    clearRecordingLimitTimer,
+    recording,
+    releaseMicHardware,
+    replaceDay,
+    scrollDietListToTop,
+    startParsingFlow,
+    stopRecording,
+  ])
 
   const handleSend = useCallback(async () => {
     const isQuickReady = quickScan.isOpen && quickScan.frontPreview && quickScan.nutritionPreview

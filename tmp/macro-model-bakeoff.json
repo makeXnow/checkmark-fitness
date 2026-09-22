@@ -1,0 +1,3968 @@
+{
+  "at": "2026-09-22T00:37:31.231Z",
+  "worker": "http://127.0.0.1:8787",
+  "summary": [
+    {
+      "model": "gpt-5-mini",
+      "score": 39,
+      "max": 40,
+      "pct": 98,
+      "rows": [
+        {
+          "id": "one-maple-bar",
+          "why": "Brand ONE after flavor must not become a maple doughnut",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "ONE Maple"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "230 in 200,250"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "20 in 18,22"
+                }
+              ],
+              "selected": "ONE Maple Glazed Doughnut",
+              "calories": 230,
+              "protein": 20,
+              "search": "ONE maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar ONE Maple [ONE maple bar]"
+          ]
+        },
+        {
+          "id": "one-maple-quantity-control",
+          "why": "Leading one is a count — doughnut/maple bar OK; must NOT force ONE brand",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "580 in 180,650"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "7 in 3,22"
+                }
+              ],
+              "selected": "Top Pot Maple Bar",
+              "calories": 580,
+              "protein": 7,
+              "search": "maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar Maple Bar [maple bar]"
+          ]
+        },
+        {
+          "id": "goodles-75-box",
+          "why": "Box product Cheddy Mac, not Cheesy Mac Cup treated as a whole box",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Mac n cheese goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Mac n cheese goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Mac n cheese goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Mac n Cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "508 in 450,560"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "28.2 in 22,35"
+                }
+              ],
+              "selected": "Goodles Cheddy Mac",
+              "calories": 508,
+              "protein": 28.2,
+              "search": "Mac n cheese goodles"
+            }
+          ],
+          "parsedNames": [
+            "0.75 box Mac n Cheese [Mac n cheese goodles]"
+          ]
+        },
+        {
+          "id": "goodles-half-box",
+          "why": "Same box scaling as 9/17 log (stored wrongly as 1 serving / 270 cal)",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "23 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "338 in 300,380"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "18.8 in 15,25"
+                }
+              ],
+              "selected": "Goodles Cheddy Mac",
+              "calories": 338,
+              "protein": 18.8,
+              "search": "Goodles"
+            }
+          ],
+          "parsedNames": [
+            "0.5 box Goodles [Goodles]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-75-can",
+          "why": "Walmart → Great Value canned chicken; can-scale bridge, not 100g≈1.18 cans",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "180 in 130,240"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "39 in 25,50"
+                }
+              ],
+              "selected": "Great Value Canned Chicken",
+              "calories": 180,
+              "protein": 39,
+              "search": "Walmart canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.75 can Canned Chicken [Walmart canned chicken]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-full-can",
+          "why": "From 9/16 utterance; store alias + full can",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "240 in 160,320"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "52 in 30,65"
+                }
+              ],
+              "selected": "Great Value Canned Chicken",
+              "calories": 240,
+              "protein": 52,
+              "search": "Walmart canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "1 can Canned Chicken [Walmart canned chicken]"
+          ]
+        },
+        {
+          "id": "half-can-chicken",
+          "why": "Generic canned chicken half-can (9/17)",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Hormel Canned Chicken Breast (142g)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken Breast (142g)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Hormel Canned Chicken Breast (142g)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "55 in 90,200"
+                }
+              ],
+              "selected": "Hormel Canned Chicken Breast (142g)",
+              "calories": 55,
+              "protein": 11,
+              "search": "canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.5 can Canned Chicken [canned chicken]"
+          ]
+        },
+        {
+          "id": "chicken-breast-168g",
+          "why": "Easy mass control — should stay accurate on every model",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "168 vs 168"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "g/g"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "327 in 250,400"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "49.5 in 40,60"
+                }
+              ],
+              "selected": "Grilled Chicken Breast",
+              "calories": 327,
+              "protein": 49.5,
+              "search": "grilled chicken breast"
+            }
+          ],
+          "parsedNames": [
+            "168 g Chicken Breast [grilled chicken breast]"
+          ]
+        },
+        {
+          "id": "beef-jerky-4oz",
+          "why": "Easy mass control",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "4 vs 4"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "oz/oz"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Original Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Original Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Original Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "280 in 240,360"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "44 in 35,55"
+                }
+              ],
+              "selected": "Great Value Original Beef Jerky",
+              "calories": 280,
+              "protein": 44,
+              "search": "beef jerky"
+            }
+          ],
+          "parsedNames": [
+            "4 oz Beef Jerky [beef jerky]"
+          ]
+        },
+        {
+          "id": "chobani-flip",
+          "why": "Brand+flavor container; WHOLE_ITEM ~160–200 cal",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "container/containers"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Chobani Flip chocolate chip cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Chobani Flip chocolate chip cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Chobani Flip chocolate chip cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chobani Flip"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "160 in 140,230"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "10 in 8,14"
+                }
+              ],
+              "selected": "Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry",
+              "calories": 160,
+              "protein": 10,
+              "search": "Chobani Flip chocolate chip cookie"
+            }
+          ],
+          "parsedNames": [
+            "1 container Chobani Flip [Chobani Flip chocolate chip cookie]"
+          ]
+        }
+      ]
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "score": 37,
+      "max": 40,
+      "pct": 93,
+      "rows": [
+        {
+          "id": "one-maple-bar",
+          "why": "Brand ONE after flavor must not become a maple doughnut",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "ONE Maple"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "230 in 200,250"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "20 in 18,22"
+                }
+              ],
+              "selected": "ONE Maple Glazed Doughnut",
+              "calories": 230,
+              "protein": 20,
+              "search": "ONE maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar ONE Maple [ONE maple bar]"
+          ]
+        },
+        {
+          "id": "one-maple-quantity-control",
+          "why": "Leading one is a count — doughnut/maple bar OK; must NOT force ONE brand",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "580 in 180,650"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "7 in 3,22"
+                }
+              ],
+              "selected": "Top Pot Maple Bar",
+              "calories": 580,
+              "protein": 7,
+              "search": "maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar Maple Bar [maple bar]"
+          ]
+        },
+        {
+          "id": "goodles-75-box",
+          "why": "Box product Cheddy Mac, not Cheesy Mac Cup treated as a whole box",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Goodles mac and cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Goodles mac and cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Goodles mac and cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Goodles Mac & Cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "508 in 450,560"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "28.2 in 22,35"
+                }
+              ],
+              "selected": "Goodles Cheddy Mac",
+              "calories": 508,
+              "protein": 28.2,
+              "search": "Goodles mac and cheese"
+            }
+          ],
+          "parsedNames": [
+            "0.75 box Goodles Mac & Cheese [Goodles mac and cheese]"
+          ]
+        },
+        {
+          "id": "goodles-half-box",
+          "why": "Same box scaling as 9/17 log (stored wrongly as 1 serving / 270 cal)",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "23 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "338 in 300,380"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "18.8 in 15,25"
+                }
+              ],
+              "selected": "Goodles Cheddy Mac",
+              "calories": 338,
+              "protein": 18.8,
+              "search": "Goodles"
+            }
+          ],
+          "parsedNames": [
+            "0.5 box Goodles [Goodles]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-75-can",
+          "why": "Walmart → Great Value canned chicken; can-scale bridge, not 100g≈1.18 cans",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "188 in 130,240"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "40.7 in 25,50"
+                }
+              ],
+              "selected": "Great Value Canned Chicken",
+              "calories": 188,
+              "protein": 40.7,
+              "search": "Walmart canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.75 can Chicken [Walmart canned chicken]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-full-can",
+          "why": "From 9/16 utterance; store alias + full can",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "100 in 160,320"
+                }
+              ],
+              "selected": "Great Value Chunk Chicken Breast with Rib Meat (Can)",
+              "calories": 100,
+              "protein": 22,
+              "search": "Walmart chicken"
+            }
+          ],
+          "parsedNames": [
+            "1 can Chicken [Walmart chicken]"
+          ]
+        },
+        {
+          "id": "half-can-chicken",
+          "why": "Generic canned chicken half-can (9/17)",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Hormel Canned Chicken Breast (142g)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken Breast (142g)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Hormel Canned Chicken Breast (142g)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "55 in 90,200"
+                }
+              ],
+              "selected": "Hormel Canned Chicken Breast (142g)",
+              "calories": 55,
+              "protein": 11,
+              "search": "canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.5 can Chicken [canned chicken]"
+          ]
+        },
+        {
+          "id": "chicken-breast-168g",
+          "why": "Easy mass control — should stay accurate on every model",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "168 vs 168"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "g/g"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "327 in 250,400"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "49.5 in 40,60"
+                }
+              ],
+              "selected": "Grilled Chicken Breast",
+              "calories": 327,
+              "protein": 49.5,
+              "search": "grilled chicken breast"
+            }
+          ],
+          "parsedNames": [
+            "168 g Chicken Breast [grilled chicken breast]"
+          ]
+        },
+        {
+          "id": "beef-jerky-4oz",
+          "why": "Easy mass control",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "4 vs 4"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "oz/oz"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "463 in 240,360"
+                }
+              ],
+              "selected": "Beef Jerky",
+              "calories": 463,
+              "protein": 37.5,
+              "search": "beef jerky"
+            }
+          ],
+          "parsedNames": [
+            "4 oz Beef Jerky [beef jerky]"
+          ]
+        },
+        {
+          "id": "chobani-flip",
+          "why": "Brand+flavor container; WHOLE_ITEM ~160–200 cal",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "container/containers"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Chobani Flip Chocolate Chip Cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Chobani Flip Chocolate Chip Cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Chobani Flip Chocolate Chip Cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chobani Flip"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "160 in 140,230"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "10 in 8,14"
+                }
+              ],
+              "selected": "Chobani Flip Vanilla Chocolate Chip Low-Fat Yogurt with Raspberry",
+              "calories": 160,
+              "protein": 10,
+              "search": "Chobani Flip Chocolate Chip Cookie"
+            }
+          ],
+          "parsedNames": [
+            "1 container Chobani Flip [Chobani Flip Chocolate Chip Cookie]"
+          ]
+        }
+      ]
+    },
+    {
+      "model": "gpt-5-nano",
+      "score": 34,
+      "max": 40,
+      "pct": 85,
+      "rows": [
+        {
+          "id": "one-maple-bar",
+          "why": "Brand ONE after flavor must not become a maple doughnut",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "ONE Maple"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "230 in 200,250"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "20 in 18,22"
+                }
+              ],
+              "selected": "ONE Maple Glazed Doughnut",
+              "calories": 230,
+              "protein": 20,
+              "search": "ONE maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar ONE Maple [ONE maple bar]"
+          ]
+        },
+        {
+          "id": "one-maple-quantity-control",
+          "why": "Leading one is a count — doughnut/maple bar OK; must NOT force ONE brand",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "580 in 180,650"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "7 in 3,22"
+                }
+              ],
+              "selected": "Top Pot Maple Bar",
+              "calories": 580,
+              "protein": 7,
+              "search": "maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar Maple Bar [maple bar]"
+          ]
+        },
+        {
+          "id": "goodles-75-box",
+          "why": "Box product Cheddy Mac, not Cheesy Mac Cup treated as a whole box",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Goodles Mac and Cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Goodles Mac and Cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Goodles Mac and Cheese"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Goodles Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Cheddy Mac (Dry Mix)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Cheddy Mac (Dry Mix)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Goodles Cheddy Mac (Dry Mix)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "203 in 450,560"
+                }
+              ],
+              "selected": "Goodles Cheddy Mac (Dry Mix)",
+              "calories": 203,
+              "protein": 11.3,
+              "search": "Goodles Mac and Cheese"
+            }
+          ],
+          "parsedNames": [
+            "0.75 box Goodles Mac [Goodles Mac and Cheese]"
+          ]
+        },
+        {
+          "id": "goodles-half-box",
+          "why": "Same box scaling as 9/17 log (stored wrongly as 1 serving / 270 cal)",
+          "ok": false,
+          "score": 2,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 2,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": false,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "goodles pasta"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "goodles pasta"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "goodles pasta"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Goodles Pasta"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "6 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Protein Pasta"
+                },
+                {
+                  "ok": false,
+                  "label": "pickName",
+                  "detail": "Protein Pasta"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "90 in 300,380"
+                }
+              ],
+              "selected": "Goodles Protein Pasta",
+              "calories": 90,
+              "protein": 5.5,
+              "search": "goodles pasta"
+            }
+          ],
+          "parsedNames": [
+            "0.5 box Goodles Pasta [goodles pasta]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-75-can",
+          "why": "Walmart → Great Value canned chicken; can-scale bridge, not 100g≈1.18 cans",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Canned Chunk Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chunk Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Canned Chunk Chicken Breast"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "85 in 130,240"
+                }
+              ],
+              "selected": "Great Value Canned Chunk Chicken Breast",
+              "calories": 85,
+              "protein": 16.9,
+              "search": "Walmart canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.75 can Canned Chicken [Walmart canned chicken]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-full-can",
+          "why": "From 9/16 utterance; store alias + full can",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "240 in 160,320"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "52 in 30,65"
+                }
+              ],
+              "selected": "Great Value Canned Chicken",
+              "calories": 240,
+              "protein": 52,
+              "search": "Walmart canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "1 can Canned Chicken [Walmart canned chicken]"
+          ]
+        },
+        {
+          "id": "half-can-chicken",
+          "why": "Generic canned chicken half-can (9/17)",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Kirkland Signature Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Kirkland Signature Canned Chicken"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "38 in 90,200"
+                }
+              ],
+              "selected": "Kirkland Signature Canned Chicken",
+              "calories": 38,
+              "protein": 8.2,
+              "search": "canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.5 can Canned Chicken [canned chicken]"
+          ]
+        },
+        {
+          "id": "chicken-breast-168g",
+          "why": "Easy mass control — should stay accurate on every model",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "168 vs 168"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "g/g"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "327 in 250,400"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "49.5 in 40,60"
+                }
+              ],
+              "selected": "Grilled Chicken Breast",
+              "calories": 327,
+              "protein": 49.5,
+              "search": "grilled chicken breast"
+            }
+          ],
+          "parsedNames": [
+            "168 g Chicken Breast [grilled chicken breast]"
+          ]
+        },
+        {
+          "id": "beef-jerky-4oz",
+          "why": "Easy mass control",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "4 vs 4"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "oz/oz"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Tillamook Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Tillamook Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "280 in 240,360"
+                },
+                {
+                  "ok": false,
+                  "label": "protein",
+                  "detail": "56 in 35,55"
+                }
+              ],
+              "selected": "Tillamook Beef Jerky",
+              "calories": 280,
+              "protein": 56,
+              "search": "beef jerky"
+            }
+          ],
+          "parsedNames": [
+            "4 oz Beef Jerky [beef jerky]"
+          ]
+        },
+        {
+          "id": "chobani-flip",
+          "why": "Brand+flavor container; WHOLE_ITEM ~160–200 cal",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "container/containers"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Chobani Flip chocolate chip cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Chobani Flip chocolate chip cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Chobani Flip chocolate chip cookie"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chobani Flip"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Chobani Flip Cookies & Cream (150g)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Flip Cookies & Cream (150g)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Chobani Flip Cookies & Cream (150g)"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "190 in 140,230"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "11 in 8,14"
+                }
+              ],
+              "selected": "Chobani Flip Cookies & Cream (150g)",
+              "calories": 190,
+              "protein": 11,
+              "search": "Chobani Flip chocolate chip cookie"
+            }
+          ],
+          "parsedNames": [
+            "1 container Chobani Flip [Chobani Flip chocolate chip cookie]"
+          ]
+        }
+      ]
+    },
+    {
+      "model": "gpt-5.4-nano",
+      "score": 31,
+      "max": 40,
+      "pct": 78,
+      "rows": [
+        {
+          "id": "one-maple-bar",
+          "why": "Brand ONE after flavor must not become a maple doughnut",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "ONE maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "ONE Maple"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "ONE Maple Glazed Doughnut"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "230 in 200,250"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "20 in 18,22"
+                }
+              ],
+              "selected": "ONE Maple Glazed Doughnut",
+              "calories": 230,
+              "protein": 20,
+              "search": "ONE maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar ONE Maple [ONE maple bar]"
+          ]
+        },
+        {
+          "id": "one-maple-quantity-control",
+          "why": "Leading one is a count — doughnut/maple bar OK; must NOT force ONE brand",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "bar/bars"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "maple bar"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Top Pot Maple Bar"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "580 in 180,650"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "7 in 3,22"
+                }
+              ],
+              "selected": "Top Pot Maple Bar",
+              "calories": 580,
+              "protein": 7,
+              "search": "maple bar"
+            }
+          ],
+          "parsedNames": [
+            "1 bar Maple Bar [maple bar]"
+          ]
+        },
+        {
+          "id": "goodles-75-box",
+          "why": "Box product Cheddy Mac, not Cheesy Mac Cup treated as a whole box",
+          "ok": false,
+          "score": 0,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 0,
+              "max": 4,
+              "parts": {
+                "parse": false,
+                "fatsecret": false,
+                "select": false,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": false,
+                  "label": "search+",
+                  "detail": "mac n cheese noodles"
+                },
+                {
+                  "ok": false,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=false"
+                },
+                {
+                  "ok": false,
+                  "label": "pickBrand",
+                  "detail": "Macaroni or Noodles with Cheese (Boxed Mix with Cheese Sauce)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "1059 in 450,560"
+                }
+              ],
+              "selected": "Macaroni or Noodles with Cheese (Boxed Mix with Cheese Sauce)",
+              "calories": 1059,
+              "protein": 41.9,
+              "search": "mac n cheese noodles"
+            }
+          ],
+          "parsedNames": [
+            "0.75 box Mac and Cheese [mac n cheese noodles]"
+          ]
+        },
+        {
+          "id": "goodles-half-box",
+          "why": "Same box scaling as 9/17 log (stored wrongly as 1 serving / 270 cal)",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "box/boxes"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Goodles"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "23 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Goodles Cheddy Mac"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "338 in 300,380"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "18.8 in 15,25"
+                }
+              ],
+              "selected": "Goodles Cheddy Mac",
+              "calories": 338,
+              "protein": 18.8,
+              "search": "Goodles"
+            }
+          ],
+          "parsedNames": [
+            "0.5 box Goodles [Goodles]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-75-can",
+          "why": "Walmart → Great Value canned chicken; can-scale bridge, not 100g≈1.18 cans",
+          "ok": false,
+          "score": 2,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 2,
+              "max": 4,
+              "parts": {
+                "parse": false,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.75 vs 0.75"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart chicken can"
+                },
+                {
+                  "ok": false,
+                  "label": "searchAny",
+                  "detail": "Walmart chicken can"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "75 in 130,240"
+                }
+              ],
+              "selected": "Great Value Chunk Chicken Breast with Rib Meat (Can)",
+              "calories": 75,
+              "protein": 16.5,
+              "search": "Walmart chicken can"
+            }
+          ],
+          "parsedNames": [
+            "0.75 can Chicken [Walmart chicken can]"
+          ]
+        },
+        {
+          "id": "walmart-chicken-full-can",
+          "why": "From 9/16 utterance; store alias + full can",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "Walmart chicken can"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "Walmart chicken can"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "Walmart chicken can"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken (can)"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Chunk Chicken Breast with Rib Meat (Can)"
+                },
+                {
+                  "ok": false,
+                  "label": "calories",
+                  "detail": "100 in 160,320"
+                }
+              ],
+              "selected": "Great Value Chunk Chicken Breast with Rib Meat (Can)",
+              "calories": 100,
+              "protein": 22,
+              "search": "Walmart chicken can"
+            }
+          ],
+          "parsedNames": [
+            "1 can Chicken (can) [Walmart chicken can]"
+          ]
+        },
+        {
+          "id": "half-can-chicken",
+          "why": "Generic canned chicken half-can (9/17)",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": false
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "0.5 vs 0.5"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "can/cans"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "canned chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Chicken"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Canned Chicken (Meat Only)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Canned Chicken (Meat Only)"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Canned Chicken (Meat Only)"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "92 in 90,200"
+                },
+                {
+                  "ok": false,
+                  "label": "protein",
+                  "detail": "12.7 in 18,45"
+                }
+              ],
+              "selected": "Canned Chicken (Meat Only)",
+              "calories": 92,
+              "protein": 12.7,
+              "search": "canned chicken"
+            }
+          ],
+          "parsedNames": [
+            "0.5 can Chicken [canned chicken]"
+          ]
+        },
+        {
+          "id": "chicken-breast-168g",
+          "why": "Easy mass control — should stay accurate on every model",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "168 vs 168"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "g/g"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "grilled chicken breast"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Grilled Chicken Breast"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "327 in 250,400"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "49.5 in 40,60"
+                }
+              ],
+              "selected": "Grilled Chicken Breast",
+              "calories": 327,
+              "protein": 49.5,
+              "search": "grilled chicken breast"
+            }
+          ],
+          "parsedNames": [
+            "168 g Grilled Chicken Breast [grilled chicken breast]"
+          ]
+        },
+        {
+          "id": "beef-jerky-4oz",
+          "why": "Easy mass control",
+          "ok": true,
+          "score": 4,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 4,
+              "max": 4,
+              "parts": {
+                "parse": true,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "4 vs 4"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "mass"
+                },
+                {
+                  "ok": true,
+                  "label": "unit",
+                  "detail": "oz/oz"
+                },
+                {
+                  "ok": true,
+                  "label": "search+",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "searchAny",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "search-",
+                  "detail": "beef jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "name",
+                  "detail": "Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Great Value Original Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Original Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Great Value Original Beef Jerky"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "280 in 240,360"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "44 in 35,55"
+                }
+              ],
+              "selected": "Great Value Original Beef Jerky",
+              "calories": 280,
+              "protein": 44,
+              "search": "beef jerky"
+            }
+          ],
+          "parsedNames": [
+            "4 oz Beef Jerky [beef jerky]"
+          ]
+        },
+        {
+          "id": "chobani-flip",
+          "why": "Brand+flavor container; WHOLE_ITEM ~160–200 cal",
+          "ok": false,
+          "score": 3,
+          "max": 4,
+          "itemScores": [
+            {
+              "score": 3,
+              "max": 4,
+              "parts": {
+                "parse": false,
+                "fatsecret": true,
+                "select": true,
+                "macros": true
+              },
+              "checks": [
+                {
+                  "ok": true,
+                  "label": "qty",
+                  "detail": "1 vs 1"
+                },
+                {
+                  "ok": true,
+                  "label": "unitFamily",
+                  "detail": "count"
+                },
+                {
+                  "ok": false,
+                  "label": "unit",
+                  "detail": "cookie/cookies"
+                },
+                {
+                  "ok": true,
+                  "label": "fsCandidate",
+                  "detail": "50 foods; hit=true"
+                },
+                {
+                  "ok": true,
+                  "label": "pickBrand",
+                  "detail": "Chobani Flip Mint Chocolate Chip"
+                },
+                {
+                  "ok": true,
+                  "label": "pickName",
+                  "detail": "Flip Mint Chocolate Chip"
+                },
+                {
+                  "ok": true,
+                  "label": "pickExclude",
+                  "detail": "Chobani Flip Mint Chocolate Chip"
+                },
+                {
+                  "ok": true,
+                  "label": "calories",
+                  "detail": "160 in 140,230"
+                },
+                {
+                  "ok": true,
+                  "label": "protein",
+                  "detail": "8 in 8,14"
+                }
+              ],
+              "selected": "Chobani Flip Mint Chocolate Chip",
+              "calories": 160,
+              "protein": 8,
+              "search": "Chobani flip chocolate chip cookie"
+            }
+          ],
+          "parsedNames": [
+            "1 cookie Chocolate Chip Cookie [Chobani flip chocolate chip cookie]"
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "one-maple-bar",
+      "userInput": "Maple one bar",
+      "why": "Brand ONE after flavor must not become a maple doughnut",
+      "expect": [
+        {
+          "qty": 1,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "bar"
+          ],
+          "searchIncludes": [
+            "one"
+          ],
+          "nameIncludesAny": [
+            "one",
+            "maple"
+          ],
+          "foodIncludesAny": [
+            "one"
+          ],
+          "foodNameIncludesAny": [
+            "maple"
+          ],
+          "foodExcludesAny": [
+            "top pot",
+            "winchell"
+          ],
+          "calRange": [
+            200,
+            250
+          ],
+          "proteinRange": [
+            18,
+            22
+          ]
+        }
+      ]
+    },
+    {
+      "id": "one-maple-quantity-control",
+      "userInput": "One maple bar",
+      "why": "Leading one is a count — doughnut/maple bar OK; must NOT force ONE brand",
+      "expect": [
+        {
+          "qty": 1,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "bar"
+          ],
+          "searchExcludes": [
+            "one"
+          ],
+          "foodExcludesAny": [
+            "one"
+          ],
+          "calRange": [
+            180,
+            650
+          ],
+          "proteinRange": [
+            3,
+            22
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goodles-75-box",
+      "userInput": "75% box of Mac n cheese goodles",
+      "why": "Box product Cheddy Mac, not Cheesy Mac Cup treated as a whole box",
+      "expect": [
+        {
+          "qty": 0.75,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "box"
+          ],
+          "searchIncludes": [
+            "goodles"
+          ],
+          "foodIncludesAny": [
+            "goodles"
+          ],
+          "foodNameIncludesAny": [
+            "cheddy",
+            "mac"
+          ],
+          "foodExcludesAny": [
+            "cup"
+          ],
+          "calRange": [
+            450,
+            560
+          ],
+          "proteinRange": [
+            22,
+            35
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goodles-half-box",
+      "userInput": "Goodles half box",
+      "why": "Same box scaling as 9/17 log (stored wrongly as 1 serving / 270 cal)",
+      "expect": [
+        {
+          "qty": 0.5,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "box"
+          ],
+          "searchIncludes": [
+            "goodles"
+          ],
+          "foodIncludesAny": [
+            "goodles"
+          ],
+          "foodNameIncludesAny": [
+            "cheddy",
+            "mac"
+          ],
+          "foodExcludesAny": [
+            "cup"
+          ],
+          "calRange": [
+            300,
+            380
+          ],
+          "proteinRange": [
+            15,
+            25
+          ]
+        }
+      ]
+    },
+    {
+      "id": "walmart-chicken-75-can",
+      "userInput": "75% can of chicken Walmart",
+      "why": "Walmart → Great Value canned chicken; can-scale bridge, not 100g≈1.18 cans",
+      "expect": [
+        {
+          "qty": 0.75,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "can"
+          ],
+          "searchIncludesAny": [
+            "great value",
+            "canned chicken"
+          ],
+          "foodIncludesAny": [
+            "great value",
+            "canned chicken"
+          ],
+          "foodExcludesAny": [
+            "fried",
+            "rotisserie",
+            "sandwich",
+            "broth",
+            "soup"
+          ],
+          "calRange": [
+            130,
+            240
+          ],
+          "proteinRange": [
+            25,
+            50
+          ]
+        }
+      ]
+    },
+    {
+      "id": "walmart-chicken-full-can",
+      "userInput": "one can of Walmart chicken",
+      "why": "From 9/16 utterance; store alias + full can",
+      "expect": [
+        {
+          "qty": 1,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "can"
+          ],
+          "foodIncludesAny": [
+            "great value",
+            "canned chicken"
+          ],
+          "foodExcludesAny": [
+            "fried",
+            "rotisserie",
+            "sandwich",
+            "broth"
+          ],
+          "calRange": [
+            160,
+            320
+          ],
+          "proteinRange": [
+            30,
+            65
+          ]
+        }
+      ]
+    },
+    {
+      "id": "half-can-chicken",
+      "userInput": "half can of chicken",
+      "why": "Generic canned chicken half-can (9/17)",
+      "expect": [
+        {
+          "qty": 0.5,
+          "unitFamily": "count",
+          "unitIncludes": [
+            "can"
+          ],
+          "foodIncludesAny": [
+            "canned chicken"
+          ],
+          "foodExcludesAny": [
+            "soup",
+            "broth",
+            "gravy"
+          ],
+          "calRange": [
+            90,
+            200
+          ],
+          "proteinRange": [
+            18,
+            45
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chicken-breast-168g",
+      "userInput": "168 grams of chicken breast, grilled.",
+      "why": "Easy mass control — should stay accurate on every model",
+      "expect": [
+        {
+          "qty": 168,
+          "unitFamily": "mass",
+          "unitIncludes": [
+            "g"
+          ],
+          "searchIncludes": [
+            "chicken"
+          ],
+          "foodIncludesAny": [
+            "chicken"
+          ],
+          "calRange": [
+            250,
+            400
+          ],
+          "proteinRange": [
+            40,
+            60
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beef-jerky-4oz",
+      "userInput": "Four ounces of beef jerky.",
+      "why": "Easy mass control",
+      "expect": [
+        {
+          "qty": 4,
+          "unitFamily": "mass",
+          "unitIncludes": [
+            "oz"
+          ],
+          "searchIncludes": [
+            "jerky"
+          ],
+          "foodIncludesAny": [
+            "jerky"
+          ],
+          "calRange": [
+            240,
+            360
+          ],
+          "proteinRange": [
+            35,
+            55
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chobani-flip",
+      "userInput": "the chocolate chip cookie Chobani flip.",
+      "why": "Brand+flavor container; WHOLE_ITEM ~160–200 cal",
+      "expect": [
+        {
+          "qty": 1,
+          "unitFamily": "count",
+          "unitIncludesAny": [
+            "container",
+            "flip",
+            "cup"
+          ],
+          "searchIncludes": [
+            "chobani"
+          ],
+          "foodIncludesAny": [
+            "chobani",
+            "flip"
+          ],
+          "calRange": [
+            140,
+            230
+          ],
+          "proteinRange": [
+            8,
+            14
+          ]
+        }
+      ]
+    }
+  ]
+}
