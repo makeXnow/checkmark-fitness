@@ -36,6 +36,7 @@ import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
 import { useLiftTimer } from './features/lift/useLiftTimer'
 import { workoutWithSessionWeight } from './features/lift/plates'
 import { computeWeekPercentageRange, getWeekDatesFor } from './features/habits/habitsUi'
+import { syncDietLogsFromMacros } from './features/habits/dietTargetBands'
 import {
   clearAppHiddenAt,
   consumePageLoadStaleResume,
@@ -595,6 +596,25 @@ export default function App() {
     },
     [cacheBootSnapshot, currentDate, resyncFromServer, todayDateStr],
   )
+
+  useEffect(() => {
+    if (!boot || !habitsGoals?.diet?.autoFromMacros) return
+    const synced = syncDietLogsFromMacros(
+      habitsLogs,
+      macroLogs,
+      habitsGoals.diet,
+      (date) => resolveMacroDayTargets(date, macroGoalsBundle, todayDateStr),
+    )
+    if (synced) void saveHabitsBundle({ logs: synced })
+  }, [
+    boot,
+    habitsGoals?.diet,
+    habitsLogs,
+    macroGoalsBundle,
+    macroLogs,
+    saveHabitsBundle,
+    todayDateStr,
+  ])
 
   const saveMacroBundle = useCallback(
     (next: {

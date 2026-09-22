@@ -168,6 +168,13 @@ function habitsGoalsEqual(a: HabitsGoals, b: HabitsGoals): boolean {
     const gb = b[key]
     if (ga.min !== gb.min || ga.max !== gb.max) return false
     if (key === 'water' && ga.dailyTarget !== gb.dailyTarget) return false
+    if (key === 'diet') {
+      if (!!ga.autoFromMacros !== !!gb.autoFromMacros) return false
+      if ((ga.caloriePctMin ?? null) !== (gb.caloriePctMin ?? null)) return false
+      if ((ga.caloriePctMax ?? null) !== (gb.caloriePctMax ?? null)) return false
+      if ((ga.proteinPctMin ?? null) !== (gb.proteinPctMin ?? null)) return false
+      if ((ga.proteinPctMax ?? null) !== (gb.proteinPctMax ?? null)) return false
+    }
   }
   return true
 }

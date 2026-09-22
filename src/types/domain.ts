@@ -23,6 +23,19 @@ export interface HabitGoalConfig {
   icon: string
   label: string
   dailyTarget?: number
+  /**
+   * Diet only: when true, the daily diet check auto-completes if calories and
+   * protein are both within their target bands (% of that day's goals).
+   */
+  autoFromMacros?: boolean
+  /** Inclusive lower bound for calories as % of calorie goal (default 80). */
+  caloriePctMin?: number
+  /** Inclusive upper bound for calories as % of calorie goal (default 110). */
+  caloriePctMax?: number
+  /** Inclusive lower bound for protein as % of protein-grams goal (default 80). */
+  proteinPctMin?: number
+  /** Inclusive upper bound for protein as % of protein-grams goal (default 110). */
+  proteinPctMax?: number
 }
 
 export interface HabitsGoals {

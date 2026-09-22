@@ -1,7 +1,12 @@
 import { useCallback, useMemo } from 'react'
+import { SettingSwitch } from '../../core/SettingSwitch'
 import { resolveHabitsWeekGoals, type HabitsGoalsBundleData } from '../../lib/goalSnapshots'
 import { localDateISO } from '../../lib/localDate'
 import type { HabitsGoals, DayLog } from '../../types/domain'
+import {
+  DEFAULT_DIET_TARGET_BANDS,
+  resolveDietTargetBands,
+} from './dietTargetBands'
 import {
   DualSlider,
   GoalCard,
@@ -67,6 +72,7 @@ export function HabitsScreen({
   )
 
   const handleCardTap = (key: keyof HabitsGoals) => {
+    if (key === 'diet' && goals.diet.autoFromMacros) return
     const nextLogs = { ...logs }
     const dayLog: DayLog = { ...(nextLogs[dateKey] || {}) }
     if (key === 'water') {
@@ -158,6 +164,8 @@ export function HabitsScreen({
           />
         </div>
 
+        <DietTargetBandsSettings diet={goals.diet} onChange={(patch) => patchGoal('diet', patch)} />
+
         <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-[var(--radius-card)] space-y-3">
           <span className="font-bold text-white uppercase tracking-widest text-xs">First Day of Week</span>
           <div className="flex bg-black rounded-lg p-1 border border-neutral-800">
@@ -182,6 +190,80 @@ export function HabitsScreen({
           </div>
         </div>
       </section>
+      )}
+    </div>
+  )
+}
+
+function DietTargetBandsSettings({
+  diet,
+  onChange,
+}: {
+  diet: HabitsGoals['diet']
+  onChange: (patch: Partial<HabitsGoals['diet']>) => void
+}) {
+  const enabled = !!diet.autoFromMacros
+  const bands = resolveDietTargetBands(diet)
+
+  return (
+    <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-[var(--radius-card)] space-y-4">
+      <SettingSwitch
+        label="Target bands"
+        description="Auto-check diet when calories and protein are both within % of that day's goals."
+        checked={enabled}
+        ariaLabel="Enable diet target bands"
+        onCheckedChange={(on) =>
+          onChange({
+            autoFromMacros: on,
+            caloriePctMin: diet.caloriePctMin ?? DEFAULT_DIET_TARGET_BANDS.caloriePctMin,
+            caloriePctMax: diet.caloriePctMax ?? DEFAULT_DIET_TARGET_BANDS.caloriePctMax,
+            proteinPctMin: diet.proteinPctMin ?? DEFAULT_DIET_TARGET_BANDS.proteinPctMin,
+            proteinPctMax: diet.proteinPctMax ?? DEFAULT_DIET_TARGET_BANDS.proteinPctMax,
+          })
+        }
+      />
+
+      {enabled && (
+        <>
+          <div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                Calories
+              </span>
+              <span className="text-sm font-black text-emerald-400">
+                {bands.caloriePctMin}–{bands.caloriePctMax}%
+              </span>
+            </div>
+            <DualSlider
+              minLim={50}
+              maxLim={150}
+              val1={bands.caloriePctMin}
+              val2={bands.caloriePctMax}
+              setVal1={(v) => onChange({ caloriePctMin: v })}
+              setVal2={(v) => onChange({ caloriePctMax: v })}
+              colorClass="bg-emerald-500"
+            />
+          </div>
+          <div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                Protein
+              </span>
+              <span className="text-sm font-black text-emerald-400">
+                {bands.proteinPctMin}–{bands.proteinPctMax}%
+              </span>
+            </div>
+            <DualSlider
+              minLim={50}
+              maxLim={150}
+              val1={bands.proteinPctMin}
+              val2={bands.proteinPctMax}
+              setVal1={(v) => onChange({ proteinPctMin: v })}
+              setVal2={(v) => onChange({ proteinPctMax: v })}
+              colorClass="bg-emerald-500"
+            />
+          </div>
+        </>
       )}
     </div>
   )
