@@ -15,6 +15,13 @@ export type DietTargetBands = {
   proteinPctMax: number
 }
 
+export type DietTargetBandPrompt = {
+  localDate: string
+  calories: number
+  /** Protein intake as % of that day's protein-grams goal. */
+  proteinPctOfGoal: number
+}
+
 export function resolveDietTargetBands(diet: HabitGoalConfig): DietTargetBands {
   const caloriePctMin = clampPct(diet.caloriePctMin ?? DEFAULT_DIET_TARGET_BANDS.caloriePctMin)
   const caloriePctMax = clampPct(diet.caloriePctMax ?? DEFAULT_DIET_TARGET_BANDS.caloriePctMax)
@@ -43,6 +50,10 @@ export function sumMacroDayTotals(items: MacroDayItem[] | undefined): { cal: num
   )
 }
 
+export function proteinGoalGrams(targets: MacroDayGoalsSnapshot): number {
+  return targets.proteinGramsGoal ?? proteinGramsFromPct(targets.calorieGoal, targets.proteinPctGoal)
+}
+
 export function isDietMetByTargetBands(
   totals: { cal: number; pro: number },
   targets: MacroDayGoalsSnapshot,
@@ -51,8 +62,7 @@ export function isDietMetByTargetBands(
   if (!diet.autoFromMacros) return false
   const bands = resolveDietTargetBands(diet)
   const calorieGoal = targets.calorieGoal
-  const proteinGoal =
-    targets.proteinGramsGoal ?? proteinGramsFromPct(targets.calorieGoal, targets.proteinPctGoal)
+  const proteinGoal = proteinGoalGrams(targets)
   if (calorieGoal <= 0 || proteinGoal <= 0) return false
 
   // Integer-safe band checks (avoids float miss at exact bounds like 110%).
@@ -64,29 +74,52 @@ export function isDietMetByTargetBands(
   )
 }
 
+function addDaysISO(iso: string, delta: number): string {
+  const [y, m, d] = iso.split('-').map((x) => parseInt(x, 10))
+  const dt = new Date(y, m - 1, d, 12, 0, 0)
+  dt.setDate(dt.getDate() + delta)
+  const yy = dt.getFullYear()
+  const mm = String(dt.getMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 /**
- * When target bands are enabled, rewrite `diet` flags from macro totals.
- * Returns null when nothing changed (or auto mode is off).
+ * Most recent past day that hit target bands and has not been prompted yet.
+ * Skips days already marked diet or already answered (yes/no).
  */
-export function syncDietLogsFromMacros(
+export function findDietTargetBandPrompt(
   habitsLogs: Record<string, DayLog>,
   macroLogs: Record<string, MacroDayItem[]>,
-  diet: HabitGoalConfig,
+  dietForDate: (date: string) => HabitGoalConfig,
   resolveTargets: (date: string) => MacroDayGoalsSnapshot,
-): Record<string, DayLog> | null {
-  if (!diet.autoFromMacros) return null
+  todayISO: string,
+  lookbackDays = 30,
+): DietTargetBandPrompt | null {
+  for (let i = 1; i <= lookbackDays; i++) {
+    const date = addDaysISO(todayISO, -i)
+    const diet = dietForDate(date)
+    if (!diet.autoFromMacros) continue
 
-  const dates = new Set([...Object.keys(habitsLogs), ...Object.keys(macroLogs)])
-  let changed = false
-  const next: Record<string, DayLog> = { ...habitsLogs }
+    const dayLog = habitsLogs[date]
+    if (dayLog?.diet) continue
+    if (dayLog?.dietPromptResolved) continue
 
-  for (const date of dates) {
-    const met = isDietMetByTargetBands(sumMacroDayTotals(macroLogs[date]), resolveTargets(date), diet)
-    const day = next[date] || {}
-    if (!!day.diet === met) continue
-    next[date] = { ...day, diet: met }
-    changed = true
+    const items = macroLogs[date]
+    if (!items?.length) continue
+
+    const totals = sumMacroDayTotals(items)
+    const targets = resolveTargets(date)
+    if (!isDietMetByTargetBands(totals, targets, diet)) continue
+
+    const proteinGoal = proteinGoalGrams(targets)
+    const proteinPctOfGoal = proteinGoal > 0 ? Math.round((totals.pro / proteinGoal) * 100) : 0
+
+    return {
+      localDate: date,
+      calories: Math.round(totals.cal),
+      proteinPctOfGoal,
+    }
   }
-
-  return changed ? next : null
+  return null
 }

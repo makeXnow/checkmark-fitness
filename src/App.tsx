@@ -22,6 +22,7 @@ import { mergeMacroLogs } from './features/macro/macroLib'
 import {
   cementHabitsSnapshots,
   cementMacroSnapshots,
+  getWeekStartISO,
   recordHabitsGoalChange,
   recordMacroGoalChange,
   resolveHabitsWeekGoals,
@@ -36,7 +37,7 @@ import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
 import { useLiftTimer } from './features/lift/useLiftTimer'
 import { workoutWithSessionWeight } from './features/lift/plates'
 import { computeWeekPercentageRange, getWeekDatesFor } from './features/habits/habitsUi'
-import { syncDietLogsFromMacros } from './features/habits/dietTargetBands'
+import { findDietTargetBandPrompt, type DietTargetBandPrompt } from './features/habits/dietTargetBands'
 import {
   clearAppHiddenAt,
   consumePageLoadStaleResume,
@@ -73,6 +74,9 @@ const MacroScreen = lazy(loadMacroScreen)
 const LiftScreen = lazy(loadLiftScreen)
 const LiftAssumptionModal = lazy(() =>
   import('./features/lift/LiftAssumptionModal').then((m) => ({ default: m.LiftAssumptionModal })),
+)
+const DietTargetBandModal = lazy(() =>
+  import('./features/habits/DietTargetBandModal').then((m) => ({ default: m.DietTargetBandModal })),
 )
 
 const TAB_SCREEN_LOADERS: Record<BottomTab, () => Promise<unknown>> = {
@@ -136,6 +140,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
+  const [dietPrompt, setDietPrompt] = useState<DietTargetBandPrompt | null>(null)
+  const [dietPromptBusy, setDietPromptBusy] = useState(false)
 
   const habitsSaveSeq = useRef(Promise.resolve())
   const macroSaveSeq = useRef(Promise.resolve())
@@ -598,21 +604,34 @@ export default function App() {
   )
 
   useEffect(() => {
-    if (!boot || !habitsGoals?.diet?.autoFromMacros) return
-    const synced = syncDietLogsFromMacros(
+    if (!boot || liftAssumptionPrompt) {
+      setDietPrompt(null)
+      return
+    }
+    const next = findDietTargetBandPrompt(
       habitsLogs,
       macroLogs,
-      habitsGoals.diet,
+      (date) => {
+        const weekStart = getWeekStartISO(date, habitsSettings.firstDayOfWeek)
+        return resolveHabitsWeekGoals(
+          weekStart,
+          habitsGoalsBundle,
+          habitsSettings.firstDayOfWeek,
+          todayDateStr,
+        ).diet
+      },
       (date) => resolveMacroDayTargets(date, macroGoalsBundle, todayDateStr),
+      todayDateStr,
     )
-    if (synced) void saveHabitsBundle({ logs: synced })
+    setDietPrompt(next)
   }, [
     boot,
-    habitsGoals?.diet,
+    habitsGoalsBundle,
     habitsLogs,
+    habitsSettings.firstDayOfWeek,
+    liftAssumptionPrompt,
     macroGoalsBundle,
     macroLogs,
-    saveHabitsBundle,
     todayDateStr,
   ])
 
@@ -763,6 +782,48 @@ export default function App() {
       setLiftAssumptionBusy(false)
     }
   }, [handleLiftWorkoutSubmitted, liftAssumptionBusy, liftAssumptionPrompt, saveLiftBundle])
+
+  const dismissDietTargetBandPrompt = useCallback(() => {
+    const prompt = dietPrompt
+    if (!prompt || dietPromptBusy) return
+    setDietPromptBusy(true)
+    try {
+      const prev = bootRef.current
+      if (!prev) return
+      const logs = prev.habits.logs ?? {}
+      const dayLog = logs[prompt.localDate] ?? {}
+      void saveHabitsBundle({
+        logs: {
+          ...logs,
+          [prompt.localDate]: { ...dayLog, dietPromptResolved: true },
+        },
+      })
+      setDietPrompt(null)
+    } finally {
+      setDietPromptBusy(false)
+    }
+  }, [dietPrompt, dietPromptBusy, saveHabitsBundle])
+
+  const acceptDietTargetBandPrompt = useCallback(() => {
+    const prompt = dietPrompt
+    if (!prompt || dietPromptBusy) return
+    setDietPromptBusy(true)
+    try {
+      const prev = bootRef.current
+      if (!prev) return
+      const logs = prev.habits.logs ?? {}
+      const dayLog = logs[prompt.localDate] ?? {}
+      void saveHabitsBundle({
+        logs: {
+          ...logs,
+          [prompt.localDate]: { ...dayLog, diet: true, dietPromptResolved: true },
+        },
+      })
+      setDietPrompt(null)
+    } finally {
+      setDietPromptBusy(false)
+    }
+  }, [dietPrompt, dietPromptBusy, saveHabitsBundle])
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -1191,6 +1252,15 @@ export default function App() {
             busy={liftAssumptionBusy}
             onNo={() => void dismissLiftAssumptionPrompt()}
             onSubmit={() => void submitLiftAssumptionPrompt()}
+          />
+        </Suspense>
+      ) : dietPrompt ? (
+        <Suspense fallback={null}>
+          <DietTargetBandModal
+            prompt={dietPrompt}
+            busy={dietPromptBusy}
+            onNo={dismissDietTargetBandPrompt}
+            onYes={acceptDietTargetBandPrompt}
           />
         </Suspense>
       ) : null}

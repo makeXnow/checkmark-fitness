@@ -24,8 +24,8 @@ export interface HabitGoalConfig {
   label: string
   dailyTarget?: number
   /**
-   * Diet only: when true, the daily diet check auto-completes if calories and
-   * protein are both within their target bands (% of that day's goals).
+   * Diet only: when true, after midnight the app may ask whether to count a
+   * day that hit calorie + protein target bands as a diet day.
    */
   autoFromMacros?: boolean
   /** Inclusive lower bound for calories as % of calorie goal (default 80). */
@@ -50,6 +50,11 @@ export interface DayLog {
   lift?: boolean
   diet?: boolean
   water?: number
+  /**
+   * Diet target-bands prompt was answered (yes or no). Prevents asking again
+   * for that calendar day; diet can still be toggled manually afterward.
+   */
+  dietPromptResolved?: boolean
 }
 
 export type LiftAssumptionPrompt = {

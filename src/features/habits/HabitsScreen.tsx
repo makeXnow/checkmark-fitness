@@ -72,7 +72,6 @@ export function HabitsScreen({
   )
 
   const handleCardTap = (key: keyof HabitsGoals) => {
-    if (key === 'diet' && goals.diet.autoFromMacros) return
     const nextLogs = { ...logs }
     const dayLog: DayLog = { ...(nextLogs[dateKey] || {}) }
     if (key === 'water') {
@@ -209,7 +208,7 @@ function DietTargetBandsSettings({
     <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-[var(--radius-card)] space-y-4">
       <SettingSwitch
         label="Target bands"
-        description="Auto-check diet when calories and protein are both within % of that day's goals."
+        description="After midnight, ask whether to count a day that hit both calorie and protein % bands as a diet day."
         checked={enabled}
         ariaLabel="Enable diet target bands"
         onCheckedChange={(on) =>
