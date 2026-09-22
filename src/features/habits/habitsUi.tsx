@@ -29,8 +29,11 @@ export function DualSlider({
   colorClass: string
 }) {
   const getPercent = (val: number) => ((val - minLim) / (maxLim - minLim)) * 100
+  const rangeClass =
+    'absolute w-full appearance-none bg-transparent touch-pan-y pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:touch-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:touch-none [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none'
+
   return (
-    <div className="relative w-full h-1.5 bg-neutral-800 rounded-lg mt-6 mb-2 flex items-center">
+    <div className="relative w-full h-1.5 bg-neutral-800 rounded-lg mt-6 mb-2 flex items-center touch-pan-y">
       <div
         className={`absolute h-full rounded-lg ${colorClass}`}
         style={{ left: `${getPercent(val1)}%`, right: `${100 - getPercent(val2)}%` }}
@@ -41,7 +44,7 @@ export function DualSlider({
         max={maxLim}
         value={val1}
         onChange={(e) => setVal1(Math.min(Number(e.target.value), val2))}
-        className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none z-20"
+        className={`${rangeClass} z-20`}
       />
       <input
         type="range"
@@ -49,7 +52,7 @@ export function DualSlider({
         max={maxLim}
         value={val2}
         onChange={(e) => setVal2(Math.max(Number(e.target.value), val1))}
-        className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none z-30"
+        className={`${rangeClass} z-30`}
       />
     </div>
   )
