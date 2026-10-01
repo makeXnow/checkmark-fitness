@@ -406,8 +406,13 @@ export default function App() {
       persistAppState({ selected_date: localDateISO(new Date()) })
     }
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') onHidden()
-      else onVisible()
+      if (document.visibilityState === 'hidden') {
+        onHidden()
+        return
+      }
+      onVisible()
+      // Siri shortcuts write habits server-side while the app is backgrounded.
+      void resyncFromServer()
     }
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onHidden)
@@ -417,7 +422,7 @@ export default function App() {
       window.removeEventListener('pagehide', onHidden)
       window.removeEventListener('pageshow', onVisible)
     }
-  }, [persistAppState])
+  }, [persistAppState, resyncFromServer])
 
   const changeDate = useCallback(
     (delta: number) => {

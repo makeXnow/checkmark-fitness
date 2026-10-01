@@ -188,6 +188,20 @@ export async function clearLiftAssumption(body: { dayId: string; localDate: stri
   if (!res.ok) throw new Error(await res.text())
 }
 
+export type HabitShortcutLinks = {
+  code: string
+  links: { habit: 'cardio' | 'lift' | 'diet' | 'water'; url: string }[]
+}
+
+export async function fetchHabitShortcutLinks(regenerate = false): Promise<HabitShortcutLinks> {
+  const res = await apiFetch('/api/shortcut-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, regenerate }),
+  })
+  return parseJson<HabitShortcutLinks>(res)
+}
+
 export async function fetchMacroPrompts(): Promise<MacroPrompts> {
   const res = await apiFetch('/api/macro/prompts')
   const data = await parseJson<{ prompts?: MacroPrompts; error?: string }>(res)

@@ -1,5 +1,7 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { SettingSwitch } from '../../core/SettingSwitch'
+import { SiriShortcutsModal } from './SiriShortcutsModal'
 import { resolveHabitsWeekGoals, type HabitsGoalsBundleData } from '../../lib/goalSnapshots'
 import { localDateISO } from '../../lib/localDate'
 import type { HabitsGoals, DayLog } from '../../types/domain'
@@ -40,6 +42,7 @@ export function HabitsScreen({
   view: 'tracker' | 'settings'
 }) {
   const dateKey = localDateISO(currentDate)
+  const [siriOpen, setSiriOpen] = useState(false)
 
   const weekDates = useMemo(
     () => getWeekDatesFor(currentDate, appSettings.firstDayOfWeek),
@@ -188,6 +191,16 @@ export function HabitsScreen({
             </button>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setSiriOpen(true)}
+          className="flex w-full items-center justify-between bg-neutral-900 border border-neutral-800 p-4 rounded-[var(--radius-card)] text-left transition-colors hover:bg-neutral-800"
+        >
+          <span className="font-bold text-white uppercase tracking-widest text-xs">Control checkboxes with Siri</span>
+          <ChevronRight className="h-4 w-4 text-neutral-500" />
+        </button>
+        {siriOpen && <SiriShortcutsModal goals={goals} onClose={() => setSiriOpen(false)} />}
       </section>
       )}
     </div>

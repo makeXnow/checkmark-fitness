@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import { fatSecretLookupBarcode, fatSecretSearchFoods } from './fatsecret'
 import { pickBarcodeFoodLabel } from './barcodeLabel'
@@ -32,6 +32,14 @@ import {
   resolveLiftAssumptionPrompt,
 } from './liftAssumption'
 import { isValidUsername, normalizeUsername } from './username'
+import {
+  SHORTCUT_HABITS,
+  findProfileByShortcutCode,
+  getOrCreateShortcutCode,
+  isValidTimeZone,
+  localDateInTimeZone,
+  type ShortcutHabit,
+} from './habitShortcuts'
 
 export interface Env {
   DB: D1Database
@@ -688,7 +696,65 @@ profileApi.post('/macro/packaging-retest', async (c) => {
   return c.json({ runs, results })
 })
 
+profileApi.post('/shortcut-code', async (c) => {
+  const profileId = c.get('profileId')
+  await ensureDevice(c.env.DB, profileId)
+  const body = (await c.req.json()) as { timeZone?: string; regenerate?: boolean }
+  const timeZone = body.timeZone?.trim() || 'UTC'
+  if (!isValidTimeZone(timeZone)) return c.json({ error: 'Invalid timeZone' }, 400)
+  const code = await getOrCreateShortcutCode(c.env.DB, profileId, timeZone, Boolean(body.regenerate))
+  const origin = (c.env.PUBLIC_APP_ORIGIN ?? new URL(c.req.url).origin).replace(/\/$/, '')
+  const base = (c.env.PUBLIC_APP_BASE ?? '').replace(/\/$/, '')
+  return c.json({
+    code,
+    links: SHORTCUT_HABITS.map((habit) => ({ habit, url: `${origin}${base}/api/${habit}/${code}` })),
+  })
+})
+
 api.route('/api/u/:username', profileApi)
+
+/** Siri / Shortcuts "Get Contents of URL": marks the habit done for today in the profile's time zone. */
+async function handleHabitShortcut(c: Context<{ Bindings: Env }>, habit: ShortcutHabit) {
+  const db = c.env.DB
+  const profile = await findProfileByShortcutCode(db, c.req.param('code') ?? '')
+  if (!profile) return c.text('Unknown shortcut code. Copy a fresh link from Checkmark settings.', 404)
+
+  await ensureDevice(db, profile.deviceId)
+  const row = await db
+    .prepare('SELECT goals_json, logs_json FROM habits_bundle WHERE device_id = ?')
+    .bind(profile.deviceId)
+    .first<{ goals_json: string; logs_json: string }>()
+  const goals = parseHabitsGoalsStored(safeJsonParse<unknown>(row?.goals_json, {}), defaultHabitsGoals).current
+  const logs = normalizeHabitsLogs(asLogsMap(safeJsonParse<unknown>(row?.logs_json, {})))
+
+  const date = localDateInTimeZone(profile.timeZone)
+  const day = { ...(logs[date] || {}) }
+  const goal = asObjectRecord(goals[habit])
+  const label = typeof goal.label === 'string' && goal.label ? goal.label : habit
+
+  let message: string
+  if (habit === 'water') {
+    const target = Number(goal.dailyTarget) || 1
+    const next = Math.min((Number(day.water) || 0) + 1, target)
+    day.water = next
+    message = `${label}: ${next} of ${target} today.`
+  } else {
+    day[habit] = true
+    message = `${label} checked for today.`
+  }
+  logs[date] = day
+
+  await db
+    .prepare('UPDATE habits_bundle SET logs_json = ?, updated_at = ? WHERE device_id = ?')
+    .bind(JSON.stringify(logs), Date.now(), profile.deviceId)
+    .run()
+
+  return c.text(message, 200, { 'Cache-Control': 'no-store' })
+}
+
+for (const habit of SHORTCUT_HABITS) {
+  api.on(['GET', 'POST'], `/api/${habit}/:code`, (c) => handleHabitShortcut(c, habit))
+}
 
 api.get('/api/macro/prompts', async (c) => {
   const prompts = await getMacroPrompts(c.env.DB)
