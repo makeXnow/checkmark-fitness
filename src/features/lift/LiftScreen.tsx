@@ -991,6 +991,7 @@ export function LiftScreen({
     liveElapsedMs: number
     activeWorkoutId: string | null
     displayStatus: LiftTimerStatus
+    seekToWorkout?: (workoutId: string) => void
   }
 }) {
   const sortedDays = useMemo(
@@ -1555,17 +1556,36 @@ export function LiftScreen({
         const isPastWorkout =
           timerActive && activeWorkoutIndex !== -1 && thisWorkoutIndex !== -1 && thisWorkoutIndex < activeWorkoutIndex
 
+        const canSeekToWorkout = Boolean(timerActive && liftTimer?.seekToWorkout)
+
         return (
           <div
             key={workout.id}
             ref={(el) => {
               workoutCardRefs.current[workout.id] = el
             }}
+            role={canSeekToWorkout ? 'button' : undefined}
+            tabIndex={canSeekToWorkout ? 0 : undefined}
+            aria-label={
+              canSeekToWorkout ? `Jump timer to ${workout.name}` : undefined
+            }
+            onClick={() => {
+              if (canSeekToWorkout) liftTimer?.seekToWorkout?.(workout.id)
+            }}
+            onKeyDown={(e) => {
+              if (!canSeekToWorkout) return
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                liftTimer?.seekToWorkout?.(workout.id)
+              }
+            }}
             className={`overflow-hidden rounded-xl border bg-neutral-900 shadow-md transition-all ${
               isActiveWorkout
                 ? 'border-emerald-400 ring-2 ring-emerald-500/30'
                 : 'border-neutral-800'
-            } ${isPastWorkout ? 'opacity-75' : ''}`}
+            } ${isPastWorkout ? 'opacity-75' : ''} ${
+              canSeekToWorkout ? 'cursor-pointer' : ''
+            }`}
           >
             {timerActive && liftTimer?.session ? (
               <div className="h-1 overflow-hidden bg-neutral-800">
@@ -1634,11 +1654,15 @@ export function LiftScreen({
                 return (
                   <div
                     key={`${workout.id}-${idx}`}
-                    onClick={() => {
-                      if (isFinalSetCard && onPersist) setWeightModalWorkoutId(workout.id)
+                    onClick={(e) => {
+                      if (canSeekToWorkout) return
+                      if (isFinalSetCard && onPersist) {
+                        e.stopPropagation()
+                        setWeightModalWorkoutId(workout.id)
+                      }
                     }}
                     className={`relative mb-3 flex flex-col overflow-hidden rounded-2xl shadow-sm transition-all duration-200 ${
-                      isFinalSetCard && onPersist ? 'cursor-pointer' : ''
+                      !canSeekToWorkout && isFinalSetCard && onPersist ? 'cursor-pointer' : ''
                     }`}
                   >
                     <div

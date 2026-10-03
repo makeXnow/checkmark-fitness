@@ -14,6 +14,7 @@ import {
   isLiftTimerActive,
   pauseLiftTimerSession,
   resumeLiftTimerSession,
+  seekLiftTimerSessionToWorkout,
   startLiftTimerSession,
   syncLiftTimerSoundMarkers,
 } from './liftTimer'
@@ -194,6 +195,17 @@ export function useLiftTimer({ payload, dayId, dayWorkouts, enabled, onPersist }
     }
   }, [persistSession, session])
 
+  const seekToWorkout = useCallback(
+    (workoutId: string) => {
+      if (!session || session.dayId !== dayId || session.status === 'idle') return
+      const next = seekLiftTimerSessionToWorkout(session, workoutId)
+      if (!next) return
+      persistSession(next)
+      lastSegIdxRef.current = getLiftTimerSegmentIndex(next, next.elapsedMs)
+    },
+    [dayId, persistSession, session],
+  )
+
   const headerLabel = useMemo(() => {
     if (!session || session.dayId !== dayId || !isLiftTimerActive(session)) {
       return formatLiftTimerDuration(previewTotalMs)
@@ -222,6 +234,7 @@ export function useLiftTimer({ payload, dayId, dayWorkouts, enabled, onPersist }
     toggle,
     pause,
     clearTimer,
+    seekToWorkout,
     warningSeconds,
   }
 }
