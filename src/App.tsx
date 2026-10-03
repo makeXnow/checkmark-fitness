@@ -1119,6 +1119,7 @@ export default function App() {
                     liveElapsedMs: liftTimer.liveElapsedMs,
                     activeWorkoutId: liftTimer.activeWorkoutId,
                     displayStatus: liftTimer.displayStatus,
+                    seekToWorkout: liftTimer.seekToWorkout,
                   }}
                 />
               ),
