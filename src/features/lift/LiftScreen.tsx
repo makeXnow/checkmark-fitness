@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, FileText, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AppAccentTextButton } from '../../core/AppAccentTextButton'
 import { SettingSwitch } from '../../core/SettingSwitch'
 import { localDateISO } from '../../lib/localDate'
+import { useVisualViewportBox } from '../../lib/useVisualViewportBox'
 import type {
   LiftHistoryEntry,
   LiftPayload,
@@ -262,6 +271,33 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Centers dialog content in the visible viewport so it stays above the keyboard. */
+function KeyboardAwareModalShell({
+  onBackdropClick,
+  children,
+}: {
+  onBackdropClick: () => void
+  children: ReactNode
+}) {
+  const viewport = useVisualViewportBox()
+  return createPortal(
+    <div
+      className="z-[60] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
+      style={{
+        position: 'fixed',
+        top: viewport.top,
+        left: viewport.left,
+        width: viewport.width,
+        height: viewport.height,
+      }}
+      onClick={onBackdropClick}
+    >
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
 function LiftWeightModal({
   workoutName,
   initialWeight,
@@ -289,16 +325,13 @@ function LiftWeightModal({
     onSave(Math.max(0, parseFloat(trimmed)))
   }
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center"
-      onClick={onClose}
-    >
+  return (
+    <KeyboardAwareModalShell onBackdropClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="lift-weight-modal-title"
-        className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
+        className="my-auto w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -350,8 +383,7 @@ function LiftWeightModal({
           </button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </KeyboardAwareModalShell>
   )
 }
 
@@ -411,16 +443,13 @@ function LiftProgressModal({
     onSave(incrementFromAdd(addValue), Math.max(0, next), isNextOverridden)
   }
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center"
-      onClick={onClose}
-    >
+  return (
+    <KeyboardAwareModalShell onBackdropClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="lift-progress-modal-title"
-        className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
+        className="my-auto w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -495,8 +524,7 @@ function LiftProgressModal({
           </button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </KeyboardAwareModalShell>
   )
 }
 
