@@ -48,6 +48,65 @@ export function localDateInTimeZone(tz: string, now = new Date()): string {
   }).format(now)
 }
 
+/** The 7 YYYY-MM-DD dates of the week containing `date`; `firstDayOfWeek` 0 = Sunday, 1 = Monday. */
+export function weekDatesFor(date: string, firstDayOfWeek: number): string[] {
+  const d = new Date(`${date}T00:00:00Z`)
+  const offset = (d.getUTCDay() - firstDayOfWeek + 7) % 7
+  d.setUTCDate(d.getUTCDate() - offset)
+  const out: string[] = []
+  for (let i = 0; i < 7; i++) {
+    out.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return out
+}
+
+type DayLogLike = Record<string, unknown>
+
+/**
+ * Applies a shortcut run to today's log and returns the text Shortcuts shows / Siri speaks.
+ * `changed` is false when the run was a no-op (already tracked / water already at target).
+ */
+export function applyHabitShortcut(opts: {
+  habit: ShortcutHabit
+  label: string
+  goal: Record<string, unknown>
+  today: string
+  logs: Record<string, DayLogLike>
+  firstDayOfWeek: number
+}): { day: DayLogLike; changed: boolean; message: string } {
+  const { habit, label, goal, today, logs, firstDayOfWeek } = opts
+  const day = { ...(logs[today] || {}) }
+
+  if (habit === 'water') {
+    const target = Number(goal.dailyTarget) || 1
+    const current = Number(day.water) || 0
+    if (current >= target) {
+      return { day, changed: false, message: `${label} already at ${target} of ${target}.` }
+    }
+    const next = current + 1
+    day.water = next
+    const message = next >= target ? `${label} goal hit, ${next} of ${target}!` : `${label} ${next} of ${target}.`
+    return { day, changed: true, message }
+  }
+
+  if (day[habit]) {
+    return { day, changed: false, message: `${label} already tracked today.` }
+  }
+  day[habit] = true
+
+  const weekMin = Number(goal.min) || 0
+  const weekCount = weekDatesFor(today, firstDayOfWeek).filter((d) =>
+    d === today ? true : Boolean(logs[d]?.[habit]),
+  ).length
+
+  let message: string
+  if (weekMin > 0 && weekCount === weekMin) message = `${label} tracked. Weekly goal hit!`
+  else if (weekMin > 0 && weekCount < weekMin) message = `${label} tracked. ${weekCount} of ${weekMin} this week.`
+  else message = `${label} tracked. ${weekCount} this week.`
+  return { day, changed: true, message }
+}
+
 /** Returns the profile's code, creating one (or replacing it when `regenerate`) as needed. */
 export async function getOrCreateShortcutCode(
   db: D1Database,

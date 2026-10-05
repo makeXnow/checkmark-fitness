@@ -34,6 +34,7 @@ import {
 import { isValidUsername, normalizeUsername } from './username'
 import {
   SHORTCUT_HABITS,
+  applyHabitShortcut,
   findProfileByShortcutCode,
   getOrCreateShortcutCode,
   isValidTimeZone,
@@ -721,35 +722,34 @@ async function handleHabitShortcut(c: Context<{ Bindings: Env }>, habit: Shortcu
 
   await ensureDevice(db, profile.deviceId)
   const row = await db
-    .prepare('SELECT goals_json, logs_json FROM habits_bundle WHERE device_id = ?')
+    .prepare('SELECT goals_json, logs_json, app_settings_json FROM habits_bundle WHERE device_id = ?')
     .bind(profile.deviceId)
-    .first<{ goals_json: string; logs_json: string }>()
+    .first<{ goals_json: string; logs_json: string; app_settings_json: string }>()
   const goals = parseHabitsGoalsStored(safeJsonParse<unknown>(row?.goals_json, {}), defaultHabitsGoals).current
   const logs = normalizeHabitsLogs(asLogsMap(safeJsonParse<unknown>(row?.logs_json, {})))
+  const settings = safeJsonParse<{ firstDayOfWeek?: number }>(row?.app_settings_json, {})
 
-  const date = localDateInTimeZone(profile.timeZone)
-  const day = { ...(logs[date] || {}) }
+  const today = localDateInTimeZone(profile.timeZone)
   const goal = asObjectRecord(goals[habit])
   const label = typeof goal.label === 'string' && goal.label ? goal.label : habit
+  const result = applyHabitShortcut({
+    habit,
+    label,
+    goal,
+    today,
+    logs,
+    firstDayOfWeek: Number(settings.firstDayOfWeek) || 0,
+  })
 
-  let message: string
-  if (habit === 'water') {
-    const target = Number(goal.dailyTarget) || 1
-    const next = Math.min((Number(day.water) || 0) + 1, target)
-    day.water = next
-    message = `${label}: ${next} of ${target} today.`
-  } else {
-    day[habit] = true
-    message = `${label} checked for today.`
+  if (result.changed) {
+    logs[today] = result.day
+    await db
+      .prepare('UPDATE habits_bundle SET logs_json = ?, updated_at = ? WHERE device_id = ?')
+      .bind(JSON.stringify(logs), Date.now(), profile.deviceId)
+      .run()
   }
-  logs[date] = day
 
-  await db
-    .prepare('UPDATE habits_bundle SET logs_json = ?, updated_at = ? WHERE device_id = ?')
-    .bind(JSON.stringify(logs), Date.now(), profile.deviceId)
-    .run()
-
-  return c.text(message, 200, { 'Cache-Control': 'no-store' })
+  return c.text(result.message, 200, { 'Cache-Control': 'no-store' })
 }
 
 for (const habit of SHORTCUT_HABITS) {
