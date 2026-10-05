@@ -98,6 +98,60 @@ export function getLiftTimerActiveWorkoutId(
   return session.segments[index]?.workoutId ?? null
 }
 
+/** Elapsed ms at the start of the first segment for a workout, or null if missing. */
+export function getLiftTimerWorkoutStartMs(
+  session: LiftTimerSession,
+  workoutId: string,
+): number | null {
+  const starts = getLiftTimerSegmentStarts(session.segments)
+  for (let i = 0; i < session.segments.length; i++) {
+    if (session.segments[i].workoutId === workoutId) {
+      return starts[i] ?? 0
+    }
+  }
+  return null
+}
+
+/**
+ * Jump the timer to the start of a workout and keep (or start) running from there.
+ * Resets sound markers so later segments can chime again after the seek.
+ */
+export function seekLiftTimerSessionToWorkout(
+  session: LiftTimerSession,
+  workoutId: string,
+): LiftTimerSession | null {
+  if (session.status === 'idle') return null
+
+  const starts = getLiftTimerSegmentStarts(session.segments)
+  const index = session.segments.findIndex((segment) => segment.workoutId === workoutId)
+  if (index === -1) return null
+
+  const elapsedMs = starts[index] ?? 0
+  const totalMs = getLiftTimerTotalDurationMs(session.segments)
+  const completeFiredThroughSegment = index > 0 ? index - 1 : -1
+  const warningFiredForSegment = -1
+
+  if (elapsedMs >= totalMs && session.segments.length > 0) {
+    return {
+      ...session,
+      status: 'complete',
+      elapsedMs: totalMs,
+      resumeAt: null,
+      completeFiredThroughSegment: session.segments.length - 1,
+      warningFiredForSegment,
+    }
+  }
+
+  return {
+    ...session,
+    status: 'running',
+    elapsedMs,
+    resumeAt: Date.now(),
+    completeFiredThroughSegment,
+    warningFiredForSegment,
+  }
+}
+
 export function isLiftTimerActive(session: LiftTimerSession | null | undefined): boolean {
   return session?.status === 'running' || session?.status === 'paused'
 }
