@@ -61,6 +61,15 @@ Output: {"items":[{"emoji":"🍫","name":"ONE Maple","quantity":1,"unitSingular"
 
 Input: One maple bar.
 Output: {"items":[{"emoji":"🍩","name":"Maple Bar","quantity":1,"unitSingular":"bar","unitPlural":"bars","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"maple bar"}]}
+
+Input: Two bratwursts with buns and a large tomato.
+Output: {"items":[{"emoji":"🌭","name":"Bratwurst","quantity":2,"unitSingular":"bratwurst","unitPlural":"bratwursts","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"bratwurst"},{"emoji":"🍞","name":"Bratwurst Buns","quantity":2,"unitSingular":"bun","unitPlural":"buns","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"hot dog bun"},{"emoji":"🍅","name":"Large Tomato","quantity":1,"unitSingular":"large tomato","unitPlural":"large tomatoes","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"large tomato"}]}
+
+Input: The yogurt in the fridge was expired so I tossed it. I had a pear.
+Output: {"items":[{"emoji":"🍐","name":"Pear","quantity":1,"unitSingular":"pear","unitPlural":"pears","unitFamily":"count","estimated":false,"originalPortion":"","notes":"","fatSecretSearch":"pear"}]}
+
+Input: Half of a frozen enchilada bowl, the whole thing is 540 calories and 22 grams of protein.
+Output: {"items":[{"emoji":"🥘","name":"Enchilada Bowl","quantity":0.5,"unitSingular":"bowl","unitPlural":"bowls","unitFamily":"count","estimated":false,"originalPortion":"","notes":"540 calories, 22 g protein for the whole bowl","fatSecretSearch":"frozen enchilada bowl"}]}
 `
 
 export const PARSER_PROMPT = `You convert a user's spoken or typed food log into structured JSON food items.
@@ -155,6 +164,7 @@ SPLITTING
 Split an utterance into separate foods when they are genuinely separate foods.
 Keep a packaged or restaurant product together when it represents one product.
 A homemade composite meal may be split into ingredients when doing so produces a meaningfully better nutrition estimate.
+When you split a composite meal (or the user asks you to split it), every item must be a distinct component and none may include another: name the leftover part specifically ("Salad Base (lettuce, pico, dressing)") instead of the whole dish, so the protein, rice, beans, etc. are not counted twice. Leave out components the user said they skipped. Restaurant salads, bowls, and plates come with their standard dressing/sauce unless the user says otherwise — keep it in the base name (e.g. "Restaurant Salad Base (greens, toppings, house dressing)").
 Quantities and descriptors must never leak from one food into another.
 When processing one food, context about another food in the same sentence must not alter its quantity, unit, or identity.
 
@@ -168,6 +178,26 @@ Quantities, flavors, sizes, brands, and descriptions must remain associated with
 NOTES
 User-stated calories, protein, preparation context, or other useful non-portion information belongs in notes.
 Do not allow nutrition numbers to become the food quantity.
+When the user states calories/protein, copy the numbers into that item's notes together with what they describe, e.g. "620 calories, 26 g protein for the whole container", "190 calories per bottle", "400 calories total". Only put them on the item they describe.
+
+ONLY FOODS THAT WERE EATEN
+Log only foods and drinks the user says they consumed.
+Ignore commentary that is not a consumption report: storage or condition remarks ("the milk was frozen"), shopping, plans or future meals, questions, or foods someone else ate.
+If nothing was consumed, return {"items":[]}.
+
+ACCOMPANIMENTS ARE SEPARATE ITEMS
+"X with Y" where Y is its own food (hot dogs with buns, chips with salsa, eggs with toast, pancakes with syrup, burger with fries) → separate items, each with its own quantity. "Two hot dogs with buns" = 2 hot dogs + 2 buns.
+Keep one item only when Y is an ingredient of a single packaged or restaurant product ("chicken burrito bowl with rice and beans" from a restaurant, "turkey sandwich").
+Build-your-own restaurant orders (bowls, burritos, salads, subs, poke) where the user lists four or more components: one item per listed component, named and searched with the restaurant ("Chipotle White Rice"), quantity 1 restaurant portion. A whole-order database entry assumes default toppings and will not match what they chose.
+
+SIZE WORDS
+Size words (small, medium, large, jumbo, king-size) are part of the amount. Keep them in the unit so the size survives: "a large red onion" → quantity 1, unitSingular "large onion", unitPlural "large onions". Same for "small apple", "large banana", "large cucumber".
+
+SPEECH-TO-TEXT ERRORS
+Transcripts often mangle brand names and nouns ("car" for "bar"). When a word is clearly a mishearing of a known food or brand in context, use the intended product. If KNOWN FOODS FOR THIS USER are listed, prefer those spellings when a word sounds like one of them.
+
+COMPLETENESS SELF-CHECK
+Before answering, walk through the utterance start to finish and make sure every food or drink the user consumed has exactly one item — including the last item in a long list, items after "and", and items mentioned alongside brand chatter ("MyProtein, it's like a clear isolate"). Do not duplicate a food unless it was eaten twice.
 
 ${DIARY_NAME_RULES}
 ${DIARY_EMOJI_RULES}
@@ -197,8 +227,20 @@ Pass 1 has: Goodles Cheesy Mac Cup (1 cup), Goodles Cheddy Mac (2.6 oz)
 BRIDGE 1 — canned chicken vs 3 oz drained (USER CAN vs PORTION serving)
 Current food: Canned Chicken, qty 1, unitSingular can, unitFamily count
 Candidate: Great Value Canned Chicken | serving "3 oz drained" | deterministicUnitMatch=false
-→ a standard large retail can is ~12.5 oz, which is about 4 servings of 3 oz.
-→ {"libraryIndex":null,"fatSecretIndex":1,"servingIndex":1,"relationship":"NEEDS_UNIT_BRIDGE","bridgeQuestion":"How many retail cans are represented by 3 oz drained?","unitsPerServing":0.25,"calories":0,"protein":0,"servingType":"can"}
+→ a standard large retail can is 12.5 oz net, about 10.5 oz drained = 3.5 servings of 3 oz drained, so one serving is 1/3.5 ≈ 0.29 can.
+→ {"libraryIndex":null,"fatSecretIndex":1,"servingIndex":1,"relationship":"NEEDS_UNIT_BRIDGE","bridgeQuestion":"How many retail cans are represented by 3 oz drained?","unitsPerServing":0.29,"calories":0,"protein":0,"servingType":"can"}
+
+NO-BRIDGE 13 — whole-recipe serving is not a portion
+Current food: Beef Stew, qty 1, unitSingular bowl
+Candidate: Beef Stew | servings "1 serving (1650 g)", "1 cup (245 g)", "100 g"
+→ "1 serving (1650 g)" is the whole pot, not one bowl. Use the cup serving; a bowl is about 2 cups.
+→ {"libraryIndex":null,"fatSecretIndex":1,"servingIndex":2,"relationship":"NEEDS_UNIT_BRIDGE","bridgeQuestion":"How many bowls are represented by 1 cup (245 g) of beef stew?","unitsPerServing":0.5,"calories":0,"protein":0,"servingType":"bowl"}
+
+BRIDGE — pint vs cup serving (convert physical sizes, never guess a ratio)
+Current food: Frozen Dessert, qty 0.333, unitSingular pint
+Candidate: Light Ice Cream | serving "2/3 cup (87 g)"
+→ 1 pint = 2 cups, so 2/3 cup = (2/3) ÷ 2 = 0.333 pint.
+→ {"libraryIndex":null,"fatSecretIndex":1,"servingIndex":1,"relationship":"NEEDS_UNIT_BRIDGE","bridgeQuestion":"How many pints are represented by 2/3 cup of light ice cream?","unitsPerServing":0.333,"calories":0,"protein":0,"servingType":"pint"}
 
 NO-BRIDGE 3 — half burger vs restaurant "1 serving"
 Current food: Veggie Burger, qty 0.5, unitSingular burger
@@ -340,6 +382,27 @@ A component is not the whole product (pizza sauce ≠ pizza).
 Size/form often matter more than minor flavor differences.
 Brand alone is not enough if the product class differs.
 
+SELECTION DEFAULTS
+- Exact brand + product wins. When a candidate's brand AND product words match what the user said, choose it over generics or other products in the same brand line.
+- Never choose a "mini", "minis", "snack size", "bites", "fun size", or "thins" variant unless the user said that size. A combination product named "Brand A Brand B cup" is a different food from "Brand B Mini Brand A".
+- Plain prepared whole foods with no brand (meat, poultry, fish, eggs, grains, legumes, vegetables — "grilled salmon", "chicken thigh", "brown rice"): choose an unbranded reference entry for the cooked food in the state described. Default to lean/skinless, no added fat, and not fried, breaded, or raw unless the user said so. Avoid branded meals or recipes for a plain food.
+- Generic entries named only after a preparation ("Grilled Chicken", "Baked Fish", "Roasted Pork") usually average several cuts with skin and fat. When TRUSTED CANDIDATES include a standard reference entry for a plain food, use it instead.
+- Meats, fish, grains, legumes, and pasta given by weight: prefer cooked entries unless the user said raw, dry, or uncooked.
+- Containers (can, bag, box, jar, pouch) vs a weight or per-serving candidate: one serving is rarely the whole container. Work out servings per container from the package size (label net weight, or a typical retail size for that product) before bridging.
+- A generic recipe serving that is a whole recipe or batch ("1 serving (1650 g)", "1 recipe", "1 pan") is not one portion. Pick a single-portion serving (1 bowl, 1 cup, 100 g) and bridge from it.
+- WHOLE_ITEM is for ordinary single-portion servings only. If the selected serving is very large in grams, it is probably a whole recipe — choose another serving.
+- A meal-prep brand or grocery product is not a restaurant order. For a named restaurant, prefer that restaurant's own entry; otherwise a generic version of the same dish.
+- Store brands: a store name usually means its house brand (Walmart = Great Value, Costco = Kirkland Signature, Target = Good & Gather, Kroger = Kroger/Simple Truth, Whole Foods = 365, Aldi = its own labels). Stores also sell name brands, so an exact product match from another brand is fine.
+- FOOD LIBRARY entries are foods this user saved and verified (often from their own label scans). When a library entry is the same product — even with a shorter or slightly different name — prefer it over FatSecret. Same for TRUSTED CANDIDATES from the user's history.
+- Whole multi-serving packages ("the whole bag", "a full container", "the entire kit"): a measured serving like "4 cups (100 g)" or "2/3 cup" is one serving of several in the package — not WHOLE_ITEM. Prefer a library entry or serving that represents the whole package; otherwise use NEEDS_UNIT_BRIDGE with how many packages one serving is.
+
+PHYSICAL SIZES FOR BRIDGES
+Answer unitsPerServing by converting both sides to physical sizes (grams, ml, cups, oz) — never by guessing a ratio between named containers.
+- 1 pint = 2 cups = 16 fl oz; 1 cup = 16 tbsp = 240 ml; 1 oz = 28 g.
+- Containers: use the package's net weight or volume (label size) when known. Canned meat and fish drain to roughly 75–85% of net weight.
+- Chips, crackers, puffs: 1 oz is roughly 1 cup loosely filled.
+- Size words (small/medium/large/extra-large) mean that food's standard reference weight (USDA-style sizes for produce, eggs, bread slices, fruit), not a guess and not the medium size.
+
 CURRENT-ITEM ISOLATION
 Resolve exactly one parsed item. Other foods in the utterance are context only — never select them.
 
@@ -352,7 +415,8 @@ estimated=false: AI #1 amount is authoritative. Prefer convertible servings only
 estimated=true: prefer a credible serving matching originalPortion when present; else use the numeric estimate with a compatible serving.
 
 DIRECT USER NUTRITION
-If notes provide explicit calories/protein and no adequate match: libraryIndex/fatSecretIndex/servingIndex/relationship/bridgeQuestion/unitsPerServing null; return calories/protein; servingType from parser unit.
+User-stated calories/protein in notes beat any database candidate.
+If notes provide explicit calories/protein: libraryIndex/fatSecretIndex/servingIndex/relationship/bridgeQuestion/unitsPerServing null; return calories/protein; servingType from parser unit.
 
 USER-CONFIRMED FATSECRET: use fatSecretIndex 1, best servingIndex, correct relationship.
 USER-REJECTED FATSECRET: direct AI estimate only.
@@ -360,6 +424,17 @@ ${MACROS_EXAMPLES}`
 
 /** @deprecated V8 AI #3 — unused in V9; bridge lives on MACROS. */
 export const UNIT_BRIDGE_PROMPT = `Deprecated. Unit bridges are answered by the MACROS prompt (AI #2). Respond with {"unitsPerServing":1} only if forced.`
+
+/** Independent no-database estimate used only to sanity-check the MACROS pick. */
+export const MACROS_CROSSCHECK_PROMPT = `You are a registered dietitian. Estimate the TOTAL calories and protein for exactly the amount of the one current item the user ate. Respond with JSON.
+
+- Use typical US nutrition-label or restaurant values for the specific brand/restaurant/product when named.
+- Plain prepared whole foods with no brand: lean/skinless, cooked, no added fat unless stated. Meats, fish, grains, and legumes given by weight are cooked weight unless stated.
+- Use the user's quantity exactly (fractions of a package, pints, cans, counts, size words like "large"). Convert with physical sizes (pint = 2 cups, label net weights, standard reference weights).
+- If the user stated calories/protein for this item, use them (scaled to the amount eaten).
+- Other foods in the sentence are context only — estimate only the current item. If the meal was split into components (e.g. "Salad Base" plus separate chicken, rice, beans), estimate only this component.
+- assumedProduct: a few words naming the product and portion you assumed.
+- referenceFood: when the item is a plain whole food with no brand or restaurant (meat, poultry, fish, eggs, grains, legumes, produce, nuts, dairy), the standard nutrition-database name for exactly what you assumed, in the form "<food> <cut or variety> <state>" — for example "salmon atlantic cooked", "pork loin cooked", "brown rice cooked", "avocado raw". If no cut or variety was named, use the most commonly eaten lean one. Empty string for branded, restaurant, packaged, or mixed dishes.`
 
 export const TRANSCRIPTION_PROMPT = `Transcribe the food log exactly as spoken.
 

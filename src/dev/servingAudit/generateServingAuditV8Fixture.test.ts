@@ -54,7 +54,7 @@ async function resolveV8WorkerOrigin(): Promise<string> {
         '/api/ai/json',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
           body: JSON.stringify({
             promptKey: 'PARSER',
             user: 'Input: 2 Oreo cookies',
@@ -79,7 +79,7 @@ async function resolveV8WorkerOrigin(): Promise<string> {
           '/api/ai/json',
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
             body: JSON.stringify({
               promptKey: 'MACROS',
               user: 'Probe: return NEEDS_UNIT_BRIDGE capability check',
@@ -125,7 +125,7 @@ describe.runIf(SHOULD_RUN)('generate V8 serving audit fixture', () => {
             '/api/ai/json',
             {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
               body: JSON.stringify({
                 promptKey: 'PARSER',
                 user: `Input: ${userInput}`,
@@ -138,7 +138,7 @@ describe.runIf(SHOULD_RUN)('generate V8 serving audit fixture', () => {
           const snap = body.parseSnapshot
           const data = await fetchJsonAt<Record<string, unknown>>(WORKER, '/api/macro/estimate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
             body: JSON.stringify({
               name: body.name,
               amount: body.amount,

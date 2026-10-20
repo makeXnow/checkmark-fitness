@@ -1,3 +1,4 @@
+import { findMatchingLibraryFood } from './foodLibrary'
 import {
   ArrowUp,
   Camera,
@@ -258,6 +259,9 @@ function StatusDashboard({
   )
 }
 
+
+const MAX_AUTO_ESTIMATE_ATTEMPTS = 2
+
 export function MacroVoiceTracker({
   dateKey,
   goals,
@@ -287,6 +291,7 @@ export function MacroVoiceTracker({
   const customFoodsRef = useRef(customFoods)
   customFoodsRef.current = customFoods
   const estimatingIdsRef = useRef(new Set<string>())
+  const estimateAttemptsRef = useRef(new Map<string, number>())
   const [databasePickLoadingIds, setDatabasePickLoadingIds] = useState<Set<string>>(() => new Set())
 
   const setDatabasePickLoading = useCallback((id: string, loading: boolean) => {
@@ -493,6 +498,7 @@ export function MacroVoiceTracker({
             unitFamily,
             estimated,
             originalPortion: snap?.originalPortion,
+            unit: snap?.unitSingular ?? snap?.unit,
           })
           if (hit) {
             cachedFoods = hit.foods
@@ -538,6 +544,7 @@ export function MacroVoiceTracker({
           rel &&
           rel !== 'NEED_MORE_CANDIDATES' &&
           rel !== 'WRONG_MATCH' &&
+          !estSnap?.guardrailFlags?.length &&
           fsIdx != null &&
           fsIdx >= 1 &&
           servIdx != null &&
@@ -548,6 +555,7 @@ export function MacroVoiceTracker({
             unitFamily,
             estimated,
             originalPortion: snap?.originalPortion ?? '',
+            unit: snap?.unitSingular ?? snap?.unit,
             foods: result.fatSecretResults,
             selectedFoodIndex: fsIdx,
             selectedServingIndex: servIdx,
@@ -589,6 +597,9 @@ export function MacroVoiceTracker({
                   : i.amount,
               fatSecretResults: result.fatSecretResults,
               macroEstimateSnapshot: result.macroEstimateSnapshot ?? i.macroEstimateSnapshot,
+              ...(options?.userDatabasePick
+                ? { userConfirmedMatch: !options.skipFatSecretForAi ? true : undefined }
+                : {}),
               estimateError: undefined,
               status: 'ready',
             }
@@ -615,7 +626,6 @@ export function MacroVoiceTracker({
             return {
               ...i,
               status: 'editing_raw' as const,
-              rawText: msg,
               estimateError: msg,
               ...(fs?.length ? { fatSecretResults: fs } : {}),
             }
@@ -695,7 +705,10 @@ export function MacroVoiceTracker({
   )
 
   const startParsingFlow = useCallback(
-    async (id: string, rawText: string) => {
+    async (id: string, rawText: string, opts?: { userEditedText?: boolean }) => {
+      // Guard the same card against double submission. A new recording of the
+      // same words is a separate action and must not silently disappear.
+      if (processingRefs.current[id]) return
       const controller = new AbortController()
       processingRefs.current[id] = controller
       try {
@@ -704,20 +717,23 @@ export function MacroVoiceTracker({
           user: `Input: ${rawText}`,
         })
         const data = parsed as { items?: ParsedFoodItem[] }
-        replaceDay((prev) => prev.filter((i) => i.id !== id))
-        if (data.items?.length) {
-          const newItems = parsedItemsToDayItems(data.items, { userInput: rawText })
+        if (!data.items?.length) throw new Error('No food recognized. Edit the text and try again.')
+        if (data.items.length) {
+          const newItems = parsedItemsToDayItems(data.items, { userInput: rawText }).map((it) =>
+            opts?.userEditedText ? { ...it, userEditedName: true } : it,
+          )
           replaceDay((prev) => [...prev.filter((i) => i.id !== id), ...newItems])
           scrollDietListToTop()
           newItems.forEach((it) => void estimateMacrosForItem(it))
         }
-      } catch {
-        replaceDay((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'editing_raw', rawText } : i)))
+      } catch (error) {
+        const estimateError = error instanceof Error ? error.message : 'Food parsing failed. Try again.'
+        replaceDay((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'editing_raw', rawText, estimateError } : i)))
       } finally {
         delete processingRefs.current[id]
       }
     },
-    [estimateMacrosForItem, replaceDay, scrollDietListToTop],
+    [dateKey, estimateMacrosForItem, replaceDay, scrollDietListToTop],
   )
 
   const failPackagingItem = useCallback(
@@ -805,7 +821,9 @@ export function MacroVoiceTracker({
             imageKeys,
           })
           if (libraryFood) {
-            const nextFoods = [...customFoodsRef.current, libraryFood]
+            const existing = findMatchingLibraryFood(customFoodsRef.current, libraryFood)
+            if (existing) item.libraryFoodId = existing.id
+            const nextFoods = existing ? customFoodsRef.current : [...customFoodsRef.current, libraryFood]
             customFoodsRef.current = nextFoods
             onSaveFoods(nextFoods)
           }
@@ -870,7 +888,9 @@ export function MacroVoiceTracker({
           },
         })
         if (libraryFood) {
-          const nextFoods = [...customFoodsRef.current, libraryFood]
+          const existing = findMatchingLibraryFood(customFoodsRef.current, libraryFood)
+          if (existing) item.libraryFoodId = existing.id
+          const nextFoods = existing ? customFoodsRef.current : [...customFoodsRef.current, libraryFood]
           customFoodsRef.current = nextFoods
           onSaveFoods(nextFoods)
         }
@@ -968,12 +988,30 @@ export function MacroVoiceTracker({
 
   useEffect(() => {
     if (!pendingEstimateKey) return
+    const stuck: string[] = []
     for (const id of pendingEstimateKey.split(',')) {
       const item = items.find((i) => i.id === id)
       if (!item) continue
+      if (estimatingIdsRef.current.has(id)) continue
+      const attempts = estimateAttemptsRef.current.get(id) ?? 0
+      if (attempts >= MAX_AUTO_ESTIMATE_ATTEMPTS) {
+        stuck.push(id)
+        continue
+      }
+      estimateAttemptsRef.current.set(id, attempts + 1)
       void estimateMacrosForItem(item)
     }
-  }, [pendingEstimateKey, items, estimateMacrosForItem])
+    if (stuck.length > 0) {
+      const stuckIds = new Set(stuck)
+      replaceDay((prev) =>
+        prev.map((i) =>
+          stuckIds.has(i.id) && macroDayItemNeedsEstimate(i)
+            ? { ...i, status: 'error' as const, estimateError: "Estimate didn't finish — tap Retry." }
+            : i,
+        ),
+      )
+    }
+  }, [pendingEstimateKey, items, estimateMacrosForItem, replaceDay])
 
   const handleMicToggle = useCallback(async () => {
     if (recording) {
@@ -1052,12 +1090,10 @@ export function MacroVoiceTracker({
           void startParsingFlow(tempId, text.trim())
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'Transcription failed'
-          if (msg.startsWith('No speech detected')) {
-            replaceDay((prev) => prev.filter((i) => i.id !== tempId))
-            return
-          }
           replaceDay((prev) =>
-            prev.map((i) => (i.id === tempId ? { ...i, status: 'editing_raw', rawText: msg } : i)),
+            prev.map((i) =>
+              i.id === tempId ? { ...i, status: 'editing_raw', rawText: '', estimateError: msg } : i,
+            ),
           )
         }
       }
@@ -1282,6 +1318,7 @@ export function MacroVoiceTracker({
             const libItem: MacroCustomFood = {
               id: crypto.randomUUID(),
               name: displayName,
+              sourceFoodId: food.foodId,
               emoji,
               baseAmount: defaultServing.description,
               calories: defaultServing.calories,
@@ -1290,8 +1327,11 @@ export function MacroVoiceTracker({
               carbs: 0,
               createdAt: Date.now(),
             }
-            onSaveFoods([...customFoodsRef.current, libItem])
-            libraryFoodId = libItem.id
+            const existing = findMatchingLibraryFood(customFoodsRef.current, libItem)
+            const nextFoods = existing ? customFoodsRef.current : [...customFoodsRef.current, libItem]
+            customFoodsRef.current = nextFoods
+            onSaveFoods(nextFoods)
+            libraryFoodId = existing?.id ?? libItem.id
           }
 
           replaceDay((prev) =>
@@ -1393,6 +1433,7 @@ export function MacroVoiceTracker({
             ...i,
             emoji: fields.emoji || '🍱',
             name: fields.name,
+            userEditedName: i.userEditedName || fields.name.trim() !== (i.name ?? '').trim(),
             ...serving,
             amount:
               i.fromPackagingScan && !servingChanged && i.amount?.trim()
@@ -1523,10 +1564,11 @@ export function MacroVoiceTracker({
                     retryPackagingFromSnapshot(item.id, raw, quickScanRef.current.addToDatabase)
                     return
                   }
+                  const edited = raw.trim() !== (latest.rawText ?? '').trim()
                   replaceDay((prev) =>
                     prev.map((i) => (i.id === item.id ? { ...i, status: 'processing_cancellable', rawText: raw } : i)),
                   )
-                  void startParsingFlow(item.id, raw)
+                  void startParsingFlow(item.id, raw, { userEditedText: edited })
                 }}
                 onCancelTranscription={() => {
                   abortRef.current?.abort()
@@ -1919,6 +1961,9 @@ function FoodRow({
   if (item.status === 'editing_raw' && !item.name?.trim()) {
     return (
       <div className="bg-white/5 p-4 rounded-[var(--radius-card)] border border-white/20 flex flex-col gap-3">
+        {item.estimateError ? (
+          <p className="text-red-300/90 text-xs break-words whitespace-pre-wrap">{item.estimateError}</p>
+        ) : null}
         <textarea
           value={tempRaw}
           onChange={(e) => setTempRaw(e.target.value)}

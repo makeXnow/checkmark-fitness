@@ -1,3 +1,4 @@
+import { reconcileFoodLibrary } from './features/macro/foodLibrary'
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Apple,
@@ -30,8 +31,9 @@ import {
   type HabitsGoalsBundleData,
   type MacroGoalsBundleData,
 } from './lib/goalSnapshots'
-import { readBootstrapCache, writeBootstrapCache } from './lib/bootstrapCache'
+import { readBootstrapCache, writeBootstrapCache, writeMacroRecoveryCache } from './lib/bootstrapCache'
 import { hydrateBootstrap } from './lib/bootstrapHydrate'
+import { queueMacroSave } from './lib/queueMacroSave'
 import { preferNewerBootstrapBundles } from './lib/preferNewerBootstrapBundles'
 import { LiftTimerHeaderControl } from './features/lift/LiftTimerHeaderControl'
 import { useLiftTimer } from './features/lift/useLiftTimer'
@@ -138,6 +140,7 @@ export default function App() {
   const [uiReady, setUiReady] = useState(false)
   const [loadingVisible, setLoadingVisible] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [macroSaveNotice, setMacroSaveNotice] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
   const [dietPrompt, setDietPrompt] = useState<DietTargetBandPrompt | null>(null)
@@ -145,6 +148,10 @@ export default function App() {
 
   const habitsSaveSeq = useRef(Promise.resolve())
   const macroSaveSeq = useRef(Promise.resolve())
+  const pendingMacroRef = useRef<BootstrapResponse['macro'] | null>(null)
+  const macroSaveGeneration = useRef(0)
+  const macroEditVersion = useRef(0)
+  const macroRefreshingRef = useRef(false)
   const liftSaveSeq = useRef(Promise.resolve())
 
   const cacheBootSnapshot = useCallback(() => {
@@ -152,6 +159,41 @@ export default function App() {
     const snap = bootRef.current
     if (profile && snap) writeBootstrapCache(profile, snap)
   }, [])
+
+  const acknowledgeMacroSave = useCallback((macro: BootstrapResponse['macro'], updatedAt: number) => {
+    const cur = bootRef.current
+    if (!cur || (cur.macro !== macro && !pendingMacroRef.current)) return
+    const next = { ...cur, macro: { ...cur.macro, updatedAt } }
+    if (pendingMacroRef.current) pendingMacroRef.current = next.macro
+    bootRef.current = next
+    setBoot(next)
+    cacheBootSnapshot()
+  }, [cacheBootSnapshot])
+
+  const refreshMacroAfterFailedSave = useCallback(async (cause: unknown) => {
+    macroSaveGeneration.current += 1
+    macroRefreshingRef.current = true
+    const profile = getApiProfile()
+    const unsaved = bootRef.current?.macro
+    if (profile && unsaved) writeMacroRecoveryCache(profile, unsaved)
+    setMacroSaveNotice(cause instanceof Error ? cause.message : 'Food could not be saved. Please try again.')
+    pendingMacroRef.current = null
+    try {
+      const fresh = await fetchBootstrap()
+      const cur = bootRef.current
+      if (cur) {
+        // A rejected optimistic edit must not defeat the server's confirmed revision.
+        const next = { ...cur, macro: hydrateBootstrap(fresh).data.macro }
+        bootRef.current = next
+        setBoot(next)
+        cacheBootSnapshot()
+      }
+    } catch {
+      setMacroSaveNotice('Food could not be saved. A recovery copy is stored on this device. Reconnect and reload before editing.')
+    } finally {
+      macroRefreshingRef.current = false
+    }
+  }, [cacheBootSnapshot])
 
   /** Peek once on mount: reopen after 5+ minutes away → force today. */
   const staleResumeRef = useRef(consumePageLoadStaleResume())
@@ -172,7 +214,10 @@ export default function App() {
           ? { ...raw, appState: { ...raw.appState, selected_date: todayIso } }
           : raw
       const hydrated = hydrateBootstrap(data)
-      const { data: merged, keptLocal } = preferNewerBootstrapBundles(hydrated.data, bootRef.current)
+      const incoming = pendingMacroRef.current
+        ? { ...hydrated.data, macro: pendingMacroRef.current }
+        : hydrated.data
+      const { data: merged, keptLocal, recoveredMacroDays } = preferNewerBootstrapBundles(incoming, bootRef.current)
 
       bootRef.current = merged
       setBoot(merged)
@@ -184,21 +229,22 @@ export default function App() {
         const expectedHabitsAt = Number(merged.habits.updatedAt) || 0
         const expectedLiftAt = Number(merged.lift.updatedAt) || 0
 
-        if (hydrated.persist.macro && !keptLocal.macro) {
+        if ((hydrated.persist.macro || recoveredMacroDays) && !keptLocal.macro && !pendingMacroRef.current) {
           macroSaveSeq.current = macroSaveSeq.current
             .then(async () => {
               const cur = bootRef.current
               if (!cur || (Number(cur.macro.updatedAt) || 0) !== expectedMacroAt) return
-              await putMacro({
+              const saved = await putMacro({
+                baseUpdatedAt: cur.macro.updatedAt,
                 goals: cur.macro.goals,
                 goalsSnapshotsByDay: cur.macro.goalsSnapshotsByDay,
                 goalsHistory: cur.macro.goalsHistory,
                 customFoods: cur.macro.customFoods,
                 logs: cur.macro.logs,
               })
-              cacheBootSnapshot()
+              acknowledgeMacroSave(cur.macro, saved.updatedAt)
             })
-            .catch(() => undefined)
+            .catch(refreshMacroAfterFailedSave)
         }
         if (hydrated.persist.habits && !keptLocal.habits) {
           habitsSaveSeq.current = habitsSaveSeq.current
@@ -230,7 +276,7 @@ export default function App() {
 
       return { data: merged }
     },
-    [cacheBootSnapshot],
+    [acknowledgeMacroSave, cacheBootSnapshot, refreshMacroAfterFailedSave],
   )
 
   const resyncFromServer = useCallback(async () => {
@@ -304,7 +350,7 @@ export default function App() {
   const liftSubRoute = (appState?.lift_sub_route as LiftSubRoute) || 'workout'
   const rawLiftDayIndex = Number(appState?.lift_current_day_index ?? 0)
 
-  const selectedDateStr = appState?.selected_date || new Date().toISOString().slice(0, 10)
+  const selectedDateStr = appState?.selected_date || localDateISO(new Date())
   const currentDate = useMemo(() => parseISODateOnly(selectedDateStr), [selectedDateStr])
   const todayDateStr = localDateISO(new Date())
 
@@ -646,53 +692,52 @@ export default function App() {
       logs?: Record<string, MacroDayItem[]>
       customFoods?: MacroCustomFood[]
     }) => {
-      macroSaveSeq.current = macroSaveSeq.current
-        .then(async () => {
-          const prev = bootRef.current
-          if (!prev) return
-
-          let bundle: MacroGoalsBundleData = {
-            current: normalizeMacroGoals(prev.macro.goals),
-            snapshotsByDay: prev.macro.goalsSnapshotsByDay ?? {},
-            goalHistory: prev.macro.goalsHistory ?? [],
-          }
-          if (next.goals) {
-            bundle = recordMacroGoalChange(bundle, next.goals, todayDateStr)
-            const cemented = cementMacroSnapshots(
-              bundle,
-              Object.keys(prev.macro.logs || {}),
-              todayDateStr,
-            )
-            if (cemented.changed) bundle = cemented.bundle
-          }
-          const logs = next.logs ? mergeMacroLogs(prev.macro.logs, next.logs) : prev.macro.logs
-          const customFoods = next.customFoods ?? prev.macro.customFoods
-
-          const macro = {
-            goals: bundle.current,
-            goalsSnapshotsByDay: bundle.snapshotsByDay,
-            goalsHistory: bundle.goalHistory,
-            customFoods,
-            logs,
-            updatedAt: Date.now(),
-          }
-          const nextBoot = { ...prev, macro }
+      if (macroRefreshingRef.current) return macroSaveSeq.current
+      const generation = macroSaveGeneration.current
+      const editVersion = ++macroEditVersion.current
+      const prev = bootRef.current
+      if (!prev) return macroSaveSeq.current
+      let bundle: MacroGoalsBundleData = {
+        current: normalizeMacroGoals(prev.macro.goals),
+        snapshotsByDay: prev.macro.goalsSnapshotsByDay ?? {},
+        goalHistory: prev.macro.goalsHistory ?? [],
+      }
+      if (next.goals) {
+        bundle = recordMacroGoalChange(bundle, next.goals, todayDateStr)
+        const cemented = cementMacroSnapshots(bundle, Object.keys(prev.macro.logs || {}), todayDateStr)
+        if (cemented.changed) bundle = cemented.bundle
+      }
+      const mergedLogs = next.logs ? mergeMacroLogs(prev.macro.logs, next.logs) : prev.macro.logs
+      const library = reconcileFoodLibrary(next.customFoods ?? prev.macro.customFoods, mergedLogs)
+      const macro = {
+        goals: bundle.current,
+        goalsSnapshotsByDay: bundle.snapshotsByDay,
+        goalsHistory: bundle.goalHistory,
+        customFoods: library,
+        logs: mergedLogs,
+        updatedAt: prev.macro.updatedAt,
+      }
+      macroSaveSeq.current = queueMacroSave(macroSaveSeq.current, macro, {
+        read: () => bootRef.current?.macro,
+        publish: (value) => {
+          const current = bootRef.current
+          if (!current) return
+          const nextBoot = { ...current, macro: value }
           bootRef.current = nextBoot
           setBoot(nextBoot)
-
-          await putMacro({
-            goals: macro.goals,
-            goalsSnapshotsByDay: macro.goalsSnapshotsByDay,
-            goalsHistory: macro.goalsHistory,
-            customFoods: macro.customFoods,
-            logs: macro.logs,
-          })
+          const profile = getApiProfile()
+          if (profile) writeMacroRecoveryCache(profile, value)
           cacheBootSnapshot()
-        })
-        .catch(() => resyncFromServer())
+        },
+        pending: (value) => { pendingMacroRef.current = value },
+        persist: (snapshot, revision) => putMacro({ ...snapshot, baseUpdatedAt: revision }),
+        isCurrent: () => generation === macroSaveGeneration.current,
+        isLatest: () => editVersion === macroEditVersion.current,
+        saved: () => setMacroSaveNotice(null),
+      }).catch(refreshMacroAfterFailedSave)
       return macroSaveSeq.current
     },
-    [cacheBootSnapshot, resyncFromServer, todayDateStr],
+    [cacheBootSnapshot, refreshMacroAfterFailedSave, todayDateStr],
   )
 
   const saveLiftBundle = useCallback((next: LiftPayload) => {
@@ -1031,6 +1076,11 @@ export default function App() {
         id="app-main"
         className="mx-auto flex min-h-0 w-full max-w-[var(--app-max-width)] flex-1 flex-col overflow-hidden pt-[var(--app-main-pad-top)]"
       >
+        {macroSaveNotice && (
+          <div role="alert" className="mx-4 mb-2 rounded-xl bg-amber-500/15 p-3 text-sm text-amber-200">
+            {macroSaveNotice}
+          </div>
+        )}
         {settingsOpen ? (
           <TabPager
             activeTab={settingsSection as BottomTab}

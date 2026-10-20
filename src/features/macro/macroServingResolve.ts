@@ -117,7 +117,7 @@ export function computeMacroMultiplier(
 }
 
 const FS_NAME_COUNT_RE =
-  /\b(\d+)\s*(pieces?|pcs?|tacos?|nuggets?|wings?|strips?|bites?|cookies?|bars?|slices?|tablets?|capsules?|items?|counts?|packs?)\b/i
+  /\b(\d+)[\s-]*(pieces?|pcs?|pc|tacos?|nuggets?|wings?|strips?|bites?|cookies?|bars?|slices?|tablets?|capsules?|items?|counts?|ct|packs?)\b/i
 
 /** FS serving line used for multiplier math (count may live in food name). */
 export function effectiveFatSecretServingDescription(
@@ -125,10 +125,12 @@ export function effectiveFatSecretServingDescription(
   serving: { description: string },
 ): string {
   const rawDesc = serving.description.trim().toLowerCase()
-  if (rawDesc === '1 serving' || rawDesc === 'serving') {
+  if (/^(1\s+)?serving(\s*\(.*\))?$/.test(rawDesc)) {
     const countMatch = food.name.match(FS_NAME_COUNT_RE)
     if (countMatch) {
-      return `${countMatch[1]} ${countMatch[2]!.toLowerCase()}`
+      const unit = countMatch[2]!.toLowerCase()
+      const pieceUnit = /^(ct|counts?|pcs?|pc)$/.test(unit) ? 'pieces' : unit
+      return `${countMatch[1]} ${pieceUnit}`
     }
   }
   return serving.description

@@ -7,13 +7,16 @@ function bundleUpdatedAt(value: unknown): number {
 
 export type PreferNewerBootstrapResult = {
   data: BootstrapResponse
+  /** Recover cached diary days omitted by a whole-bundle server write. */
+  recoveredMacroDays: boolean
   /** True when a local bundle was kept because it was newer than the incoming payload. */
   keptLocal: { macro: boolean; habits: boolean; lift: boolean }
 }
 
 /**
  * When applying bootstrap (cache, HTTP-cached fetch, or resync), never clobber in-memory
- * edits that already have a newer updatedAt than the payload.
+ * edits that already have a newer updatedAt than the payload. Recover diary days
+ * omitted from a newer macro bundle; an explicit day list still controls deletions.
  */
 export function preferNewerBootstrapBundles(
   incoming: BootstrapResponse,
@@ -22,6 +25,7 @@ export function preferNewerBootstrapBundles(
   if (!local) {
     return {
       data: incoming,
+      recoveredMacroDays: false,
       keptLocal: { macro: false, habits: false, lift: false },
     }
   }
@@ -32,17 +36,31 @@ export function preferNewerBootstrapBundles(
     lift: bundleUpdatedAt(local.lift.updatedAt) > bundleUpdatedAt(incoming.lift.updatedAt),
   }
 
-  if (!keptLocal.macro && !keptLocal.habits && !keptLocal.lift) {
-    return { data: incoming, keptLocal }
+  // A bundle timestamp covers settings and normalization writes too. A newer
+  // timestamp does not mean an omitted diary day was intentionally deleted.
+  // Deleting the last food leaves an explicit [] day, which remains authoritative.
+  const missingDays = !keptLocal.macro
+    ? Object.entries(local.macro.logs).filter(
+        ([day, items]) => items.length > 0 && !Object.prototype.hasOwnProperty.call(incoming.macro.logs, day),
+      )
+    : []
+  const recoveredMacroDays = missingDays.length > 0
+  const macro = recoveredMacroDays
+    ? { ...incoming.macro, logs: { ...incoming.macro.logs, ...Object.fromEntries(missingDays) } }
+    : incoming.macro
+
+  if (!keptLocal.macro && !keptLocal.habits && !keptLocal.lift && !recoveredMacroDays) {
+    return { data: incoming, keptLocal, recoveredMacroDays }
   }
 
   return {
     data: {
       ...incoming,
-      macro: keptLocal.macro ? local.macro : incoming.macro,
+      macro: keptLocal.macro ? local.macro : macro,
       habits: keptLocal.habits ? local.habits : incoming.habits,
       lift: keptLocal.lift ? local.lift : incoming.lift,
     },
     keptLocal,
+    recoveredMacroDays,
   }
 }

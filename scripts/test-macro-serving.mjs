@@ -14,7 +14,7 @@ const WORKER = 'https://mxn-checkmark-fitness.alexander-c3a.workers.dev'
 async function estimate(body) {
   const res = await fetch(`${WORKER}/api/macro/estimate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
     body: JSON.stringify(body),
   })
   return res.json()

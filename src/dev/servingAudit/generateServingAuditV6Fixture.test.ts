@@ -52,7 +52,7 @@ async function resolveV6WorkerOrigin(): Promise<string> {
         '/api/ai/json',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
           body: JSON.stringify({
             promptKey: 'PARSER',
             user: 'Input: 2 Oreo cookies',
@@ -94,7 +94,7 @@ describe.runIf(SHOULD_RUN)('generate V6 serving audit fixture', () => {
             WORKER,
             '/api/ai/json', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
             body: JSON.stringify({
               promptKey: 'PARSER',
               user: `Input: ${userInput}`,
@@ -106,7 +106,7 @@ describe.runIf(SHOULD_RUN)('generate V6 serving audit fixture', () => {
           const snap = body.parseSnapshot
           const data = await fetchJsonAt<Record<string, unknown>>(WORKER, '/api/macro/estimate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
             body: JSON.stringify({
               name: body.name,
               amount: body.amount,

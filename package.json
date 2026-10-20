@@ -27,7 +27,8 @@
     "seed:remote": "npm run seed",
     "db:migrate": "wrangler d1 migrations apply checkmark-fitness --remote",
     "db:migrate:remote": "npm run db:migrate",
-    "deploy": "npm run build:prod && wrangler deploy"
+    "deploy": "npm run build:prod && wrangler deploy",
+    "ai:usage": "node scripts/ai-usage-report.mjs"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.0",
@@ -42,6 +43,7 @@
     "@cloudflare/workers-types": "^4.20260507.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^22.20.5",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
     "@types/react-router-dom": "^5.3.3",

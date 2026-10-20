@@ -293,9 +293,12 @@ export function parseResolvedAmount(text: string): { qty: number; unit: string }
  *   "1 oz (28g)" → null  (mass)
  */
 export function parseDbCountServing(description: string): { qty: number; unit: string } | null {
-  if (parseServingBaseGrams(description) !== null) return null
+  // "5 pieces (112 g)" is still a 5-piece count serving; the metric note is extra info.
+  const metricNote = description.trim().match(/^(.+?)\s*\(\s*[\d.]+\s*(?:g|ml|oz)\s*\)$/i)
+  const head = metricNote ? metricNote[1]!.trim() : description
+  if (parseServingBaseGrams(head) !== null) return null
 
-  const d = description.trim()
+  const d = head.trim()
   const qty = parseLeadingQuantity(d)
   if (qty != null) {
     const unit = d.replace(/^\s*(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*/i, '').trim()

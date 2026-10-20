@@ -197,6 +197,23 @@ export const MACROS_JSON_SCHEMA = {
   },
 } as const
 
+/** Independent sanity estimate (no database) used to catch wrong picks / serving math. */
+export const MACROS_CROSSCHECK_JSON_SCHEMA = {
+  name: 'macros_crosscheck_response',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      assumedProduct: { type: 'string' },
+      referenceFood: { type: 'string' },
+      calories: { type: 'number' },
+      protein: { type: 'number' },
+    },
+    required: ['assumedProduct', 'referenceFood', 'calories', 'protein'],
+    additionalProperties: false,
+  },
+} as const
+
 /** @deprecated V8 — unused in V9 (bridge fields are on MACROS_JSON_SCHEMA) */
 export const UNIT_BRIDGE_JSON_SCHEMA = {
   name: 'unit_bridge_response',

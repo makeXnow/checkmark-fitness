@@ -1,3 +1,4 @@
+import { libraryUsage } from './foodLibrary'
 import type {
   FatSecretFoodRef,
   MacroCustomFood,
@@ -102,6 +103,13 @@ export type MacroEstimateResponse = {
   resolvedUnit?: string
   /** @deprecated V5 */
   resolvedAmount?: string
+  statedNutritionApplied?: boolean
+  guardrailFlags?: string[]
+  crossCheckCalories?: number
+  /** Standard reference food the cross-check named for a plain whole food (empty otherwise). */
+  crossCheckReference?: string
+  escalatedModel?: string
+  personalMemoryHit?: boolean
 }
 
 /** Map structured MACROS AI output (field `relationship`) onto MacroEstimateResponse. */
@@ -173,7 +181,7 @@ export function sortCustomFoodsByUsage(
   foods: MacroCustomFood[],
   logs: Record<string, MacroDayItem[]>,
 ): MacroCustomFood[] {
-  const usage = countLibraryFoodUsage(logs)
+  const usage = libraryUsage(foods, logs)
   return [...foods].sort((a, b) => {
     const usageDiff = (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0)
     if (usageDiff !== 0) return usageDiff
@@ -710,6 +718,33 @@ function fatSecretServingFromItem(item: MacroDayItem) {
   return food.servings.find((s) => s.isDefault) ?? food.servings[0] ?? null
 }
 
+function baseFromStoredRelationship(item: MacroDayItem): { baseCalories: number; baseProtein: number } | null {
+  const snap = item.macroEstimateSnapshot
+  const rel = snap?.relationshipV7
+  if (!snap || !rel || item.fromBarcode || item.libraryFoodId) return null
+  const fsIdx = parseIndex(snap.fatSecretIndex)
+  if (fsIdx == null || !item.fatSecretResults?.length || fsIdx < 1 || fsIdx > item.fatSecretResults.length) {
+    return null
+  }
+  if (typeof item.servingSize === 'number' && Math.abs(item.servingSize - 1) > 1e-6) return null
+  const unit = (item.servingUnit || item.parseSnapshot?.unitSingular || '').trim()
+  // Per-gram / per-tbsp bases round badly and never needed a bridge.
+  if (!unit || servingUnitKind(unit) !== 'count') return null
+  const food = item.fatSecretResults[fsIdx - 1]!
+  const serving = fatSecretServingFromItem(item)
+  if (!serving) return null
+  const { multiplier } = computeV8Multiplier({
+    quantity: 1,
+    unit,
+    relationship: rel,
+    servingDescription: effectiveFatSecretServingDescription(food, serving),
+    unitsPerServing: snap.unitsPerServing,
+  })
+  if (multiplier == null || multiplier <= 0) return null
+  const scaled = scaleFatSecretServing(serving, multiplier)
+  return { baseCalories: scaled.calories, baseProtein: scaled.protein }
+}
+
 /**
  * True when the day-item "1×" portion is the same as the DB serving line
  * (multiplier = how many DB servings). False for display-portion rows where
@@ -769,6 +804,11 @@ export function resolveCanonicalBaseMacros(
   customFoods: MacroCustomFood[] = [],
 ): { baseCalories: number; baseProtein: number } | null {
   const serving = fatSecretServingFromItem(item)
+
+  // V8+ rows: reuse the stored relationship (incl. unit bridge) for ONE user unit; generic
+  // unit conversion below cannot see the bridge and mis-scales package/can/container units.
+  const bridged = baseFromStoredRelationship(item)
+  if (bridged) return bridged
 
   // Display-portion FatSecret rows: convert serving → per user-unit base (never raw FS serving × grams).
   if (serving && !dbServingMatchesItemDisplay(item, serving.description)) {

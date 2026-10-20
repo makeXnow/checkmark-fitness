@@ -70,7 +70,8 @@ export function validateParserItem(item: unknown): item is ParserItemResponse {
 export function validateParserResponse(raw: unknown): raw is ParserResponse {
   if (!raw || typeof raw !== 'object') return false
   const items = (raw as ParserResponse).items
-  if (!Array.isArray(items) || items.length === 0) return false
+  // Empty is valid: the utterance had no consumed food ("the milk was frozen").
+  if (!Array.isArray(items)) return false
   return items.every(validateParserItem)
 }
 
@@ -79,7 +80,6 @@ export function parserValidationErrors(raw: unknown): string[] {
   if (!raw || typeof raw !== 'object') return ['response is not an object']
   const items = (raw as ParserResponse).items
   if (!Array.isArray(items)) return ['items is not an array']
-  if (items.length === 0) return ['items is empty']
   items.forEach((item, i) => {
     if (!item || typeof item !== 'object') {
       errors.push(`items[${i}]: not an object`)
@@ -146,6 +146,7 @@ export function validateMacrosResponse(raw: unknown): raw is MacrosAiResponse {
     rel === 'NEEDS_UNIT_BRIDGE'
 
   if (hasLibrary || hasFatSecret) {
+    if (hasLibrary && hasFatSecret) return false
     if (hasFatSecret && (servIdx == null || servIdx < 1)) return false
     if (!okRel) return false
     // Bridge fields are application-validated / retried — do not hard-fail schema here.
@@ -172,6 +173,11 @@ export function macrosValidationErrors(raw: unknown): string[] {
   const hasFatSecret = o.fatSecretIndex != null && o.fatSecretIndex >= 1
   const hasDirect =
     !hasLibrary && !hasFatSecret && typeof o.calories === 'number' && o.calories > 0
+
+  if (hasLibrary && hasFatSecret) {
+    errors.push('set exactly one of libraryIndex or fatSecretIndex (the other must be null)')
+    return errors
+  }
 
   if (hasLibrary) {
     if (!isValidV8Relationship(o.relationship)) {

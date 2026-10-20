@@ -51,7 +51,7 @@ async function resolveV9WorkerOrigin(): Promise<string> {
         '/api/ai/json',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
           body: JSON.stringify({
             promptKey: 'PARSER',
             user: 'Input: 2 butter cookies',
@@ -92,7 +92,7 @@ describe.runIf(SHOULD_RUN)('generate V9 serving audit fixture', () => {
       try {
         await fetchJsonAt(WORKER, `/api/u/${encodeURIComponent(PROFILE)}/macro/prompts`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
           body: JSON.stringify({
             MACROS: DEFAULT_MACRO_PROMPTS.MACROS,
             PARSER: DEFAULT_MACRO_PROMPTS.PARSER,
@@ -123,7 +123,7 @@ describe.runIf(SHOULD_RUN)('generate V9 serving audit fixture', () => {
             '/api/ai/json',
             {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
               body: JSON.stringify({
                 promptKey: 'PARSER',
                 user: `Input: ${userInput}`,
@@ -136,7 +136,7 @@ describe.runIf(SHOULD_RUN)('generate V9 serving audit fixture', () => {
           const snap = body.parseSnapshot
           const data = await fetchJsonAt<Record<string, unknown>>(WORKER, '/api/macro/estimate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
             body: JSON.stringify({
               name: body.name,
               amount: body.amount,

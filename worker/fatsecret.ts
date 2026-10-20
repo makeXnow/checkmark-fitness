@@ -201,6 +201,17 @@ function assertValidProductBarcode(raw: string): string {
   return digits
 }
 
+/** "1 bowl" + metric 400 g → "1 bowl (400 g)" so unit math can see the mass. */
+function servingDescriptionWithMetric(s: Record<string, unknown>): string {
+  const base = str(s.serving_description) || str(s.measurement_description) || '1 serving'
+  const amount = num(s.metric_serving_amount)
+  const unit = str(s.metric_serving_unit).trim().toLowerCase()
+  if (amount <= 0 || !/^(g|ml|oz)$/.test(unit)) return base
+  if (/\d\s*(g|ml|grams?)\b/i.test(base) || /^\d+(\.\d+)?\s*(g|ml|oz)$/i.test(base.trim())) return base
+  const rounded = Math.round(amount * 10) / 10
+  return `${base} (${rounded} ${unit})`
+}
+
 function parseFatSecretFoodRecord(food: Record<string, unknown>): FatSecretFoodRef | null {
   const foodId = str(food.food_id)
   if (!foodId) return null
@@ -212,7 +223,7 @@ function parseFatSecretFoodRecord(food: Record<string, unknown>): FatSecretFoodR
       if (!servingId) return null
       return {
         servingId,
-        description: str(s.serving_description) || str(s.measurement_description) || '1 serving',
+        description: servingDescriptionWithMetric(s),
         calories: num(s.calories),
         protein: num(s.protein),
         isDefault: s.is_default === 1 || s.is_default === '1',
@@ -266,6 +277,67 @@ export async function fatSecretLookupBarcode(
   const food = parseFatSecretFoodJson(data)
   if (!food) throw new Error('Product not found')
   return { ...food, servings: food.servings.slice(0, 8) }
+}
+
+const MAX_SERVINGS_PER_FOOD = 10
+
+/** Full food record (all servings, with metric grams) via legacy server.api food.get.v2. */
+export async function fatSecretGetFood(
+  env: EnvFatSecret,
+  foodId: string,
+  timeoutMs = 5000,
+): Promise<FatSecretFoodRef | null> {
+  const token = await getAccessToken(env)
+  const signal =
+    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+      ? AbortSignal.timeout(timeoutMs)
+      : undefined
+  const res = await fetch('https://platform.fatsecret.com/rest/server.api', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ method: 'food.get.v2', food_id: foodId, format: 'json' }),
+    signal,
+  })
+  if (!res.ok) return null
+  const text = await res.text()
+  if (fatSecretApiErrorMessage(text)) return null
+  try {
+    return parseFatSecretFoodJson(JSON.parse(text))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Search results only carry one "Per X" line with no grams. Replace the first `count`
+ * foods' servings with the full serving list so the model can pick "1 bowl (400 g)"
+ * instead of a whole-recipe serving. Failures keep the search serving.
+ */
+export async function fatSecretEnrichServings(
+  env: EnvFatSecret,
+  foods: FatSecretFoodRef[],
+  count = 10,
+): Promise<FatSecretFoodRef[]> {
+  const head = foods.slice(0, count)
+  const enriched = await Promise.all(
+    head.map(async (food) => {
+      if (food.servings.length > 1) return food
+      try {
+        const full = await fatSecretGetFood(env, food.foodId)
+        if (!full || full.servings.length === 0) return food
+        const servings = [...full.servings]
+          .sort((a, b) => Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault)))
+          .slice(0, MAX_SERVINGS_PER_FOOD)
+        return { ...food, servings }
+      } catch {
+        return food
+      }
+    }),
+  )
+  return [...enriched, ...foods.slice(count)]
 }
 
 export async function fatSecretSearchFoods(env: EnvFatSecret, query: string): Promise<FatSecretFoodRef[]> {

@@ -1,5 +1,5 @@
 import { getBasename } from '../lib/getBasename'
-import { withProfileApiPath } from './apiProfile'
+import { getApiProfile, withProfileApiPath } from './apiProfile'
 
 /** Deployed Cloudflare Worker (must match wrangler.toml `name` + account workers.dev subdomain). */
 const DEPLOYED_WORKER_ORIGIN = 'https://mxn-checkmark-fitness.alexander-c3a.workers.dev'
@@ -92,6 +92,13 @@ function remoteWorkerOrigin(): string {
 }
 
 async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers)
+  const isAudit = typeof window !== 'undefined' && /\/dev\/serving-audit(?:\/|$)/.test(window.location.pathname)
+  headers.set('x-checkmark-source', isAudit ? 'test' : isLocalDevHost() ? 'development' : 'app')
+  const profile = getApiProfile()
+  if (profile) headers.set('x-checkmark-profile', profile)
+  init = { ...init, headers }
+
   if (typeof window !== 'undefined' && isLocalDevHost()) {
     const remote = remoteWorkerOrigin()
 

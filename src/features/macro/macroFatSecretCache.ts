@@ -10,7 +10,8 @@
 import type { FatSecretFoodRef } from '../../types/domain'
 import type { UnitFamily, V7ServingRelationship } from './macroAiSchemas'
 
-const CACHE_KEY = 'checkmark-fatsecret-v9-cache'
+const CACHE_KEY = 'checkmark-fatsecret-v10-cache'
+const LEGACY_CACHE_KEYS = ['checkmark-fatsecret-v9-cache']
 const TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 export type FatSecretV7CacheEntry = {
@@ -41,9 +42,12 @@ export function buildFatSecretCacheKey(input: {
   unitFamily: UnitFamily
   estimated: boolean
   originalPortion?: string
+  /** User unit — a cached unit bridge for "pint" is wrong for "container". */
+  unit?: string
 }): string {
   const search = normalizeFatSecretSearchKey(input.fatSecretSearch)
-  const base = `${search}|${input.unitFamily}`
+  const unit = (input.unit ?? '').trim().toLowerCase()
+  const base = `${search}|${input.unitFamily}${unit ? `|${unit}` : ''}`
   if (input.estimated) {
     const portion = (input.originalPortion ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
     return portion ? `${base}|${portion}` : `${base}|estimated`
@@ -54,6 +58,7 @@ export function buildFatSecretCacheKey(input: {
 function readStore(): CacheStore {
   if (typeof localStorage === 'undefined') return {}
   try {
+    for (const legacy of LEGACY_CACHE_KEYS) localStorage.removeItem(legacy)
     const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return {}
     const parsed = JSON.parse(raw) as CacheStore
@@ -88,6 +93,7 @@ export function getFatSecretV7Cache(input: {
   unitFamily: UnitFamily
   estimated: boolean
   originalPortion?: string
+  unit?: string
 }): FatSecretV7CacheEntry | null {
   const key = buildFatSecretCacheKey(input)
   const store = pruneExpired(readStore())
@@ -101,6 +107,7 @@ export function getFatSecretV7Cache(input: {
 
 export function setFatSecretV7Cache(entry: Omit<FatSecretV7CacheEntry, 'cachedAt' | 'searchNormalized'> & {
   fatSecretSearch: string
+  unit?: string
 }): void {
   const searchNormalized = normalizeFatSecretSearchKey(entry.fatSecretSearch)
   const key = buildFatSecretCacheKey({
@@ -108,6 +115,7 @@ export function setFatSecretV7Cache(entry: Omit<FatSecretV7CacheEntry, 'cachedAt
     unitFamily: entry.unitFamily,
     estimated: entry.estimated,
     originalPortion: entry.originalPortion,
+    unit: entry.unit,
   })
   const store = pruneExpired(readStore())
   store[key] = {

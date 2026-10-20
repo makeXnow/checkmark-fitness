@@ -134,6 +134,10 @@ export type MacroGoalHistoryEntry = MacroDayGoalsSnapshot & {
 }
 
 export interface MacroCustomFood {
+  /** Product identity and observed names for matching scan, text and voice history. */
+  sourceFoodId?: string
+  sourceNames?: string[]
+  autoAdded?: boolean
   id: string
   emoji?: string
   name: string
@@ -218,6 +222,18 @@ export type MacroEstimateSnapshot = {
   relationship?: import('../features/macro/macroAiSchemas').ServingRelationship | null
   /** @deprecated V5 */
   normalizedEstimate?: import('../features/macro/macroAiSchemas').NormalizedEstimate | null
+  /** Calories/protein came from numbers the user said, not a database match. */
+  statedNutritionApplied?: boolean
+  /** Plausibility checks that fired (e.g. whole-recipe serving, disagreement with cross-check). */
+  guardrailFlags?: string[]
+  /** Independent AI estimate used to sanity-check the database pick. */
+  crossCheckCalories?: number
+  /** Standard reference food the cross-check named for a plain whole food (empty otherwise). */
+  crossCheckReference?: string
+  /** Model that produced the final pick when the default model was escalated. */
+  escalatedModel?: string
+  /** Matched a trusted entry from the user's own history (barcode / label / confirmed pick). */
+  personalMemoryHit?: boolean
 }
 
 export interface MacroDayItem {
@@ -264,6 +280,10 @@ export interface MacroDayItem {
   barcodeLookup?: boolean
   /** Macros came from a barcode scan (single fixed FatSecret match). */
   fromBarcode?: boolean
+  /** User hand-picked this database match — trusted for personal food memory. */
+  userConfirmedMatch?: boolean
+  /** User typed or corrected this item's name/text — a trusted spelling for their vocabulary. */
+  userEditedName?: boolean
   /** Macros came from front + nutrition packaging photos (label math, not FatSecret). */
   fromPackagingScan?: boolean
   /** Nutrition-label form + resolve notes from packaging Quick Scan. */

@@ -1,3 +1,4 @@
+import { trackedOpenAiFetch, withAiUsage } from './aiUsage'
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import { fatSecretLookupBarcode, fatSecretSearchFoods } from './fatsecret'
@@ -12,6 +13,7 @@ import {
   unwrapMacroGoalsLeaf,
 } from './goalSnapshots'
 import { runMacroEstimate } from './macroEstimate'
+import { loadPersonalVocabulary } from './macroMemory'
 import {
   getMacroPrompts,
   resolveMacroPromptSystem,
@@ -256,7 +258,7 @@ api.use(
   cors({
     origin: (origin) => origin || '*',
     allowMethods: ['GET', 'PUT', 'PATCH', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'x-checkmark-profile', 'x-checkmark-source'],
   }),
 )
 
@@ -435,11 +437,19 @@ profileApi.put('/macro', async (c) => {
   const db = c.env.DB
   await ensureDevice(db, profileId)
   const body = (await c.req.json()) as {
+    baseUpdatedAt?: number
     goals?: Record<string, unknown>
     goalsSnapshotsByDay?: Record<string, { calorieGoal: number; proteinPctGoal: number }>
     goalsHistory?: { effectiveDate: string; calorieGoal: number; proteinPctGoal: number }[]
     customFoods?: unknown[]
     logs?: Record<string, unknown>
+  }
+  if (!Number.isSafeInteger(body.baseUpdatedAt) || Number(body.baseUpdatedAt) < 0) {
+    return c.json({ error: 'Please reload the app before saving food. This app version needs an update.' }, 428)
+  }
+  if (!body.goals || Array.isArray(body.goals) || typeof body.goals !== 'object' ||
+      !Array.isArray(body.customFoods) || !body.logs || Array.isArray(body.logs) || typeof body.logs !== 'object') {
+    return c.json({ error: 'A complete food diary is required to save.' }, 400)
   }
   const macroCurrent = unwrapMacroGoalsLeaf(body.goals) ?? asObjectRecord(body.goals || {})
   const stored = serializeMacroGoalsStored({
@@ -448,26 +458,29 @@ profileApi.put('/macro', async (c) => {
     goalHistory: body.goalsHistory || [],
   })
   const now = Date.now()
-  await db
+  const saved = await db
     .prepare(
-      `INSERT INTO macro_bundle (device_id, goals_json, custom_foods_json, logs_json, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(device_id) DO UPDATE SET
-         goals_json = excluded.goals_json,
-         custom_foods_json = excluded.custom_foods_json,
-         logs_json = excluded.logs_json,
-         updated_at = excluded.updated_at`,
+      `UPDATE macro_bundle SET
+         goals_json = ?, custom_foods_json = ?,
+         logs_json = json_patch(logs_json, ?),
+         updated_at = MAX(updated_at + 1, ?)
+       WHERE device_id = ? AND updated_at = ?
+       RETURNING updated_at`,
     )
     .bind(
-      profileId,
       JSON.stringify(stored),
       JSON.stringify(body.customFoods || []),
       JSON.stringify(body.logs || {}),
       now,
+      profileId,
+      body.baseUpdatedAt,
     )
-    .run()
+    .first<{ updated_at: number }>()
 
-  return c.json({ ok: true })
+  if (!saved) {
+    return c.json({ error: 'Your food diary changed elsewhere. Reload the latest diary and try your edit again.' }, 409)
+  }
+  return c.json({ ok: true, updatedAt: saved.updated_at })
 })
 
 profileApi.put('/lift', async (c) => {
@@ -664,7 +677,7 @@ profileApi.post('/macro/packaging-retest', async (c) => {
       { type: 'text', text: 'Analyze this nutrition facts panel.' },
       { type: 'image_url', image_url: { url: `data:${nutritionImg.mimeType};base64,${nutritionImg.base64}` } },
     ]
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await trackedOpenAiFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
@@ -770,6 +783,22 @@ function audioUploadFromFormData(formData: FormData): { blob: Blob; filename: st
   return { blob: entry, filename }
 }
 
+function optionalProfileId(raw: unknown): string | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null
+  const id = normalizeUsername(raw)
+  return isValidUsername(id) ? id : null
+}
+
+/** Personal food/brand spellings for transcription + parser; empty on any failure. */
+async function vocabularyList(db: D1Database, profileId: string | null, max = 80): Promise<string[]> {
+  if (!profileId) return []
+  try {
+    return (await loadPersonalVocabulary(db, profileId)).slice(0, max)
+  } catch {
+    return []
+  }
+}
+
 /** OpenAI: audio transcription (webm/mp3/wav/m4a) */
 api.post('/api/ai/transcribe', async (c) => {
   const key = c.env.OPENAI_API_KEY
@@ -792,13 +821,20 @@ api.post('/api/ai/transcribe', async (c) => {
   try {
     const prompts = await getMacroPrompts(c.env.DB)
     const transcriptionPrompt = resolveMacroPromptSystem(prompts, promptKey, undefined)
-    if (transcriptionPrompt) upstream.append('prompt', transcriptionPrompt)
+    const vocab = await vocabularyList(c.env.DB, optionalProfileId(c.req.query('profile')), 25)
+    const promptWithVocab = [
+      transcriptionPrompt,
+      vocab.length ? `Foods and brands this person often logs: ${vocab.join(', ')}.` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+    if (promptWithVocab) upstream.append('prompt', promptWithVocab)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Invalid prompt key'
     return c.json({ error: msg }, 400)
   }
 
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const res = await trackedOpenAiFetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}` },
     body: upstream,
@@ -824,6 +860,7 @@ api.post('/api/ai/json', async (c) => {
     promptKey?: string
     user: string
     images?: { mimeType: string; base64: string }[]
+    profile?: unknown
   }
 
   let system: string | undefined
@@ -837,10 +874,13 @@ api.post('/api/ai/json', async (c) => {
 
   const model = body.model || OPENAI_MODELS.chatFast
   const jsonSchema = body.promptKey ? schemaForPromptKey(body.promptKey) : null
-  const parserUser =
-    body.promptKey === 'PARSER' && !(body.images?.length)
-      ? rewriteSpokenFoodLog(body.user)
-      : body.user
+  const isTextParser = body.promptKey === 'PARSER' && !(body.images?.length)
+  const knownFoods = isTextParser ? await vocabularyList(c.env.DB, optionalProfileId(body.profile)) : []
+  const parserUser = isTextParser
+    ? `${rewriteSpokenFoodLog(body.user)}${
+        knownFoods.length ? `\n\nKNOWN FOODS FOR THIS USER (spelling reference only — never add items from this list): ${knownFoods.join('; ')}` : ''
+      }`
+    : body.user
   const userText = jsonSchema ? parserUser : ensureJsonObjectUser(system ?? '', body.user)
   const content: unknown[] = [{ type: 'text', text: userText }]
   for (const img of body.images || []) {
@@ -861,7 +901,7 @@ api.post('/api/ai/json', async (c) => {
       return c.json({ result: parsed })
     }
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await trackedOpenAiFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
@@ -931,7 +971,7 @@ api.post('/api/ai/vision', async (c) => {
     })
   }
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await trackedOpenAiFetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
@@ -968,8 +1008,8 @@ api.post('/api/ai/vision', async (c) => {
 /** FatSecret search + macro AI in one Worker call (credentials stay server-side). */
 api.post('/api/macro/estimate', async (c) => {
   try {
-    const body = await c.req.json()
-    const result = await runMacroEstimate(c.env, body as Parameters<typeof runMacroEstimate>[1])
+    const body = (await c.req.json()) as Parameters<typeof runMacroEstimate>[1] & { profile?: unknown }
+    const result = await runMacroEstimate(c.env, body, { profileId: optionalProfileId(body.profile) })
     return c.json(result)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Macro estimate failed'
@@ -1111,7 +1151,8 @@ export default {
     if (path.startsWith('/api')) {
       const next = new URL(url.toString())
       next.pathname = path
-      return api.fetch(new Request(next.toString(), request), env, ctx)
+      const routed = new Request(next.toString(), request)
+      return withAiUsage(routed, env.DB, async () => api.fetch(routed, env, ctx))
     }
     return env.ASSETS.fetch(request)
   },

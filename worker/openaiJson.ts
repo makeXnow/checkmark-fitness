@@ -1,3 +1,4 @@
+import { trackedOpenAiFetch } from './aiUsage'
 import { OPENAI_MODELS } from './openaiModels'
 import type { JsonSchemaFormat } from '../src/features/macro/macroAiSchemas'
 
@@ -53,7 +54,7 @@ export async function callOpenAiJson(
       : undefined
   let res: Response
   try {
-    res = await fetch('https://api.openai.com/v1/chat/completions', {
+    res = await trackedOpenAiFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,

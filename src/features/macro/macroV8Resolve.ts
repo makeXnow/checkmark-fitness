@@ -56,7 +56,8 @@ export function computeV8Multiplier(input: V8MultiplierInput): V8MultiplierResul
     }
     case 'EQUIVALENT_COUNT': {
       const db = parseDbCountServing(desc)
-      if (!db || db.qty <= 0) {
+      // "1 serving" is not one piece — a count equivalence needs a real piece count.
+      if (!db || db.qty <= 0 || /^servings?$/i.test(db.unit.trim())) {
         return { multiplier: null, deterministicOk: false, usedUnitBridge: false }
       }
       return {
@@ -66,10 +67,10 @@ export function computeV8Multiplier(input: V8MultiplierInput): V8MultiplierResul
       }
     }
     case 'WHOLE_ITEM': {
-      const db = parseDbCountServing(desc)
-      const wholeQty = db?.qty && db.qty > 0 ? db.qty : 1
+      // One database serving IS one whole user item ("5 pieces" = 1 order), so the
+      // serving's own piece count must not divide the multiplier.
       return {
-        multiplier: roundMultiplier(quantity / wholeQty),
+        multiplier: roundMultiplier(quantity),
         deterministicOk: true,
         usedUnitBridge: false,
       }

@@ -234,7 +234,7 @@ function foodLabel(food) {
 async function post(path, body) {
   const res = await fetch(`${WORKER}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-checkmark-source': 'test' },
     body: JSON.stringify(body),
   })
   const text = await res.text()

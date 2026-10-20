@@ -1,3 +1,4 @@
+import { reconcileFoodLibrary } from '../features/macro/foodLibrary'
 import {
   normalizeLiftHistoryOnLoad,
   reconcileWorkoutMainWeightsFromHistory,
@@ -54,8 +55,9 @@ export function hydrateBootstrap(raw: BootstrapResponse): BootstrapHydrateResult
   const customFoodsNorm = normalizeMacroCustomFoodsOnLoad(data.macro.customFoods || [])
   const logs = normalizeMacroLogsOnLoad(data.macro.logs || {}, customFoodsNorm.foods)
   const logsChanged = logs !== data.macro.logs
-  const foodsChanged = customFoodsNorm.changed
-  if (foodsChanged) data.macro.customFoods = customFoodsNorm.foods
+  const library = reconcileFoodLibrary(customFoodsNorm.foods, logs)
+  const foodsChanged = customFoodsNorm.changed || library !== customFoodsNorm.foods
+  if (foodsChanged) data.macro.customFoods = library
 
   const liftPayload = data.lift.payload as LiftPayload
   const liftHistoryNorm = normalizeLiftHistoryOnLoad(liftPayload.history)

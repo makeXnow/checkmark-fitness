@@ -1,6 +1,7 @@
 name = "mxn-checkmark-fitness"
 main = "worker/index.ts"
 compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_als"]
 
 # Create DB: wrangler d1 create checkmark-fitness
 # Then paste database_id below.

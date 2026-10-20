@@ -7,6 +7,7 @@ import type {
   MacroParseSnapshot,
 } from '../types/domain'
 import { apiFetch, apiFetchForProfile } from './apiPaths'
+import { getApiProfile } from './apiProfile'
 
 function htmlResponseHint(text: string): string | undefined {
   const t = text.trimStart()
@@ -129,18 +130,19 @@ export async function putHabits(data: {
 }
 
 export async function putMacro(data: {
+  baseUpdatedAt: number
   goals: unknown
   goalsSnapshotsByDay?: unknown
   goalsHistory?: unknown
   customFoods: unknown
   logs: unknown
-}): Promise<void> {
+}): Promise<{ ok: boolean; updatedAt: number }> {
   const res = await apiFetch('/api/macro', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error(await res.text())
+  return parseJson<{ ok: boolean; updatedAt: number }>(res)
 }
 
 export async function putLift(payload: unknown): Promise<void> {
@@ -230,6 +232,8 @@ export async function transcribeAudio(
   if (options?.model) params.set('model', options.model)
   if (options?.promptKey) params.set('promptKey', options.promptKey)
   else params.set('promptKey', 'TRANSCRIPTION')
+  const profile = getApiProfile()
+  if (profile) params.set('profile', profile)
   const q = params.toString() ? `?${params}` : ''
   const res = await apiFetch(`/api/ai/transcribe${q}`, { method: 'POST', body: fd })
   const data = await parseJson<{ text?: string; error?: string }>(res)
@@ -254,7 +258,7 @@ export async function aiJson(body: {
   const res = await apiFetch('/api/ai/json', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, user: withJsonHint(body.user) }),
+    body: JSON.stringify({ ...body, user: withJsonHint(body.user), profile: getApiProfile() ?? undefined }),
   })
   const data = await parseJson<{ result?: unknown; error?: string }>(res)
   if (data.result === undefined) throw new Error(data.error || 'AI failed')
@@ -346,7 +350,11 @@ export async function macroEstimateItem(body: {
     res = await apiFetch('/api/macro/estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, extraCtx: withJsonHint(body.extraCtx ?? '') }),
+      body: JSON.stringify({
+        ...body,
+        extraCtx: withJsonHint(body.extraCtx ?? ''),
+        profile: getApiProfile() ?? undefined,
+      }),
       signal,
     })
   } catch (e) {

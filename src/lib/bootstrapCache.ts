@@ -35,3 +35,16 @@ export function writeBootstrapCache(profile: string, data: BootstrapResponse): v
     /* quota or private mode */
   }
 }
+
+/** Keep failed/unsent edits separate from the display cache so a refresh cannot erase them. */
+export function writeMacroRecoveryCache(profile: string, macro: BootstrapResponse['macro']): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const key = `${KEY_PREFIX}:macro-recovery:${profile}`
+    const previous = JSON.parse(localStorage.getItem(key) || '[]')
+    const copies = Array.isArray(previous) ? previous.slice(-4) : []
+    localStorage.setItem(key, JSON.stringify([...copies, { savedAt: Date.now(), macro }]))
+  } catch {
+    /* storage unavailable */
+  }
+}
