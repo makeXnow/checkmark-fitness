@@ -792,8 +792,8 @@ export default function App() {
   )
 
   const handleLiftWorkoutSubmitted = useCallback(
-    (dayId: string, localDate: string) => {
-      markLiftHabitIfNeeded(localDate)
+    (dayId: string, localDate: string, performedWorkout = true) => {
+      if (performedWorkout) markLiftHabitIfNeeded(localDate)
       void clearLiftAssumption({ dayId, localDate }).catch(() => {})
       setLiftAssumptionPrompt((prev) =>
         prev && prev.dayId === dayId && prev.localDate === localDate ? null : prev,

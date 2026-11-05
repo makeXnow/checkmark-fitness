@@ -1,6 +1,7 @@
 import { localDateISO } from '../../lib/localDate'
 import type { LiftPayload } from '../../types/domain'
 import { historyEntryLocalDate } from './liftHistory'
+import { SKIP_LIFT_STATUS_ID } from './liftStatuses'
 import { getSessionMainWeight, nextDayIndexFromHistory, parseStatusMultiplier } from './plates'
 
 export { hasLiftHistoryForDayOnDate } from './liftHistory'
@@ -34,6 +35,7 @@ export function buildSubmitWorkoutDayPayload(
   const nextWorkouts = payload.workouts.map((w) => {
     if (!twIds.has(w.id)) return w
     const chosen = options?.statusByWorkoutId?.[w.id]
+    if (chosen === SKIP_LIFT_STATUS_ID) return w
     const chosenId = chosen && statuses.some((s) => s.id === chosen) ? chosen : (statuses[0]?.id ?? '')
     const status = statuses.find((s) => s.id === chosenId) ?? statuses[0]
     const mult = parseStatusMultiplier(status?.multiplier)
@@ -63,7 +65,10 @@ export function buildSubmitWorkoutDayPayload(
     workouts: nextWorkouts,
   }
 
-  const advance = options?.advanceDayIndex ?? !options?.localDate
+  const hasPerformedWorkout = dayWorkouts.some(
+    (w) => options?.statusByWorkoutId?.[w.id] !== SKIP_LIFT_STATUS_ID,
+  )
+  const advance = hasPerformedWorkout && (options?.advanceDayIndex ?? !options?.localDate)
   const nextDayIndex = advance
     ? nextDayIndexFromHistory(payload.days, nextWorkouts, nextHistory)
     : undefined

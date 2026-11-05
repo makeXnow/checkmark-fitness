@@ -1,5 +1,20 @@
 import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
 
+/** Prepare once per library change; typing only scans these cached strings. */
+export function indexFoodLibrary(foods: MacroCustomFood[]) {
+  return foods.map(food => ({ food, names: [food.name, ...(food.sourceNames ?? [])].map(searchText) }))
+}
+
+function searchText(text: string): string {
+  return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ')
+}
+
+/** Literal substring matching keeps partial words useful from the first keystroke. */
+export function searchFoodLibrary(index: ReturnType<typeof indexFoodLibrary>, query: string): MacroCustomFood[] {
+  const text = searchText(query)
+  return index.filter(entry => !text || entry.names.some(name => name.includes(text))).map(entry => entry.food)
+}
+
 /** Conservative spelling normalization; retain brands, flavors and preparation words. */
 function foodName(name: string): string {
   return name.normalize('NFKC').toLowerCase().replace(/[’']/g, '')

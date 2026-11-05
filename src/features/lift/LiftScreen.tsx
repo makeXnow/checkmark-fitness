@@ -24,7 +24,8 @@ import type {
 } from '../../types/domain'
 import { LiftPlanTab } from './LiftPlanTab'
 import { useLiftOpenSession } from './useLiftOpenSession'
-import { historyEntryLocalDate } from './liftHistory'
+import { hasLiftHistoryForDayOnDate, historyEntryLocalDate } from './liftHistory'
+import { SKIP_LIFT_STATUS_ID } from './liftStatuses'
 import { buildSubmitWorkoutDayPayload, dateAtLocalNoonISO } from './submitWorkoutDay'
 import {
   DEFAULT_TIMER_WARNING_SECONDS,
@@ -229,12 +230,14 @@ function WorkoutPlateStack({ plates, isWarmup }: { plates: PlateGroup[]; isWarmu
 
 function LiftStatusSelector({
   isNegative,
+  isNeutral = false,
   value,
   onChange,
   className = '',
   children,
 }: {
   isNegative: boolean
+  isNeutral?: boolean
   value: string
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
   className?: string
@@ -243,12 +246,12 @@ function LiftStatusSelector({
   return (
     <div
       className={`relative min-w-0 rounded-lg border transition-colors duration-300 ${
-        isNegative ? 'border-red-500/40 bg-red-500/10' : 'border-emerald-500/40 bg-emerald-500/10'
+        isNeutral ? 'border-neutral-700 bg-neutral-800' : isNegative ? 'border-red-500/40 bg-red-500/10' : 'border-emerald-500/40 bg-emerald-500/10'
       } ${className}`}
     >
       <select
         className={`h-auto min-h-10 w-full cursor-pointer appearance-none bg-transparent py-2.5 pl-3 pr-9 text-left text-sm font-black leading-snug outline-none transition-colors [overflow-wrap:break-word] [word-break:normal] whitespace-normal ${
-          isNegative ? 'text-red-400' : 'text-emerald-400'
+          isNeutral ? 'text-neutral-300' : isNegative ? 'text-red-400' : 'text-emerald-400'
         }`}
         value={value}
         onChange={onChange}
@@ -257,7 +260,7 @@ function LiftStatusSelector({
       </select>
       <ChevronDown
         className={`pointer-events-none absolute right-2 top-3 h-4 w-4 shrink-0 ${
-          isNegative ? 'text-red-400' : 'text-emerald-400'
+          isNeutral ? 'text-neutral-300' : isNegative ? 'text-red-400' : 'text-emerald-400'
         }`}
         aria-hidden
       />
@@ -1013,7 +1016,7 @@ export function LiftScreen({
   /** Shown on workout view above the day log preview; navigates to full log. */
   onSeeAllLog?: () => void
   /** Called after a successful workout-day submit (for assumption cleanup). */
-  onWorkoutSubmitted?: (dayId: string, localDate: string) => void
+  onWorkoutSubmitted?: (dayId: string, localDate: string, performedWorkout: boolean) => void
   liftTimer?: {
     session: LiftTimerSession | null
     liveElapsedMs: number
@@ -1181,7 +1184,7 @@ export function LiftScreen({
     (workoutId: string) => {
       const fallback = statuses[0]?.id ?? ''
       const chosen = workoutStatusById[workoutId]
-      if (chosen && statuses.some((s) => s.id === chosen)) return chosen
+      if (chosen === SKIP_LIFT_STATUS_ID || (chosen && statuses.some((s) => s.id === chosen))) return chosen
       return fallback
     },
     [statuses, workoutStatusById],
@@ -1190,6 +1193,7 @@ export function LiftScreen({
   const progressModalMultiplier = useMemo(() => {
     if (!progressModalWorkoutId) return 1
     const sid = effectiveStatusId(progressModalWorkoutId)
+    if (sid === SKIP_LIFT_STATUS_ID) return 0
     const status = statuses.find((s) => s.id === sid)
     return parseStatusMultiplier(status?.multiplier)
   }, [progressModalWorkoutId, effectiveStatusId, statuses])
@@ -1212,7 +1216,12 @@ export function LiftScreen({
     void onPersist({ ...nextPayload, timerSession: null })
     setWorkoutStatusById({})
     if (nextDayIndex !== undefined) onDayIndexChange(nextDayIndex)
-    onWorkoutSubmitted?.(currentDay.id, localDateISO(new Date()))
+    const localDate = localDateISO(new Date())
+    onWorkoutSubmitted?.(
+      currentDay.id,
+      localDate,
+      hasLiftHistoryForDayOnDate(nextPayload, currentDay.id, localDate),
+    )
   }, [currentDay, effectiveStatusId, onDayIndexChange, onPersist, onWorkoutSubmitted, payload, todaysWorkouts])
 
   if (view === 'settings') {
@@ -1546,17 +1555,18 @@ export function LiftScreen({
         )
         runningSetNum = nextSetNum
         const sid = effectiveStatusId(workout.id)
+        const isSkipped = sid === SKIP_LIFT_STATUS_ID
         const currentStatus = statuses.find((s) => s.id === sid) ?? statuses[0]
-        const mVal = parseStatusMultiplier(currentStatus?.multiplier)
-        const isNeg = isNonPositiveProgressionMultiplier(mVal)
+        const mVal = isSkipped ? 0 : parseStatusMultiplier(currentStatus?.multiplier)
+        const isNeg = !isSkipped && isNonPositiveProgressionMultiplier(mVal)
         const plates = payload.availablePlates || []
         const sessionWeight = getSessionMainWeight(workout, payload.history, plates)
         const nextLiftWeight =
-          workout.nextWeight !== undefined && Number.isFinite(workout.nextWeight)
+          isSkipped ? sessionWeight : workout.nextWeight !== undefined && Number.isFinite(workout.nextWeight)
             ? getOptimalPlates(workout.nextWeight, workout.barWeight, plates).actualWeight
             : getNextLiftWeight(workout, mVal, plates)
         const progressDelta =
-          workout.nextWeight !== undefined && Number.isFinite(workout.nextWeight)
+          isSkipped ? 0 : workout.nextWeight !== undefined && Number.isFinite(workout.nextWeight)
             ? workout.nextWeight - sessionWeight
             : getProgressDelta(workout.increment, mVal)
 
@@ -1760,7 +1770,7 @@ export function LiftScreen({
                   className="inline-flex min-w-0 items-center overflow-hidden rounded-full border border-neutral-700 bg-black/40 text-sm font-bold tabular-nums leading-tight transition-colors hover:bg-neutral-800/80"
                   aria-label={`Edit progress for ${workout.name}`}
                 >
-                  <span className={`px-3 py-1.5 ${isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
+                  <span className={`px-3 py-1.5 ${isSkipped ? 'text-neutral-300' : isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
                     {formatProgressDelta(progressDelta)}
                   </span>
                   <span className="h-3.5 w-px shrink-0 bg-neutral-700" aria-hidden />
@@ -1770,7 +1780,7 @@ export function LiftScreen({
                 </button>
               ) : (
                 <div className="inline-flex min-w-0 items-center overflow-hidden rounded-full border border-neutral-700 bg-black/40 text-sm font-bold tabular-nums leading-tight">
-                  <span className={`px-3 py-1.5 ${isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
+                  <span className={`px-3 py-1.5 ${isSkipped ? 'text-neutral-300' : isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
                     {formatProgressDelta(progressDelta)}
                   </span>
                   <span className="h-3.5 w-px shrink-0 bg-neutral-700" aria-hidden />
@@ -1779,28 +1789,29 @@ export function LiftScreen({
                   </span>
                 </div>
               )}
-              {statuses.length > 0 ? (
                 <div onClick={(e) => e.stopPropagation()}>
                   <LiftStatusSelector
                     className="h-10 w-auto min-w-0 max-w-[min(100%,12rem)] shrink-0"
                     isNegative={isNeg}
+                    isNeutral={isSkipped}
                     value={sid}
                     onChange={(e) =>
                       setWorkoutStatusById((prev) => ({ ...prev, [workout.id]: e.target.value }))
                     }
                   >
+                    {statuses.length === 0 ? (
+                      <option value="" className="bg-neutral-900 text-white">Success</option>
+                    ) : null}
                     {statuses.map((s) => (
                       <option key={s.id} value={s.id} className="bg-neutral-900 text-white">
                         {s.name}
                       </option>
                     ))}
+                    <option value={SKIP_LIFT_STATUS_ID} className="bg-neutral-900 text-white">
+                      Skip
+                    </option>
                   </LiftStatusSelector>
                 </div>
-              ) : (
-                <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                  Add statuses in settings
-                </span>
-              )}
             </div>
             </div>
           </div>

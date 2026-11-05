@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MacroCustomFood, MacroDayItem } from '../../types/domain'
-import { findMatchingLibraryFood, libraryUsage, reconcileFoodLibrary } from './foodLibrary'
+import { findMatchingLibraryFood, indexFoodLibrary, searchFoodLibrary, libraryUsage, reconcileFoodLibrary } from './foodLibrary'
 import { sortCustomFoodsByUsage } from './macroLib'
 
 const entry = (id: string, more: Partial<MacroDayItem> = {}): MacroDayItem => ({
@@ -11,6 +11,32 @@ const food = (id: string, name: string): MacroCustomFood => ({ id, name, baseAmo
 function product(id: string) {
   return { foodId: id, name: 'Rice Cakes', brandName: 'Brand', servings: [] }
 }
+
+describe('instant food library search', () => {
+  const foods = [food('grape', 'Grapes'), food('yogurt', 'Greek Yogurt'), food('apple', 'Apple'),
+    { ...food('rice', 'Rice'), sourceNames: ['Whole Grain Rice'] }, food('creme', 'Crème fraîche')]
+  const index = indexFoodLibrary(foods)
+
+  it('filters from the first character and finds substrings and saved aliases', () => {
+    expect(searchFoodLibrary(index, 'g').map(food => food.id)).toEqual(['grape', 'yogurt', 'rice'])
+    expect(searchFoodLibrary(index, 'GR').map(food => food.id)).toEqual(['grape', 'yogurt', 'rice'])
+    expect(searchFoodLibrary(index, 'gre').map(food => food.id)).toEqual(['yogurt'])
+    expect(searchFoodLibrary(index, 'ogur').map(food => food.id)).toEqual(['yogurt'])
+    expect(searchFoodLibrary(index, 'no such food')).toEqual([])
+  })
+
+  it('restores all foods on clearing and tolerates accents and whitespace', () => {
+    expect(searchFoodLibrary(index, '')).toEqual(foods)
+    expect(searchFoodLibrary(index, '   ')).toEqual(foods)
+    expect(searchFoodLibrary(index, ' creme   fraiche ')).toEqual([foods[4]])
+  })
+
+  it('reflects added, renamed, and deleted foods when the index is rebuilt', () => {
+    const updated = indexFoodLibrary([food('apple', 'Green Apple'), food('beans', 'Green Beans')])
+    expect(searchFoodLibrary(updated, 'gr').map(food => food.id)).toEqual(['apple', 'beans'])
+    expect(searchFoodLibrary(updated, 'grapes')).toEqual([])
+  })
+})
 
 describe('automatic food library', () => {
   it('promotes on the second completed log, includes history, and is idempotent', () => {

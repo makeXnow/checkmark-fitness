@@ -1,4 +1,4 @@
-import { findMatchingLibraryFood } from './foodLibrary'
+import { findMatchingLibraryFood, indexFoodLibrary, searchFoodLibrary } from './foodLibrary'
 import {
   ArrowUp,
   Camera,
@@ -304,6 +304,11 @@ export function MacroVoiceTracker({
   }, [])
 
   const [inputText, setInputText] = useState('')
+  const foodSearchIndex = useMemo(() => indexFoodLibrary(sortedCustomFoods), [sortedCustomFoods])
+  const visibleCustomFoods = useMemo(
+    () => searchFoodLibrary(foodSearchIndex, inputText),
+    [foodSearchIndex, inputText],
+  )
   const [recording, setRecording] = useState(false)
   const [waveHistory, setWaveHistory] = useState<number[]>(() => createMicWaveHistory())
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -1509,6 +1514,7 @@ export function MacroVoiceTracker({
           timestamp: Date.now(),
         },
       ])
+      setInputText('')
       setEditingLibraryFoodId(null)
       scrollDietListToTop()
     },
@@ -1600,8 +1606,10 @@ export function MacroVoiceTracker({
           <div className="space-y-3 p-4 pb-6">
           {customFoods.length === 0 ? (
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">Library is empty</p>
+          ) : visibleCustomFoods.length === 0 ? (
+            <p role="status" className="text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500 py-4">No matching foods</p>
           ) : (
-            sortedCustomFoods.map((food) => (
+            visibleCustomFoods.map((food) => (
               <LibraryFoodRow
                 key={food.id}
                 food={food}
