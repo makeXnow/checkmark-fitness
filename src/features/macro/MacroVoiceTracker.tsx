@@ -1639,8 +1639,8 @@ export function MacroVoiceTracker({
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[1fr_auto]" data-macro-diet-page>
-      <div className="relative min-h-0">
+    <div className="grid h-full min-h-0 min-w-0 grid-cols-1 grid-rows-[1fr_auto]" data-macro-diet-page>
+      <div className="relative min-h-0 min-w-0">
       <div ref={scrollContainerRef} className="macro-diet-scroll flex h-full min-h-0 flex-col gap-4 overflow-y-auto overscroll-y-contain">
       {captureError && <p role="alert" className="rounded-xl bg-red-500/15 p-3 text-sm text-red-200">{captureError}</p>}
       <StatusDashboard

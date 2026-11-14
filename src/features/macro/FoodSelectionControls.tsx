@@ -103,9 +103,9 @@ export function FoodSelectionFab({ count, canCopy, onDeselect, onCopy, onDelete 
   const [expanded, setExpanded] = useState(true)
   const actionClass = 'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-emerald-300'
   return (
-    <div className="absolute bottom-3 right-3 z-30 flex flex-col items-end gap-2" aria-label="Food selection actions">
+    <div className="absolute bottom-3 right-3 z-30 flex max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] flex-col items-end gap-2" aria-label="Food selection actions">
       {expanded && (
-        <div className="w-52 rounded-2xl border border-white/15 bg-neutral-900 p-1 shadow-2xl">
+        <div className="min-h-0 w-52 max-w-full overflow-y-auto rounded-2xl border border-white/15 bg-neutral-900 p-1 shadow-2xl">
           <button type="button" onClick={onDeselect} className={actionClass}><X size={18} aria-hidden /> Deselect</button>
           <button type="button" onClick={onCopy} disabled={!canCopy} className={`${actionClass} text-emerald-300 disabled:opacity-40`}>
             <Copy size={18} aria-hidden /> Copy to today
@@ -119,7 +119,7 @@ export function FoodSelectionFab({ count, canCopy, onDeselect, onCopy, onDelete 
         aria-label={`${count} selected, ${expanded ? 'hide' : 'show'} actions`}
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
-        className="flex min-h-14 items-center gap-2 rounded-full bg-emerald-400 px-5 font-black text-black shadow-xl hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-white"
+        className="flex min-h-14 shrink-0 items-center gap-2 rounded-full bg-emerald-400 px-5 font-black text-black shadow-xl hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-white"
       >
         <ListChecks size={22} aria-hidden />
         <span aria-live="polite">{count} selected</span>
