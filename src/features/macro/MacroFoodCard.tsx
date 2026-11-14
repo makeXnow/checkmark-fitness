@@ -18,7 +18,6 @@ import {
   macroItemDisplayEmoji,
   macroItemDisplayName,
   macroItemServingFields,
-  macrosForServingCount,
   normalizeDiaryLabel,
   resolveCanonicalBaseMacros,
   resolveParserPortion,
@@ -459,8 +458,8 @@ export type MacroFoodEditFields = {
   servingUnit?: string
   /** Count of base portions consumed (editable in day log). */
   servingMultiplier?: number
-  calories: number
-  protein: number
+  calories?: number
+  protein?: number
 }
 
 export const MACRO_FIELD_AUTOSAVE_MS = 400
@@ -490,10 +489,11 @@ export function applyDayMacroEditChange(
     const base = resolveCanonicalBaseMacros(item, customFoods)
     const baseCalories = base?.baseCalories ?? item.baseCalories
     const baseProtein = base?.baseProtein ?? item.baseProtein
-    if (baseCalories != null && baseProtein != null) {
-      const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
-      const scaled = macrosForServingCount(baseCalories, baseProtein, mult)
-      return { ...fields, calories: scaled.calories, protein: scaled.protein }
+    const mult = fields.servingMultiplier > 0 ? fields.servingMultiplier : 1
+    return {
+      ...fields,
+      calories: baseCalories == null ? fields.calories : Math.round(baseCalories * mult),
+      protein: baseProtein == null ? fields.protein : Math.round(baseProtein * mult * 10) / 10,
     }
   }
   return fields
@@ -505,7 +505,7 @@ export function MacroMiniCard({
   color,
   suffix = '',
 }: {
-  value: number
+  value: number | '—'
   label: string
   color: string
   suffix?: string
@@ -626,7 +626,7 @@ function MacroFieldInput({
 
   const handleFocus = () => {
     if (!clearOnFocus) return
-    snapshotRef.current = formatDisplay(value)
+    snapshotRef.current = String(value)
     setDraft('')
     setIsEditing(true)
   }
@@ -659,7 +659,7 @@ function MacroFieldInput({
             onBlur={handleBlur}
             className={`w-1/2 bg-transparent ${colorClass} font-bold text-xs py-2.5 text-right outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pr-0.5`}
             type="number"
-            placeholder="0"
+            placeholder={placeholder}
           />
           <span className={`w-1/2 ${colorClass} font-bold text-xs py-2.5 text-left pointer-events-none`}>g</span>
         </div>
@@ -967,18 +967,18 @@ export function MacroFoodEditCard({
             </MacroEditFieldColumn>
             <MacroEditFieldColumn label="Calories">
               <MacroFieldInput
-                value={data.calories}
-                onChange={(v) => onChange({ ...data, calories: parseFloat(v) || 0 })}
-                placeholder="0"
+                value={data.calories ?? ''}
+                onChange={(v) => onChange({ ...data, calories: v === '' && toolbar === 'day' ? undefined : parseFloat(v) || 0 })}
+                placeholder={data.calories == null ? '—' : '0'}
                 colorClass="text-emerald-400"
                 type="number"
               />
             </MacroEditFieldColumn>
             <MacroEditFieldColumn label="Protein">
               <MacroFieldInput
-                value={data.protein}
-                onChange={(v) => onChange({ ...data, protein: parseFloat(v) || 0 })}
-                placeholder="0"
+                value={data.protein ?? ''}
+                onChange={(v) => onChange({ ...data, protein: v === '' && toolbar === 'day' ? undefined : parseFloat(v) || 0 })}
+                placeholder={data.protein == null ? '—' : '0'}
                 colorClass="text-blue-400"
                 type="number"
                 proteinSplit
@@ -1012,15 +1012,19 @@ export function MacroFoodViewCard({
   amount,
   calories,
   protein,
+  nutritionConflict = false,
   pending = false,
+  preciseNutrition = false,
   onClick,
 }: {
   emoji?: string
   name: string
   amount: string
-  calories: number
-  protein: number
+  calories?: number
+  protein?: number
+  nutritionConflict?: boolean
   pending?: boolean
+  preciseNutrition?: boolean
   onClick: () => void
 }) {
   return (
@@ -1044,10 +1048,11 @@ export function MacroFoodViewCard({
               {name}
             </h3>
             <p className="text-[11px] font-black opacity-40 uppercase tracking-tight truncate mt-0.5">{amount}</p>
+            {nutritionConflict && <p className="text-xs text-amber-300 mt-1">Label differs from stated nutrition</p>}
           </div>
           <div className="flex items-center gap-4 shrink-0 px-1">
-            <MacroMiniCard value={Math.round(calories)} label="Calories" color="text-emerald-400" />
-            <MacroMiniCard value={Math.round(protein)} label="Protein" color="text-blue-400" suffix="g" />
+            <MacroMiniCard value={calories == null ? '—' : preciseNutrition ? Number(calories.toPrecision(3)) : Math.round(calories)} label="Calories" color="text-emerald-400" />
+            <MacroMiniCard value={protein == null ? '—' : preciseNutrition ? Number(protein.toPrecision(3)) : Math.round(protein)} label="Protein" color="text-blue-400" suffix={protein == null ? '' : 'g'} />
           </div>
         </div>
       </div>
@@ -1080,8 +1085,8 @@ function itemToEditFields(
     servingSize: serving.servingSize,
     servingUnit: serving.servingUnit,
     servingMultiplier: serving.servingMultiplier,
-    calories: item.calories ?? 0,
-    protein: item.protein ?? 0,
+    calories: item.calories,
+    protein: item.protein,
   }
 }
 

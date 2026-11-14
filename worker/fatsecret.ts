@@ -4,6 +4,8 @@ export type FatSecretServingRef = {
   description: string
   calories: number
   protein: number
+  caloriesMissing?: true
+  proteinMissing?: true
   isDefault?: boolean
 }
 
@@ -40,23 +42,37 @@ function asArray<T>(v: T | T[] | undefined | null): T[] {
 }
 
 function num(v: unknown): number {
+  return nutritionNumber(v) ?? 0
+}
+
+function nutritionNumber(v: unknown): number | undefined {
   const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''))
-  return Number.isFinite(n) ? n : 0
+  return Number.isFinite(n) && n >= 0 ? n : undefined
+}
+
+function servingNutrition(calorieValue: unknown, proteinValue: unknown): Pick<FatSecretServingRef, 'calories' | 'protein' | 'caloriesMissing' | 'proteinMissing'> {
+  const calories = nutritionNumber(calorieValue)
+  const protein = nutritionNumber(proteinValue)
+  return {
+    calories: calories ?? 0,
+    protein: protein ?? 0,
+    ...(calories == null ? { caloriesMissing: true } : {}),
+    ...(protein == null ? { proteinMissing: true } : {}),
+  }
 }
 
 function str(v: unknown): string {
   return v == null ? '' : String(v)
 }
 
-function parseFoodDescription(desc: string): { description: string; calories: number; protein: number } | null {
+function parseFoodDescription(desc: string): Omit<FatSecretServingRef, 'servingId' | 'isDefault'> | null {
   const perMatch = desc.match(/^Per\s+(.+?)\s+-/i)
   const calMatch = desc.match(/Calories:\s*([\d.]+)/i)
   const proMatch = desc.match(/Protein:\s*([\d.]+)/i)
   if (!calMatch) return null
   return {
     description: perMatch?.[1]?.trim() || '1 serving',
-    calories: num(calMatch[1]),
-    protein: proMatch ? num(proMatch[1]) : 0,
+    ...servingNutrition(calMatch[1], proMatch?.[1]),
   }
 }
 
@@ -78,9 +94,7 @@ function parseLegacyFoodsSearch(root: Record<string, unknown>): FatSecretFoodRef
       servings: [
         {
           servingId: `${foodId}-0`,
-          description: parsed.description,
-          calories: parsed.calories,
-          protein: parsed.protein,
+          ...parsed,
           isDefault: true,
         },
       ],
@@ -111,8 +125,7 @@ export function parseFatSecretSearchJson(data: unknown): FatSecretFoodRef[] {
         return {
           servingId,
           description: str(s.serving_description) || str(s.measurement_description) || '1 serving',
-          calories: num(s.calories),
-          protein: num(s.protein),
+          ...servingNutrition(s.calories, s.protein),
           isDefault: s.is_default === 1 || s.is_default === '1',
         }
       })
@@ -224,8 +237,7 @@ function parseFatSecretFoodRecord(food: Record<string, unknown>): FatSecretFoodR
       return {
         servingId,
         description: servingDescriptionWithMetric(s),
-        calories: num(s.calories),
-        protein: num(s.protein),
+        ...servingNutrition(s.calories, s.protein),
         isDefault: s.is_default === 1 || s.is_default === '1',
       }
     })

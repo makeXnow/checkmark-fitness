@@ -1,0 +1,15 @@
+
+{
+  "error": {
+    "text": "A request to the Cloudflare API (/accounts/c3a011ae43c6fa725f28e9aebd7832ba/d1/database/cdd2d369-c17f-48a3-8082-111956880730/query) failed.",
+    "notes": [
+      {
+        "text": "D1 query result exceeded the maximum response size limit of 50 MB [code: 7500]"
+      }
+    ],
+    "kind": "error",
+    "name": "APIError",
+    "code": 7500,
+    "accountTag": "c3a011ae43c6fa725f28e9aebd7832ba"
+  }
+}

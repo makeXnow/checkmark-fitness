@@ -78,3 +78,21 @@ describe('optimistic diary saves', () => {
     expect(current).toEqual({ updatedAt: 10, cards: [] })
   })
 })
+
+it('does not display an accepted edit or send it until the phone transaction commits',async()=>{
+  let displayed='old', staged='old',writes=0
+  const disk=deferred<void>()
+  const saved=queueMacroSave(Promise.resolve(),{updatedAt:1,cards:['new']},{
+    durable:()=>disk.promise,stage:()=>{staged='new'},
+    publish:()=>{displayed='new'},pending:()=>{},read:()=>({updatedAt:1,cards:['new']}),
+    persist:async()=>{writes++;return {updatedAt:2}},isCurrent:()=>true,isLatest:()=>true,saved:()=>{},
+  })
+  expect(staged).toBe('new');expect(displayed).toBe('old');expect(writes).toBe(0)
+  disk.resolve();await saved
+  expect(displayed).toBe('new');expect(writes).toBe(1)
+})
+it('does not claim an entry is saved when the phone transaction fails',async()=>{
+  let displayed=false,writes=0
+  await expect(queueMacroSave(Promise.resolve(),{updatedAt:1},{durable:async()=>{throw new Error('storage full')},publish:()=>{displayed=true},pending:()=>{},read:()=>({updatedAt:1}),persist:async()=>{writes++;return{updatedAt:2}},isCurrent:()=>true,isLatest:()=>true,saved:()=>{}})).rejects.toThrow('storage full')
+  expect(displayed).toBe(false);expect(writes).toBe(0)
+})

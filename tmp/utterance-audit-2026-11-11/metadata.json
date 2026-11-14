@@ -1,0 +1,417 @@
+[
+  {
+    "results": [
+      {
+        "id": 1,
+        "kind": "daily",
+        "slot": "2026-10-17",
+        "updated_at": 1792217722190,
+        "captured_at": 1792217983000
+      },
+      {
+        "id": 2,
+        "kind": "daily",
+        "slot": "2026-10-18",
+        "updated_at": 1792217722190,
+        "captured_at": 1792284874000
+      },
+      {
+        "id": 64,
+        "kind": "daily",
+        "slot": "2026-10-20",
+        "updated_at": 1792287841736,
+        "captured_at": 1792466671000
+      },
+      {
+        "id": 124,
+        "kind": "daily",
+        "slot": "2026-10-21",
+        "updated_at": 1792484580403,
+        "captured_at": 1792555796000
+      },
+      {
+        "id": 212,
+        "kind": "daily",
+        "slot": "2026-10-22",
+        "updated_at": 1792621033956,
+        "captured_at": 1792641717000
+      },
+      {
+        "id": 286,
+        "kind": "daily",
+        "slot": "2026-10-23",
+        "updated_at": 1792711058279,
+        "captured_at": 1792716347000
+      },
+      {
+        "id": 324,
+        "kind": "daily",
+        "slot": "2026-10-24",
+        "updated_at": 1792727431575,
+        "captured_at": 1792886082000
+      },
+      {
+        "id": 326,
+        "kind": "daily",
+        "slot": "2026-10-26",
+        "updated_at": 1792886082017,
+        "captured_at": 1792986809000
+      },
+      {
+        "id": 362,
+        "kind": "daily",
+        "slot": "2026-10-27",
+        "updated_at": 1792986912976,
+        "captured_at": 1793074698000
+      },
+      {
+        "id": 406,
+        "kind": "daily",
+        "slot": "2026-10-28",
+        "updated_at": 1793074772449,
+        "captured_at": 1793156507000
+      },
+      {
+        "id": 562,
+        "kind": "daily",
+        "slot": "2026-10-29",
+        "updated_at": 1793223837287,
+        "captured_at": 1793253793000
+      },
+      {
+        "id": 606,
+        "kind": "daily",
+        "slot": "2026-10-31",
+        "updated_at": 1793257397005,
+        "captured_at": 1793471744000
+      },
+      {
+        "id": 608,
+        "kind": "daily",
+        "slot": "2026-11-03",
+        "updated_at": 1793471744319,
+        "captured_at": 1793671615000
+      },
+      {
+        "id": 682,
+        "kind": "daily",
+        "slot": "2026-11-04",
+        "updated_at": 1793739567620,
+        "captured_at": 1793768082000
+      },
+      {
+        "id": 758,
+        "kind": "daily",
+        "slot": "2026-11-05",
+        "updated_at": 1793770237726,
+        "captured_at": 1793850815000
+      },
+      {
+        "id": 856,
+        "kind": "daily",
+        "slot": "2026-11-06",
+        "updated_at": 1793916071490,
+        "captured_at": 1793927845000
+      },
+      {
+        "id": 894,
+        "kind": "daily",
+        "slot": "2026-11-07",
+        "updated_at": 1793943180431,
+        "captured_at": 1794020148000
+      },
+      {
+        "id": 956,
+        "kind": "daily",
+        "slot": "2026-11-09",
+        "updated_at": 1794025879152,
+        "captured_at": 1794189636000
+      },
+      {
+        "id": 1032,
+        "kind": "daily",
+        "slot": "2026-11-10",
+        "updated_at": 1794268466654,
+        "captured_at": 1794273048000
+      },
+      {
+        "id": 1078,
+        "kind": "daily",
+        "slot": "2026-11-11",
+        "updated_at": 1794285317312,
+        "captured_at": 1794370412000
+      },
+      {
+        "id": 1146,
+        "kind": "daily",
+        "slot": "2026-11-12",
+        "updated_at": 1794430969151,
+        "captured_at": 1794457413000
+      },
+      {
+        "id": 1113,
+        "kind": "recent",
+        "slot": "d2d8482071c00327bcd103678bb8020e",
+        "updated_at": 1794374567078,
+        "captured_at": 1794374570000
+      },
+      {
+        "id": 1115,
+        "kind": "recent",
+        "slot": "150dfc018094a747fcb14729ab9297b7",
+        "updated_at": 1794374569676,
+        "captured_at": 1794374573000
+      },
+      {
+        "id": 1117,
+        "kind": "recent",
+        "slot": "fc89b8d8ddae21c41c1741ea1f2a095a",
+        "updated_at": 1794374572845,
+        "captured_at": 1794374598000
+      },
+      {
+        "id": 1119,
+        "kind": "recent",
+        "slot": "8f6dcf1ad81c4ec639b192d3d2776257",
+        "updated_at": 1794374597948,
+        "captured_at": 1794374600000
+      },
+      {
+        "id": 1121,
+        "kind": "recent",
+        "slot": "c892d3c5adc768b6f18a33fd33bbbbba",
+        "updated_at": 1794374600260,
+        "captured_at": 1794374613000
+      },
+      {
+        "id": 1123,
+        "kind": "recent",
+        "slot": "98f54cd10594156150fc9604a02a45f5",
+        "updated_at": 1794374612854,
+        "captured_at": 1794374617000
+      },
+      {
+        "id": 1125,
+        "kind": "recent",
+        "slot": "82447652e1c582efcbe618dcbfa36bd6",
+        "updated_at": 1794374617093,
+        "captured_at": 1794374628000
+      },
+      {
+        "id": 1127,
+        "kind": "recent",
+        "slot": "c64df55b74ae3d5c4b01cc9ca36576df",
+        "updated_at": 1794374627656,
+        "captured_at": 1794374639000
+      },
+      {
+        "id": 1129,
+        "kind": "recent",
+        "slot": "2f56b9fb74dfcc1c511d20cdfdc1c006",
+        "updated_at": 1794374638483,
+        "captured_at": 1794374713000
+      },
+      {
+        "id": 1131,
+        "kind": "recent",
+        "slot": "daca72aa45e41fc204f2d641bd2f93b1",
+        "updated_at": 1794374712788,
+        "captured_at": 1794374717000
+      },
+      {
+        "id": 1133,
+        "kind": "recent",
+        "slot": "3f7640e23afd4e73658385dd6a03052b",
+        "updated_at": 1794374716648,
+        "captured_at": 1794374749000
+      },
+      {
+        "id": 1135,
+        "kind": "recent",
+        "slot": "97659271a603a5c7918378f1fd021ba1",
+        "updated_at": 1794374749045,
+        "captured_at": 1794374758000
+      },
+      {
+        "id": 1137,
+        "kind": "recent",
+        "slot": "b1aac78f66075020926e9463ea7e055d",
+        "updated_at": 1794374757749,
+        "captured_at": 1794430949000
+      },
+      {
+        "id": 1139,
+        "kind": "recent",
+        "slot": "2678c2a688c6ad1a75a4fde108af3d92",
+        "updated_at": 1794430948755,
+        "captured_at": 1794430958000
+      },
+      {
+        "id": 1141,
+        "kind": "recent",
+        "slot": "d60a6fe9c55a37e73e13151358088a0f",
+        "updated_at": 1794430957223,
+        "captured_at": 1794430961000
+      },
+      {
+        "id": 1143,
+        "kind": "recent",
+        "slot": "8e6555d10e7eee60dcae66ce10b3fdd0",
+        "updated_at": 1794430960856,
+        "captured_at": 1794430966000
+      },
+      {
+        "id": 1145,
+        "kind": "recent",
+        "slot": "c657356ec5396337849b8e5ffd24c44e",
+        "updated_at": 1794430965771,
+        "captured_at": 1794430969000
+      },
+      {
+        "id": 1147,
+        "kind": "recent",
+        "slot": "44199993cd44d3147a5108ab02ae44cc",
+        "updated_at": 1794430969151,
+        "captured_at": 1794457413000
+      },
+      {
+        "id": 1149,
+        "kind": "recent",
+        "slot": "9bb31c94fbbf6cf823aecba3f1ee89e2",
+        "updated_at": 1794457412425,
+        "captured_at": 1794457634000
+      },
+      {
+        "id": 1151,
+        "kind": "recent",
+        "slot": "bec4accb22f131983d5c4a68668b5a42",
+        "updated_at": 1794457634123,
+        "captured_at": 1794457898000
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "LAX",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 560.5305
+      },
+      "duration": 560.5305,
+      "changes": 0,
+      "last_row_id": 538,
+      "changed_db": false,
+      "size_after": 309493760,
+      "rows_read": 41,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "LAX",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.3219
+      },
+      "duration": 0.3219,
+      "changes": 0,
+      "last_row_id": 538,
+      "changed_db": false,
+      "size_after": 309493760,
+      "rows_read": 1,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "source": "app",
+        "feature": "ai:json:PARSER",
+        "model": "gpt-5.6-luna",
+        "calls": 98,
+        "input_tokens": 478536,
+        "output_tokens": 16753,
+        "avg_ms": 2813.0714285714284
+      },
+      {
+        "source": "app",
+        "feature": "ai:transcribe",
+        "model": "gpt-4o-transcribe",
+        "calls": 80,
+        "input_tokens": 16385,
+        "output_tokens": 1159,
+        "avg_ms": 1402.175
+      },
+      {
+        "source": "app",
+        "feature": "ai:vision:ANALYZE_FRONT",
+        "model": "gpt-5.6-luna",
+        "calls": 4,
+        "input_tokens": 2864,
+        "output_tokens": 211,
+        "avg_ms": 1721.75
+      },
+      {
+        "source": "app",
+        "feature": "ai:vision:ANALYZE_NUTRITION",
+        "model": "gpt-5.6-luna",
+        "calls": 4,
+        "input_tokens": 6060,
+        "output_tokens": 3187,
+        "avg_ms": 7781
+      },
+      {
+        "source": "app",
+        "feature": "fatsecret:barcode",
+        "model": "gpt-5.6-luna",
+        "calls": 26,
+        "input_tokens": 9313,
+        "output_tokens": 552,
+        "avg_ms": 1747.6538461538462
+      },
+      {
+        "source": "app",
+        "feature": "macro:estimate",
+        "model": "gpt-5.6-luna",
+        "calls": 288,
+        "input_tokens": 1538858,
+        "output_tokens": 60774,
+        "avg_ms": 3219.0173611111113
+      },
+      {
+        "source": "app",
+        "feature": "macro:estimate",
+        "model": "gpt-5.6-sol",
+        "calls": 37,
+        "input_tokens": 393450,
+        "output_tokens": 9483,
+        "avg_ms": 4267.486486486487
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "LAX",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 13.0701
+      },
+      "duration": 13.0701,
+      "changes": 0,
+      "last_row_id": 538,
+      "changed_db": false,
+      "size_after": 309493760,
+      "rows_read": 1075,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

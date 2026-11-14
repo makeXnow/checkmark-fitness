@@ -20,7 +20,7 @@ import {
   type V7ServingRelationship,
 } from '../src/features/macro/macroAiSchemas'
 import { MACROS_CROSSCHECK_PROMPT } from '../src/features/macro/macroPromptContent'
-import { applyStatedNutrition, parseStatedNutrition } from '../src/features/macro/macroStatedNutrition'
+import { applyStatedNutrition, parseStatedNutrition, type StatedNutritionTotals } from '../src/features/macro/macroStatedNutrition'
 import { parseServingBaseGrams } from '../src/features/macro/macroMass'
 import {
   describeMemoryEntry,
@@ -94,8 +94,8 @@ export type MacroEstimateApiBody = {
 }
 
 export type MacroEstimateApiResult = {
-  calories: number
-  protein: number
+  calories?: number
+  protein?: number
   libraryFoodId?: string
   servingType?: string
   servingSize?: number
@@ -595,33 +595,44 @@ export async function runMacroEstimate(
       resolveOpts,
     )
 
-  // Numbers the user said beat any database pick (unless they hand-picked a match).
-  if (!userPickPath) {
-    const stated = parseStatedNutrition(body.parseSnapshot?.notes || body.notes)
-    const applied = stated
-      ? applyStatedNutrition(stated, {
-          quantity: estimateFields.quantity,
-          unit: estimateFields.unit,
-          unitFamily,
-        })
-      : null
-    if (applied) {
-      const result = directResult(applied.calories, applied.protein)
-      return toApiResult(result, fatSecretResults, fatSecretSource, {
-        libraryIndex: null,
-        fatSecretIndex: null,
-        servingIndex: null,
-        relationshipV7: null,
-        calories: applied.calories,
-        protein: applied.protein,
-        servingType: estimateFields.unit,
-        multiplier: result.servingMultiplier,
+  const stated = userPickPath ? null : parseStatedNutrition(estimateFields.notes)
+  const applied = stated ? applyStatedNutrition(stated, {
+    quantity: estimateFields.quantity,
+    unit: estimateFields.unit,
+    unitFamily,
+  }) : null
+  const statedResult = (totals: StatedNutritionTotals, snapshot: MacroEstimateResponse): MacroEstimateApiResult => {
+    const result = directResult(totals.calories ?? 0, totals.protein ?? 0)
+    return {
+      ...toApiResult(result, fatSecretResults, fatSecretSource, {
+        ...snapshot,
+        calories: totals.calories,
+        protein: totals.protein,
         statedNutritionApplied: true,
-      })
+      }),
+      calories: totals.calories,
+      protein: totals.protein,
+      baseCalories: totals.calories == null ? undefined : result.baseCalories,
+      baseProtein: totals.protein == null ? undefined : result.baseProtein,
     }
   }
+  const directSnapshot = {
+    libraryIndex: null,
+    fatSecretIndex: null,
+    servingIndex: null,
+    relationshipV7: null,
+    servingType: estimateFields.unit,
+    multiplier: estimateFields.quantity,
+  }
+  // A direct answer is complete only when both nutrients are known for this portion.
+  if (applied?.calories != null && applied.protein != null) {
+    return statedResult(applied, directSnapshot)
+  }
 
-  const searchQ = rewriteFatSecretSearch(body.fatSecretSearch?.trim() || '', body.userInput)
+  const searchQ = rewriteFatSecretSearch(
+    body.fatSecretSearch?.trim() || body.parseSnapshot?.fatSecretSearch?.trim() || (stated ? estimateFields.name : ''),
+    body.userInput,
+  )
   if (!body.skipFatSecretFetch && searchQ && fatSecretResults.length === 0) {
     if (env.FATSECRET_CLIENT_ID && env.FATSECRET_CLIENT_SECRET) {
       try {
@@ -636,9 +647,33 @@ export async function runMacroEstimate(
     }
   }
   const chatModel = body.model?.trim() || OPENAI_MODELS.chatFast
+  const finishEstimate = (result: ResolvedResult, snapshot: MacroEstimateResponse): MacroEstimateApiResult => {
+    if (!applied) return toApiResult(result, fatSecretResults, fatSecretSource, {
+      ...snapshot,
+      multiplier: snapshot.multiplier ?? result.servingMultiplier,
+    })
+    // A direct AI estimate isn't label evidence for a missing nutrient. Keep any stated
+    // values and let the diary show the remaining nutrient as unknown.
+    const servings = snapshot.fatSecretIndex ? fatSecretResults[snapshot.fatSecretIndex - 1]?.servings : undefined
+    const serving = servings?.[(snapshot.servingIndex ?? 1) - 1]
+    const library = snapshot.libraryIndex ? customFoods[snapshot.libraryIndex - 1] : undefined
+    const matched = snapshot.multiplier != null && (serving || library)
+    if (!matched) return statedResult(applied, { ...snapshot, ...directSnapshot })
+    const labelCalories = serving?.caloriesMissing ? undefined : result.calories
+    const labelProtein = serving?.proteinMissing ? undefined : result.protein
+    const caloriesConflict = applied.calories != null && labelCalories != null
+      && Math.abs(applied.calories - labelCalories) > Math.max(5, applied.calories * 0.1)
+    const proteinConflict = applied.protein != null && labelProtein != null
+      && Math.abs(applied.protein - labelProtein) > Math.max(1, applied.protein * 0.1)
+    return statedResult({
+      calories: applied.calories ?? labelCalories,
+      protein: applied.protein ?? labelProtein,
+    }, { ...snapshot, statedNutritionConflict: caloriesConflict || proteinConflict || undefined })
+  }
 
   // Cache hit — skip AI #2; code applies cached relationship + unitsPerServing
-  if (body.v7CachedResolution && fatSecretResults.length > 0) {
+  // A new label hint may identify a different product or serving than an older cached pick.
+  if (!stated && body.v7CachedResolution && fatSecretResults.length > 0) {
     const cached = body.v7CachedResolution
     const json: MacroEstimateResponse = {
       libraryIndex: null,
@@ -667,12 +702,15 @@ export async function runMacroEstimate(
 
   const key = env.OPENAI_API_KEY
   if (!key) {
+    if (applied) return statedResult(applied, directSnapshot)
     const err = new Error('OPENAI_API_KEY missing')
     if (fatSecretResults.length > 0) Object.assign(err, { fatSecretResults, fatSecretSource })
     throw err
   }
 
-  const macrosPrompt = await getMacroPrompt(env.DB, 'MACROS')
+  const macrosPrompt = (await getMacroPrompt(env.DB, 'MACROS')) + (stated
+    ? '\n\nFor this request, stated label numbers are clues, not a complete answer. Select a reliable match for the same product and serving, even if notes contain calories or protein. Do not substitute a different flavor, brand, or product. If no reliable match exists, do not pick a proxy. If the user counted label servings and a candidate describes the same label serving in cups or grams, use NEEDS_UNIT_BRIDGE with unitsPerServing: 1.'
+    : '')
 
   const applyMathWithOptionalRetry = async (
     jsonIn: MacroEstimateResponse,
@@ -972,7 +1010,7 @@ If none are adequate, set relationship NEED_MORE_CANDIDATES. When requesting mor
           pass2.response.relationshipV7 === 'NEED_MORE_CANDIDATES' ||
           pass2.response.relationshipV7 === 'WRONG_MATCH'
         ) {
-          if (carry && pass1.response.fatSecretIndex != null) {
+          if (!stated && carry && pass1.response.fatSecretIndex != null) {
             json = remapBatchSelection(
               {
                 ...pass1.response,
@@ -1007,6 +1045,7 @@ If none are adequate, set relationship NEED_MORE_CANDIDATES. When requesting mor
       finalPass = pass1
     }
   } catch (e) {
+    if (applied) return statedResult(applied, directSnapshot)
     if (fatSecretResults.length > 0) {
       const err = new Error(e instanceof Error ? e.message : 'Macro AI failed')
       Object.assign(err, { fatSecretResults, fatSecretSource })
@@ -1016,6 +1055,7 @@ If none are adequate, set relationship NEED_MORE_CANDIDATES. When requesting mor
   }
 
   if (!json) {
+    if (applied) return statedResult(applied, { ...directSnapshot, rawMacrosPass1Json: rawPass1Json, rawMacrosPass2Json: rawPass2Json })
     finalPass = null
     lastPromptUser = `${caseBrief}\n\nNo adequate FatSecret candidates. Use direct AI estimate (fatSecretIndex null, libraryIndex null).${body.extraCtx ?? ''}`
     const raw = await callOpenAiJsonWithRetry(key, macrosPrompt, lastPromptUser, {
@@ -1145,9 +1185,8 @@ Re-check: (1) Is this the exact product the user named (brand + product; no "min
     typeof withMult.fatSecretIndex === 'number' &&
     memoryFoodIds.has(fatSecretResults[withMult.fatSecretIndex - 1]?.foodId ?? '')
 
-  return toApiResult(result, fatSecretResults, fatSecretSource, {
+  return finishEstimate(result, {
     ...withMult,
-    multiplier: withMult.multiplier ?? result.servingMultiplier,
     candidateAnnotationsJson: annotationsJson,
     ...(flags.length > 0 ? { guardrailFlags: flags } : {}),
     ...(crossCheck ? { crossCheckCalories: Math.round(crossCheck.calories) } : {}),

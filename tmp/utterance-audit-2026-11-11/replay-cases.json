@@ -1,0 +1,979 @@
+[
+  {
+    "utterance": 4,
+    "transcript": "One peach and a built protein bar.",
+    "date": "2026-10-13",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Peach",
+        "expected": "No evidence of a material error; count-to-mass remains estimated.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Built Protein Bar",
+        "expected": "160/15 may fit that selected bar; actual Built bar/puff label unresolved.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 5,
+    "transcript": "Drizzleicious bag.",
+    "date": "2026-10-13",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Drizzilicious",
+        "expected": "Likely 90 kcal / ~1 g protein for usual mini bag; confirm bag size (share bags differ).",
+        "failureStage": "Search retrieval / food identity",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 6,
+    "transcript": "Entire bag of instant mashed potatoes, 150 grams of grilled chicken, six ounces of broccoli, one of those 90-calorie fudge bars from Costco, a Drizzlicious cinnamon swirl bits, which is 90 calories.",
+    "date": "2026-10-14",
+    "historicalScore": 0,
+    "fixes": [
+      "F1",
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Mashed Potatoes",
+        "expected": "560 kcal is unverified; obtain the actual bag label and preparation.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Grilled Chicken",
+        "expected": "If cooked breast: 165 kcal and 31.02 g protein per 100 g. Recalculate only after confirming cut/preparation.",
+        "failureStage": "Food identity",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Broccoli",
+        "expected": "~59 kcal / 4 g for the selected cooked reference; frozen reference would differ.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Cinnamon Swirl Bites",
+        "expected": "90 kcal / about 1 g protein for the stated portion.",
+        "failureStage": "Nutrition basis / portion relationship",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 8,
+    "transcript": "90-calorie fudge ice cream bar.",
+    "date": "2026-10-14",
+    "historicalScore": 1,
+    "fixes": [],
+    "expectations": [
+      {
+        "food": "Fudge Ice Cream Bar",
+        "expected": "Keep stated 90; verify actual fudge-bar brand for protein.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 10,
+    "transcript": "130 grams of grilled chicken and half a white onion.",
+    "date": "2026-10-14",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Chicken",
+        "expected": "If cooked breast: 165 kcal and 31.02 g protein per 100 g. Recalculate only after confirming cut/preparation.",
+        "failureStage": "Food identity",
+        "confidence": "Medium"
+      },
+      {
+        "food": "White Onion",
+        "expected": "24 kcal / 0.5 g protein is plausible for half a small onion.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 12,
+    "transcript": "1/4 halo top container",
+    "date": "2026-10-14",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Halo Top",
+        "expected": "For a Birthday Cake pint: 75 kcal / 4 g per quarter. Flavor/size still need confirmation.",
+        "failureStage": "Food identity",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 15,
+    "transcript": "188g grilled chicken",
+    "date": "2026-10-15",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Grilled Chicken",
+        "expected": "If cooked breast: 165 kcal and 31.02 g protein per 100 g. Recalculate only after confirming cut/preparation.",
+        "failureStage": "Food identity",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 16,
+    "transcript": "1 whole red onion",
+    "date": "2026-10-15",
+    "historicalScore": 1,
+    "fixes": [],
+    "expectations": [
+      {
+        "food": "Red Onion",
+        "expected": "Keep as size-dependent estimate; weigh onion for a firm correction.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 18,
+    "transcript": "130 grams of grilled chicken, 6 ounces of frozen broccoli, 1 red onion, a skinny dipped chocolate peanut butter cup.",
+    "date": "2026-10-16",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Chicken",
+        "expected": "If cooked breast: 165 kcal and 31.02 g protein per 100 g. Recalculate only after confirming cut/preparation.",
+        "failureStage": "Food identity",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Broccoli",
+        "expected": "~48 kcal / 5.3 g protein.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Red Onion",
+        "expected": "Keep as size-dependent estimate; weigh onion for a firm correction.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Chocolate PB Cup",
+        "expected": "80 kcal / 2 g protein for cited SkinnyDipped cup versus logged 87/1.9.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 19,
+    "transcript": "2 servings of 96% lean ground beef foorm trader joes",
+    "date": "2026-10-16",
+    "historicalScore": 1,
+    "fixes": [],
+    "expectations": [
+      {
+        "food": "Ground Beef",
+        "expected": "260/44 for saved version; 280/48 for alternate label. Confirm package.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 20,
+    "transcript": "Trader Joe's sandwich starters.",
+    "date": "2026-10-16",
+    "historicalScore": 0,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Sandwich Starters",
+        "expected": "If one bun: 180 kcal / 6 g. If whole six-bun package: 1,080 / 36. Actual portion unresolved.",
+        "failureStage": "Parser portion / invented container yield",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 21,
+    "transcript": "One, well, two cups of popcorn.",
+    "date": "2026-10-16",
+    "historicalScore": 0,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Popcorn",
+        "expected": "Air-popped 1.5 cups ~47 kcal; oil/butter can raise this. Logged 278 needs preparation/weight evidence.",
+        "failureStage": "Food identity / portion relationship",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 22,
+    "transcript": "Mini strawberry Trader Joe's ice cream cone.",
+    "date": "2026-10-16",
+    "historicalScore": 1,
+    "fixes": [],
+    "expectations": [
+      {
+        "food": "Strawberry Cone",
+        "expected": "~87 kcal / 1 g protein per cone; calorie rounding is immaterial.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 23,
+    "transcript": "Skinny dipped dark chocolate coconut almond. It has 70 calories and one gram of protein.",
+    "date": "2026-10-16",
+    "historicalScore": 0,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Chocolate Coconut Almonds",
+        "expected": "70 kcal / 1 g protein for stated item.",
+        "failureStage": "Stated nutrition handling",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 24,
+    "transcript": "Two rice cakes.",
+    "date": "2026-10-17",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Rice Cakes",
+        "expected": "Could be 40 if actual Forrelli size; ordinary Quaker cakes would be 70. Brand/weight unresolved.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 27,
+    "transcript": "6 ounces of carrots, 6 ounces of celery, a Drizzilicious 90 calorie bag.",
+    "date": "2026-10-19",
+    "historicalScore": 1,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Carrots",
+        "expected": "5 oz ~58 kcal; 6 oz ~70; 95 g ~39. Cooking changes density.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Celery",
+        "expected": "Roughly 24–27 kcal, about 1.2 g protein.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Drizzilicious",
+        "expected": "90 kcal preserved; cited cinnamon bag has ~1 g protein. Exact flavor may differ.",
+        "failureStage": "Stated nutrition handling",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 28,
+    "transcript": "A 90-calorie fudge ice cream bar thing from Costco.",
+    "date": "2026-10-19",
+    "historicalScore": 1,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Fudge Ice Cream Bar",
+        "expected": "Preserve stated 90 kcal; cited Healthy Choice package has 3 g protein. Confirm brand.",
+        "failureStage": "Stated nutrition handling",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 29,
+    "transcript": "Two servings of ground beef from Trader Joe's. It was 96% lean in a Trader Joe's sandwich starter. It's like bread.",
+    "date": "2026-10-19",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Ground Beef",
+        "expected": "260/44 for saved version; 280/48 for alternate label. Confirm package.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Sandwich Starter",
+        "expected": "One actual Sandwich Starters bun: 180 kcal / 6 g, versus 200 / 8.",
+        "failureStage": "Food identity",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 32,
+    "transcript": "I had six ounces of grilled chicken breast and 75% of the packet of like, it's like a Trader Joe's teriyaki noodles thing, and a red onion.",
+    "date": "2026-10-20",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Chicken Breast",
+        "expected": "About 164–165 kcal / 31 g protein per 100 g; gram/ounce portions are consistent.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Teriyaki Noodles",
+        "expected": "420 kcal / 11 g cannot be verified without actual product/packet.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Red Onion",
+        "expected": "Keep as size-dependent estimate; weigh onion for a firm correction.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 33,
+    "transcript": "I had one of those feta spinach wrap things from Costco. I forget how many calories, but I think they're like 280 or something like that. Maybe 350, something like that. Somewhere around that range.",
+    "date": "2026-10-20",
+    "historicalScore": 0,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Feta Spinach Wrap",
+        "expected": "If same Eat-in Foods wrap: 290 kcal / 21 g protein. Product identity needs confirmation.",
+        "failureStage": "Stated nutrition handling",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 34,
+    "transcript": "177 grams of green beans and one red onion.",
+    "date": "2026-10-21",
+    "historicalScore": 1,
+    "fixes": [],
+    "expectations": [
+      {
+        "food": "Green Beans",
+        "expected": "177 g ~61 kcal / 3.3 g; 6 oz ~59 / 3.2.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Red Onion",
+        "expected": "Keep as size-dependent estimate; weigh onion for a firm correction.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 37,
+    "transcript": "Trader Joe's Strawberry Hold the Cone",
+    "date": "2026-10-21",
+    "historicalScore": 1,
+    "fixes": [],
+    "expectations": [
+      {
+        "food": "Strawberry Cone",
+        "expected": "~87 kcal / 1 g protein per cone; calorie rounding is immaterial.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 42,
+    "transcript": "Whole can of Great Value chicken breast.",
+    "date": "2026-10-22",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Canned Chicken",
+        "expected": "207/44.9 may fit some drained yields; exact can label required.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 44,
+    "transcript": "Cafe Zupas Honey Brisket Sandwich and their like southwest soup thing.",
+    "date": "2026-10-22",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Honey Brisket",
+        "expected": "Exact historical Hot Honey Brisket size/recipe unresolved; do not use Honey Bacon Club nutrition.",
+        "failureStage": "Food identity",
+        "confidence": "High"
+      },
+      {
+        "food": "Southwest Soup",
+        "expected": "280 kcal fits a historical plain half-bowl serving; tortilla strips add calories.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 45,
+    "transcript": "Cafe Zupas bread roll and chocolate covered strawberry",
+    "date": "2026-10-22",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Bread Roll",
+        "expected": "Keep pending restaurant’s exact serving label.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Chocolate Strawbs",
+        "expected": "Needs restaurant berry match; historical secondary guide gives ~45 kcal / 1 g, not 30 / 0.3.",
+        "failureStage": "Food identity",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 48,
+    "transcript": "A Skinny Dipped Peanut Butter Cup. I think they're 80 calories or something close to that.",
+    "date": "2026-10-26",
+    "historicalScore": 1,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Peanut Butter Cup",
+        "expected": "80 kcal / 2 g protein for cited SkinnyDipped cup.",
+        "failureStage": "Stated nutrition handling",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 49,
+    "transcript": "half a Trader Joe's sandwich starters and a tablespoon of mayonnaise and two slices of deli turkey.",
+    "date": "2026-10-26",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Sandwich Starters",
+        "expected": "If half one bun: 90 kcal / 3 g protein, versus 100 / 4.",
+        "failureStage": "Food identity",
+        "confidence": "High"
+      },
+      {
+        "food": "Mayonnaise",
+        "expected": "Typical Hellmann’s label is 90 kcal per tbsp. Confirm brand/light formulation before changing.",
+        "failureStage": "Food identity",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Deli Turkey",
+        "expected": "50/10 is possible, but slice thickness makes this unverified.",
+        "failureStage": "Review assumptions",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 51,
+    "transcript": "One serving of Trader Joe's lasagna soup, one rice cake, one of those Costco healthy fudge ice cream pop thingies, two cups of popped popcorn.",
+    "date": "2026-10-27",
+    "historicalScore": 1,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Lasagna Soup",
+        "expected": "One label serving, not one whole container.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Rice Cake",
+        "expected": "1 cake; do not silently switch to a different-sized branded cake.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Fudge Ice Cream Bar",
+        "expected": "Preserve 90 kcal if this is the user’s usual product; resolve protein from its label or leave unknown.",
+        "failureStage": "Library nutrient provenance",
+        "confidence": "High"
+      },
+      {
+        "food": "Popcorn",
+        "expected": "About 62 kcal for 2 air-popped cups; oil/butter would need additions.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 54,
+    "transcript": "A built chocolate protein bar.",
+    "date": "2026-10-27",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Built Protein Bar",
+        "expected": "Use a known same-product favorite only if unambiguous; otherwise show the assumed variant.",
+        "failureStage": "Food identity specificity",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 59,
+    "transcript": "Seventy-five percent of a box of Goodles and six ounces of grilled chicken breast.",
+    "date": "2026-10-28",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Goodles Pasta",
+        "expected": "If Cheddy Mac with 2.5 × 270-kcal servings: 0.75 × 2.5 × 270 ≈ 506 kcal and 28.1 g using its saved 15-g serving. Other variants/label versions differ.",
+        "failureStage": "Library identity / container bridge",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Chicken Breast",
+        "expected": "Use the spoken amount and the shown product/reference; exact brand/preparation remains an estimate when unspecified.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 60,
+    "transcript": "Brownie batter barbell bar",
+    "date": "2026-10-28",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Barbell Brownie",
+        "expected": "1 Barebells Brownie Batter bar; use the verified variant’s label.",
+        "failureStage": "Search spelling / identity",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 61,
+    "transcript": "7 oz of chicken breast, 6 oz of broccoli, 5 oz of green beans, 2 rice cakes, a cookie dough chobani flip.",
+    "date": "2026-11-02",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Chicken Breast",
+        "expected": "Use the spoken amount and the shown product/reference; exact brand/preparation remains an estimate when unspecified.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Broccoli",
+        "expected": "Use the spoken amount and the shown product/reference; exact brand/preparation remains an estimate when unspecified.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Green Beans",
+        "expected": "Use the spoken amount and the shown product/reference; exact brand/preparation remains an estimate when unspecified.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Rice Cakes",
+        "expected": "If the regular cake used elsewhere: 70 kcal total. Confirm size before declaring 40 definitely wrong.",
+        "failureStage": "Food identity default",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Chobani Flip",
+        "expected": "Keep Cookie Dough identity. 160/10 matches the saved exact product; package versions may differ.",
+        "failureStage": "Library variant specificity",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 65,
+    "transcript": "Five servings of sea salt caramel halo top.",
+    "date": "2026-11-03",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Sea Salt Caramel",
+        "expected": "Spoken five current label servings ≈500 kcal; current 1.77 ≈177 kcal. Do not treat the current 175 kcal as the original response or infer why it was edited.",
+        "failureStage": "Database basis conflict / later edit",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 66,
+    "transcript": "Trader Joe's Sandwich Starter bread and four ounces of carrots and one third of a donut and a Trader Joe's 500 calorie carne asada burrito and a cucumber.",
+    "date": "2026-11-04",
+    "historicalScore": 0,
+    "fixes": [
+      "F1",
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Sourdough",
+        "expected": "Named Sandwich Starters: 1 bun is 180/6. Default one bun if intended; keep amount estimated because none was spoken.",
+        "failureStage": "Parser unit / food identity",
+        "confidence": "High"
+      },
+      {
+        "food": "Carrots",
+        "expected": "Use the spoken amount and the shown product/reference; exact brand/preparation remains an estimate when unspecified.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Donut",
+        "expected": "Keep 1/3 donut; ~60 kcal is possible for a small glazed donut, not confirmed.",
+        "failureStage": "Unspecified product",
+        "confidence": "Medium"
+      },
+      {
+        "food": "Carne Asada Burrito",
+        "expected": "500 kcal as stated; obtain compatible protein from the same product (saved reference ~22 g), or leave unknown.",
+        "failureStage": "Stated nutrition handling",
+        "confidence": "High"
+      },
+      {
+        "food": "Cucumber",
+        "expected": "Use the spoken amount and the shown product/reference; exact brand/preparation remains an estimate when unspecified.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 67,
+    "transcript": "Cookie Dough Chobani Flip",
+    "date": "2026-11-04",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Chobani Flip",
+        "expected": "Keep Cookie Dough identity. 160/10 matches the saved exact product; package versions may differ.",
+        "failureStage": "Library variant specificity",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 69,
+    "transcript": "Garlic bread slice",
+    "date": "2026-11-04",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Garlic Bread",
+        "expected": "One estimated slice; avoid presenting restaurant provenance as known.",
+        "failureStage": "Unspecified product",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 70,
+    "transcript": "180 grams of grilled chicken and an entire Trader Joe's Miso Crunch, which is four servings, for a total of 170 calories per serving.",
+    "date": "2026-11-05",
+    "historicalScore": 0,
+    "fixes": [
+      "F3",
+      "F5"
+    ],
+    "expectations": [
+      {
+        "food": "Grilled Chicken",
+        "expected": "Keep full-precision reference density; round only displayed totals.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Miso Crunch Salad",
+        "expected": "4 ×170 =680 kcal; preserve stated total and resolve missing protein (~12 g from matching product).",
+        "failureStage": "Stated nutrition basis / nutrient completeness",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 71,
+    "transcript": "Two zero sugar Oreos.",
+    "date": "2026-11-05",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Zero Sugar Oreos",
+        "expected": "Retain two cookies; use known variant or show the Double Stuff assumption.",
+        "failureStage": "Unspecified variant",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 73,
+    "transcript": "Cafe Rio steak bowl",
+    "date": "2026-11-06",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Steak Bowl",
+        "expected": "Use a restaurant-specific default with disclosed assumptions, or mark a generic bowl estimate; no invented exact correction.",
+        "failureStage": "Restaurant identity / missing customization",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 74,
+    "transcript": "250 cal of jasmine rice",
+    "date": "2026-11-06",
+    "historicalScore": 0,
+    "fixes": [
+      "F3"
+    ],
+    "expectations": [
+      {
+        "food": "Jasmine Rice",
+        "expected": "Keep 250 kcal. Derive protein from the same rice density (roughly 4–6 g), or leave unknown; cup quantity remains estimated.",
+        "failureStage": "Nutrition completeness",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 79,
+    "transcript": "Chobani flip chocolate strawberry flavor",
+    "date": "2026-11-06",
+    "historicalScore": 1,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Chobani Flip",
+        "expected": "Prefer exact Chocolate Covered Strawberry candidate or product-specific saved identity.",
+        "failureStage": "Library flavor provenance",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 90,
+    "transcript": "Chobani flip French toast",
+    "date": "2026-11-10",
+    "historicalScore": 1,
+    "fixes": [
+      "F6"
+    ],
+    "expectations": [
+      {
+        "food": "Chobani Flip",
+        "expected": "Use exact flavor and size label; do not score only the corrected current result as if it was the first response.",
+        "failureStage": "Changed result / product version",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 92,
+    "transcript": "Cafe zuppa honey brisket sandwich",
+    "date": "2026-11-10",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Honey Brisket",
+        "expected": "Keep brisket identity. A restaurant-specific estimate may be needed; 590/22 for Honey Bacon Club is not a verified brisket result.",
+        "failureStage": "Search coverage / food identity",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 93,
+    "transcript": "Cafe Zupa cauliflower soup",
+    "date": "2026-11-10",
+    "historicalScore": 1,
+    "fixes": [
+      "F2"
+    ],
+    "expectations": [
+      {
+        "food": "Cauliflower Soup",
+        "expected": "Preserve inferred size explicitly; do not call half-bowl = whole container a known fact.",
+        "failureStage": "Restaurant portion ambiguity",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  {
+    "utterance": 94,
+    "transcript": "150 grams of grilled chicken breast, 6 ounces of frozen broccoli, 5 ounces of frozen green beans.",
+    "date": "2026-11-11",
+    "historicalScore": 0,
+    "fixes": [
+      "F8"
+    ],
+    "expectations": [
+      {
+        "food": "Chicken Breast",
+        "expected": "Finish the estimate or retain visibly unknown nutrition. 150 g plain cooked breast ~248 kcal; 5 oz frozen beans roughly 40–50 kcal depending reference.",
+        "failureStage": "Completion / persistence",
+        "confidence": "High"
+      },
+      {
+        "food": "Broccoli",
+        "expected": "6 oz; frozen reference basis preserved.",
+        "failureStage": "No material issue",
+        "confidence": "High"
+      },
+      {
+        "food": "Green Beans",
+        "expected": "Finish the estimate or retain visibly unknown nutrition. 150 g plain cooked breast ~248 kcal; 5 oz frozen beans roughly 40–50 kcal depending reference.",
+        "failureStage": "Completion / persistence",
+        "confidence": "High"
+      }
+    ]
+  },
+  {
+    "utterance": 95,
+    "transcript": "Honey brisket sandwich zuppa",
+    "date": "2026-11-10",
+    "historicalScore": 0,
+    "fixes": [
+      "F1"
+    ],
+    "expectations": [
+      {
+        "food": "Brisket Sandwich",
+        "expected": "One Cafe Zupas brisket sandwich; unknown historical exact nutrition. Prefer restaurant-specific estimate over generic sandwich with asserted size.",
+        "failureStage": "Food identity / unsupported bridge",
+        "confidence": "High"
+      },
+      {
+        "food": "Zuppa",
+        "expected": "One brisket sandwich from Cafe Zupas; do not add an unsolicited soup. Restaurant interpretation remains an inference from context.",
+        "failureStage": "Parser split / restaurant identity",
+        "confidence": "Medium"
+      }
+    ]
+  }
+]

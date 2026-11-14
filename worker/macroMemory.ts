@@ -1,3 +1,4 @@
+import { readMacroLogs } from './macroLogs'
 import type { FatSecretFoodRef } from './fatsecret'
 
 /**
@@ -178,13 +179,13 @@ async function loadBundle(db: D1Database, profileId: string): Promise<BundleCach
   const hit = bundleCache.get(profileId)
   if (hit && Date.now() - hit.at < MEMORY_TTL_MS) return hit
   const row = await db
-    .prepare('SELECT logs_json, custom_foods_json FROM macro_bundle WHERE device_id = ?')
+    .prepare('SELECT custom_foods_json FROM macro_bundle WHERE device_id = ?')
     .bind(profileId)
     .first<{ logs_json: string | null; custom_foods_json: string | null }>()
   let logs: Record<string, StoredItem[]> = {}
   let customFoods: { name?: string }[] = []
   try {
-    logs = JSON.parse(row?.logs_json || '{}') as Record<string, StoredItem[]>
+    logs = await readMacroLogs<StoredItem>(db, profileId)
   } catch {
     logs = {}
   }

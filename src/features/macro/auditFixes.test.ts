@@ -3,6 +3,7 @@ import { computeV8Multiplier } from './macroV8Resolve'
 import { parseDbCountServing } from './macroMass'
 import { effectiveFatSecretServingDescription } from './macroServingResolve'
 import { applyStatedNutrition, parseStatedNutrition } from './macroStatedNutrition'
+import { mergeMacroDayItem } from './macroLib'
 import { rewriteSpokenFoodLog } from './macroBrandAliases'
 import { validateMacrosResponse } from './macroAiValidate'
 
@@ -76,7 +77,6 @@ describe('food.get servings with metric notes', () => {
 describe('stated nutrition', () => {
   it('whole-container numbers scale by containers eaten', () => {
     const s = parseStatedNutrition('620 calories, 26 g protein for the whole container')
-    expect(s).toEqual({ calories: 620, protein: 26, scope: 'per_container' })
     expect(applyStatedNutrition(s!, { quantity: 1, unit: 'container', unitFamily: 'count' })).toEqual({
       calories: 620,
       protein: 26,
@@ -89,7 +89,6 @@ describe('stated nutrition', () => {
 
   it('"total" is not scaled', () => {
     const s = parseStatedNutrition('400 calories total')
-    expect(s?.scope).toBe('total_eaten')
     expect(applyStatedNutrition(s!, { quantity: 2, unit: 'bar', unitFamily: 'count' })?.calories).toBe(400)
   })
 
@@ -98,8 +97,40 @@ describe('stated nutrition', () => {
     expect(applyStatedNutrition(s!, { quantity: 8, unit: 'oz', unitFamily: 'mass' })).toBeNull()
   })
 
-  it('ignores notes without calories', () => {
+  it('keeps each nutrient on its own serving basis', () => {
+    const s = parseStatedNutrition('170 calories per serving, 680 calories total, 3 g protein per serving')
+    expect(applyStatedNutrition(s!, { quantity: 4, unit: 'serving', unitFamily: 'serving' })).toEqual({
+      calories: 680,
+      protein: 12,
+    })
+  })
+
+  it('does not assume one serving per package', () => {
+    const s = parseStatedNutrition('170 calories per serving and 3 g protein per serving')
+    expect(applyStatedNutrition(s!, { quantity: 1, unit: 'bag', unitFamily: 'count' })).toBeNull()
+  })
+
+  it('uses a measured label basis when the amount is convertible', () => {
+    const s = parseStatedNutrition('170 calories and protein: 3.5g per 100 g')
+    expect(applyStatedNutrition(s!, { quantity: 200, unit: 'g', unitFamily: 'mass' })).toEqual({
+      calories: 340,
+      protein: 7,
+    })
+  })
+
+  it('ignores notes without nutrition values', () => {
     expect(parseStatedNutrition('roasted, extra crispy')).toBeNull()
+  })
+
+  it('does not restore an older protein value when the new lookup leaves it unknown', () => {
+    const item = { id: 'salad', name: 'Miso Crunch Salad', amount: '4 servings', status: 'ready' }
+    const merged = mergeMacroDayItem(
+      { ...item, calories: 170, protein: 0, baseProtein: 0 },
+      { ...item, calories: 680, macroEstimateSnapshot: { statedNutritionApplied: true, calories: 680 } },
+    )
+    expect(merged.calories).toBe(680)
+    expect(merged.protein).toBeUndefined()
+    expect(merged.baseProtein).toBeUndefined()
   })
 })
 

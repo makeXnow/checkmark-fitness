@@ -1,0 +1,74 @@
+Food utterance audit — October 13–November 11, 2026
+
+92 recoverable utterance groups: 46 basically right, 27 close/assumption-dependent, 19 missed the mark.
+
+Every retained transcript and its per-item steps are in audit.json and the interactive Canvas. utterance-scores.csv provides the full score list. replay-cases.json contains 46 exact-word cases with expected behaviors; it is a validation corpus, not evidence of successful replay.
+
+Priority recommendations
+
+F1: Validate product identity before serving compatibility
+Observed: Exact Sandwich Starters and Cookie Dough candidates were available but ignored. Brisket was absent and a different sandwich was accepted. “Zuppa” was treated as soup.
+Proposed: Represent brand, restaurant, product, flavor, preparation and size as explicit constraints. Screen both library and search candidates against contradictions before ranking unit convenience. Normalize known speech aliases from verified personal vocabulary. Require a reasoned fallback if no identity-compatible candidate exists; a calorie agreement alone cannot validate identity.
+Reuse / current state: Adapt the current candidate ranker, personal vocabulary, trusted memory and two-pass search. No new service or model required.
+Acceptance: Replay exact failed words plus held-out brands/flavors; exact product should win even when a generic library food has easier units. Brisket may remain estimated but must never become Honey Bacon Club or add soup.
+Efficiency: Filter candidates cheaply before model calls; cache only with complete identity/variant keys. Avoid unconditional stronger-model retry.
+
+F2: Make serving basis explicit and validate bridges
+Observed: A generic serving became 1/21 of a snack; unspecified bread became four buns; packed cans and box fractions depend on guessed yield. Halo Top row mixes per-serving and per-pint numbers.
+Proposed: Keep consumed quantity, database serving quantity, servings per package, drained yield, and nutrient basis separate. A serving cannot mean one piece without evidence. Permit exact unit arithmetic first; attach evidence/estimated status to count-to-mass or package bridges. Reject unsupported whole-item equivalences and conflicting per-serving/per-container rows.
+Reuse / current state: Extend current deterministic conversion and V9 bridge fields; use existing barcode/label route for package facts.
+Acceptance: 90-calorie snack stays 90; one bun stays one bun; 75% box uses actual package count; five Halo Top label servings use ~500 kcal with correctly based protein. Include 1/2, 1/3, 70%, 75% and count servings.
+Efficiency: No model call for grams↔ounces, identical counts, or known package fractions. Ask/flag only missing conversions that materially affect totals.
+
+F3: Apply stated nutrients independently and by scope
+Observed: Miso Crunch 4×170 became 170; calorie-only burrito, rice and snacks received zero protein; guessed wrap calories became authoritative.
+Proposed: Store each nutrient as value + basis + confidence (per serving, per container, total eaten). Preserve user constraints only for the nutrients actually supplied. Resolve other nutrients using an identity-compatible source or leave unknown. Treat “I think / maybe / somewhere” as uncertain, not a verified label. Resolve contradictory totals explicitly.
+Reuse / current state: The current uncommitted code already separates nutrients and fixes the Miso 680-total case; 78 targeted tests pass. Preserve that work and validate full route before deployment. Hedged certainty remains unmodeled in the parser helper.
+Acceptance: Exact Miso transcript →680 kcal and compatible protein; 500-calorie burrito retains ~22 g if matching label; 250-calorie rice gets plausible nonzero protein; calorie-only speech never creates a false zero.
+Efficiency: Reuse the already selected source to fill missing nutrients. Bypass AI only when all required nutrients and their basis are known.
+
+F4: Parse package percentages deterministically
+Observed: “70% of the whole thing” still resolves as one serving in current local code.
+Proposed: Add a percent/fraction-of-container parser before label multiplication; use printed per-container totals when available. With the retained pot-pie label, 0.7×820=574 kcal and 0.7×36=25.2 g protein.
+Reuse / current state: Extend resolvePackagingAmount/Consumption rather than add an AI serving call.
+Acceptance: 70% whole thing →0.7 container, 574/25.2 on retained label; also 25%, 50%, one third, half bag and explicit serving counts.
+Efficiency: Pure local math; no added API cost.
+
+F5: Keep full-precision nutrition density and separate display units
+Observed: Current resolver rounds chicken to 2 kcal/g; 180 g initial 295 becomes 360 on recalculation. Library blocks like 6 oz and malformed 4 cups (100 g) confuse quantity controls.
+Proposed: Persist full-precision reference nutrients and reference quantity; calculate total directly from source on every quantity edit. Round only the final displayed calories/protein. Keep package label serving, consumed amount and UI increment separate. Normalize library measurement units without losing density or flavor.
+Reuse / current state: Use existing unit conversion and library normalization helpers; current uncommitted library improvements do not remove resolver rounding.
+Acceptance: No-op quantity edit is invariant; 139→180→139 g round-trips to original totals; test grams, ounces, low-calorie foods and fractional cups. Verify on actual card controls.
+Efficiency: Pure local arithmetic. Avoid repeating model requests for amount changes.
+
+F6: Retain one audit trail from recording through correction
+Observed: No original audio, immutable recording ID, parser array or per-edit actor; snapshots miss deleted attempts. Current result can hide an initial failure.
+Proposed: Persist capture ID, transcript, parser raw result, prompt/model/code versions, actual search queries, search candidate IDs, library version, each pass’s candidate mapping and response, reference basis/math, initial returned result and later edits/deletes/retries with actor/reason. Keep audio only with an explicit retention choice. Redact and cap stored payloads.
+Reuse / current state: Extend the existing request ID, usage metadata and snapshots; reuse the existing audit/replay scripts instead of installing a second tracing platform.
+Acceptance: One failed utterance can be reconstructed without guessing; a correction never overwrites the initial scored result; repeated identical recordings remain distinct.
+Efficiency: Metadata append per step; reuse snapshots and IDs. No extra inference cost; retention limits control storage.
+
+F7: Verify label row and column consistency
+Observed: Saved label scans contain protein from a sugar row and a misread wrap serving/nutrition basis.
+Proposed: Record label evidence per nutrient and per-serving/per-container column. Check column consistency against printed servings per container, allowing label rounding. On a conflict, recrop or retry only the ambiguous rows; preserve source photo and avoid promoting unverified scan values as trusted nutrition.
+Reuse / current state: Adapt existing front/nutrition vision and label math. No replacement OCR pipeline needed first.
+Acceptance: Retained Yasso photo gives 4 g protein, not 10; wrap photo gives 1 wrap 290/21. Use held-out two-column labels and rounded container totals.
+Efficiency: One normal scan, selective retry on conflict; no mandatory second vision call.
+
+F8: Complete or clearly fail every parsed food
+Observed: Nov 11 meal has three correct parser items but two pending 0/0 cards and no estimate result.
+Proposed: Use bounded retries and persisted per-item completion state; distinguish unknown nutrition from zero; recover interrupted requests after reload with the same idempotency key. Treat successful split as incomplete until every item finishes or shows an actionable failure.
+Reuse / current state: Current uncommitted timeout/persistence work already addresses parts. Verify deployed version and interrupted-device behavior before calling this fixed.
+Acceptance: Exact Nov 11 utterance yields three completed items or explicit errors with unknown totals; force network timeout, reload and retry, checking no duplicate entries.
+Efficiency: Retry failed items only, with a bounded budget; no blanket model upgrade.
+
+Boundaries
+Window is 30 local diary dates: October 13–November 11, 2026 inclusive. Seven October 12 records appear only in a boundary appendix. Diary date is used, not necessarily the recording’s timestamp.
+92 recoverable exact-text/day utterance groups are scored: 91 present in current diary plus one deleted attempt recovered from backups. No persistent capture ID exists, so identical repeated recordings on the same day cannot always be distinguished.
+Raw audio is not retained in these records. Transcription fidelity cannot be scored; the saved transcript is the starting point. Voice and typed text are not reliably distinguishable. Empty-audio failure is counted separately.
+This is not proof that all utterances ever attempted in the month were recovered. Daily/recent backups are incomplete; unsaved/deleted attempts can be missing entirely. Only Alexander’s profile was read for meal content.
+Stage scores concern retained evidence. Search results are cached snapshots and do not reveal the exact original HTTP query, cache hit, or every retry. Library references resolve against current definitions unless a historical definition is independently available.
+Raw pass candidate indexes are batch-local; final stored indexes refer to the full result list. Do not compare the numbers directly without the missing batch mapping.
+Current and first automatic results are not equivalent. Snapshot transitions are observations, not actor-attributed correction events. The Halo Top amount change cannot be assigned to AI or user.
+A 2 means reasonable agreement, not a verified nutrition label. Generic fruits/vegetables, cooked/raw state, oils, package sizes and flavor versions remain assumptions where unstated. A 1 is not a confirmed failure.
+No production diary, library, prompt or deployment was changed. Local probes used existing functions without external model calls. Existing uncommitted product changes were left untouched. Recommendations have not been benchmarked end-to-end.

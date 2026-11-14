@@ -1,0 +1,1643 @@
+[
+  {
+    "fat": 1.5,
+    "protein": 9,
+    "calories": 80,
+    "createdAt": 1778128417690,
+    "baseAmount": "1 oz (28g)",
+    "carbs": 7,
+    "emoji": "\ud83e\udd69",
+    "id": "61d3b1e5-f7bf-4fe9-92d3-9641060c028e",
+    "name": "Peppered Beef Jerky"
+  },
+  {
+    "id": "df8bf419-7298-4563-aa13-3c72d1c199e7",
+    "name": "Yasso Bars",
+    "emoji": "\ud83c\udf53",
+    "baseAmount": "1 Bar (62g)",
+    "calories": 80,
+    "protein": 4,
+    "fat": 0,
+    "carbs": 14,
+    "createdAt": 1779323664334
+  },
+  {
+    "id": "125b555e-c4cc-43cb-9a5b-95a896b367e9",
+    "name": "Whole Wheat Bread",
+    "emoji": "\ud83c\udf5e",
+    "baseAmount": "1 slice (26g)",
+    "calories": 60,
+    "protein": 3,
+    "fat": 0.5,
+    "carbs": 12,
+    "createdAt": 1779324023561
+  },
+  {
+    "id": "d3d1f9dd-2164-41bd-991e-7a01e6c6e2f9",
+    "name": "Whey Isolate",
+    "emoji": "\ud83c\udf51",
+    "baseAmount": "1 Scoop (24g)",
+    "calories": 80,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1779333962907
+  },
+  {
+    "id": "3da10b93-c334-44f2-8323-4cb0af532115",
+    "name": "Goodles Pasta",
+    "emoji": "\ud83c\udf5d",
+    "baseAmount": "2 oz dry (57g)",
+    "calories": 210,
+    "protein": 8,
+    "fat": 1,
+    "carbs": 41,
+    "createdAt": 1779431890550
+  },
+  {
+    "id": "86c4ec0a-02b0-4f54-8341-987891ccf6c9",
+    "name": "Chicken Breast",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "3 oz (84g)",
+    "calories": 70,
+    "protein": 18,
+    "fat": 1.5,
+    "carbs": 0,
+    "createdAt": 1779431919626
+  },
+  {
+    "id": "55da6bdb-d216-45cb-9af2-03aef61098b2",
+    "name": "Nutella Ice Cream",
+    "emoji": "\ud83c\udf66",
+    "baseAmount": "1 cone (65g)",
+    "calories": 250,
+    "protein": 3,
+    "fat": 14,
+    "carbs": 29,
+    "createdAt": 1779432193593
+  },
+  {
+    "id": "ffbabff2-03d6-4a69-b218-22b9e08c0314",
+    "name": "Oikos S'mores",
+    "emoji": "\ud83c\udf6b",
+    "baseAmount": "1 Container (128g)",
+    "calories": 120,
+    "protein": 11,
+    "fat": 2,
+    "carbs": 14,
+    "createdAt": 1779494861251
+  },
+  {
+    "id": "66c67870-6ae0-476a-bc62-0682a6d3cbae",
+    "name": "Mint Choc Chip",
+    "emoji": "\ud83c\udf66",
+    "baseAmount": "2/3 cup (99g)",
+    "calories": 150,
+    "protein": 7,
+    "fat": 3,
+    "carbs": 24,
+    "createdAt": 1779511880008
+  },
+  {
+    "id": "db9617eb-2d1b-4971-a44c-08da1e99d175",
+    "name": "Oikos Remix",
+    "emoji": "\ud83e\udd68",
+    "baseAmount": "1 Container (128g)",
+    "calories": 120,
+    "protein": 11,
+    "fat": 2,
+    "carbs": 16,
+    "createdAt": 1779929383279
+  },
+  {
+    "id": "fd0beb84-67c3-49a6-b36a-3664a10e6c2b",
+    "name": "Oreo Loaded",
+    "emoji": "\ud83c\udf6a",
+    "baseAmount": "2 cookies (35g)",
+    "calories": 180,
+    "protein": 1,
+    "fat": 9,
+    "carbs": 25,
+    "createdAt": 1779939461233
+  },
+  {
+    "id": "6b41cd10-0ed1-4c41-9542-2f3f14a4d804",
+    "name": "Tomato Sauce",
+    "emoji": "\ud83c\udf45",
+    "baseAmount": "1/4 cup (63g)",
+    "calories": 25,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 5,
+    "createdAt": 1779939600461
+  },
+  {
+    "id": "ea96db60-42b3-4579-aaea-e8029f3a4668",
+    "name": "Popcorn",
+    "emoji": "\ud83c\udf7f",
+    "baseAmount": "28g",
+    "calories": 140,
+    "protein": 2,
+    "fat": 6,
+    "carbs": 19,
+    "createdAt": 1779945847733
+  },
+  {
+    "id": "4fb50003-2c05-42df-a2bf-21ec4d673776",
+    "name": "Key Lime Pie",
+    "emoji": "\ud83e\udd67",
+    "baseAmount": "1 bar (55g)",
+    "calories": 200,
+    "protein": 20,
+    "fat": 7,
+    "carbs": 18,
+    "createdAt": 1780035552413
+  },
+  {
+    "id": "0b129fd8-3b54-47fd-be3b-7d8f839bf7b5",
+    "name": "Barebells Key Lime Pie",
+    "emoji": "\ud83d\udce6",
+    "baseAmount": "1 bar",
+    "calories": 200,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780097927318
+  },
+  {
+    "id": "153008e1-57b7-47d8-a975-d62c969cb63c",
+    "name": "Barebells Key Lime Pie",
+    "emoji": "\ud83c\udf71",
+    "baseAmount": "1 bar",
+    "calories": 200,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780098108614
+  },
+  {
+    "id": "a42f9b06-6ab1-47fe-aaa6-3a298403d69f",
+    "name": "Barebells Key Lime Pie",
+    "emoji": "\ud83c\udf71",
+    "baseAmount": "1 bar",
+    "calories": 200,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780098129512
+  },
+  {
+    "id": "c345a5c3-7d68-4e3a-b59c-87dd567b70e9",
+    "name": "Barebells Key Lime Pie",
+    "emoji": "\ud83e\udd67",
+    "baseAmount": "1 bar",
+    "calories": 200,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780098239973
+  },
+  {
+    "id": "f8ea32f9-2c03-49b1-9f86-2fb75361ff0d",
+    "name": "Great Value No Salt Added",
+    "emoji": "\ud83c\udf45",
+    "baseAmount": "1/4 cup",
+    "calories": 25,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780098288331
+  },
+  {
+    "id": "7eed48a7-c90c-409a-914c-bbbdfec243b6",
+    "name": "Veggie Pad Thai",
+    "emoji": "\ud83c\udf5c",
+    "baseAmount": "1 tray",
+    "calories": 400,
+    "protein": 10,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780099976312
+  },
+  {
+    "id": "673ca6d5-df20-43a0-9524-e6ef8dbaa8b6",
+    "name": "Protein Pastry",
+    "emoji": "\ud83c\udf6b",
+    "baseAmount": "1 bar",
+    "calories": 180,
+    "protein": 20,
+    "fat": 9,
+    "carbs": 19,
+    "createdAt": 1780117380539
+  },
+  {
+    "id": "ec61cad2-a623-4d0c-88c3-4a47f9540316",
+    "name": "Blueberry Lemon",
+    "emoji": "\ud83c\udf4b",
+    "baseAmount": "1 bar",
+    "calories": 140,
+    "protein": 16,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780277718537
+  },
+  {
+    "id": "07486fa6-f6ba-41fd-a19b-2dfa2a3a36a1",
+    "name": "Canned Chicken",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "3 oz drained",
+    "calories": 70,
+    "protein": 13,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780347303242
+  },
+  {
+    "id": "48c2bbc5-1f22-47a4-bd78-72e89eb57e30",
+    "name": "Blueberry Lemon",
+    "emoji": "\ud83c\udf4b",
+    "baseAmount": "1 bar",
+    "calories": 140,
+    "protein": 16,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780463869923
+  },
+  {
+    "id": "c5acb8a5-1ed7-4f85-ba71-380b2be3d5bc",
+    "name": "Chocolate Strawbs",
+    "emoji": "\ud83c\udf53",
+    "baseAmount": "3 pieces",
+    "calories": 90,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780965314518
+  },
+  {
+    "id": "302d4adf-255c-486b-ac8e-a4be0a7a48a9",
+    "name": "Mini Ice Cream Cones",
+    "emoji": "\ud83c\udf66",
+    "baseAmount": "3 cones",
+    "calories": 260,
+    "protein": 4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789503411279
+  },
+  {
+    "id": "ede33554-a9ca-438f-b3fc-d7aed3a0a26d",
+    "name": "Lemony Arugula Basil",
+    "emoji": "\ud83e\udd57",
+    "baseAmount": "4 cups",
+    "calories": 170,
+    "protein": 4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789673234395
+  },
+  {
+    "id": "5dd0de07-fd5e-44fd-9836-0e753ede27f8",
+    "name": "Arugula Basil Kit",
+    "emoji": "\ud83c\udf4b",
+    "baseAmount": "4 cups (100 g)",
+    "calories": 170,
+    "protein": 0,
+    "fat": 11,
+    "carbs": 7,
+    "createdAt": 1789678676964
+  },
+  {
+    "id": "5bdb29cc-a65f-4119-b561-6d0916072877",
+    "name": "Arugula Basil Salad Kit",
+    "emoji": "\ud83e\udd57",
+    "baseAmount": "4 cups (100 g) salad + dressing",
+    "calories": 170,
+    "protein": 4,
+    "fat": 11,
+    "carbs": 17,
+    "createdAt": 1789683051816
+  },
+  {
+    "id": "cb92f3fe-3e64-4c60-855a-364c9bcefb0a",
+    "name": "Coconut Marshmallow Puffs",
+    "emoji": "\ud83e\udd65",
+    "baseAmount": "1 bar",
+    "calories": 140,
+    "protein": 17,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789683433113
+  },
+  {
+    "id": "5827970f-6e3c-4155-b554-50d6490fe2b6",
+    "name": "Lemony Arugula Basil",
+    "emoji": "\ud83c\udf4b",
+    "baseAmount": "4 cups (106 g)",
+    "calories": 170,
+    "protein": 2,
+    "fat": 14,
+    "carbs": 14,
+    "createdAt": 1789683519799
+  },
+  {
+    "id": "10defebb-6abb-46a7-847c-39fcd1477fe4",
+    "name": "Chunky Avocado",
+    "emoji": "\ud83e\udd51",
+    "baseAmount": "1 mini cup",
+    "calories": 130,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789683810509
+  },
+  {
+    "id": "063b7ace-b0d4-43c4-9fc2-71e8a5f5f2a7",
+    "name": "Lemony Arugula Basil",
+    "emoji": "\ud83e\udd57",
+    "baseAmount": "1 cup (140 g)",
+    "calories": 170,
+    "protein": 4,
+    "fat": 7,
+    "carbs": 20,
+    "createdAt": 1789684593799
+  },
+  {
+    "id": "b1032829-d38c-4092-96b8-605a02f6f5ee",
+    "name": "Lemon Salad Kit",
+    "emoji": "\ud83c\udf4b",
+    "baseAmount": "4 cups (100 g) salad + dressing",
+    "calories": 170,
+    "protein": 6,
+    "fat": 7,
+    "carbs": 20,
+    "createdAt": 1789685829272
+  },
+  {
+    "id": "77d2079e-608e-493f-b9c3-806b25b8b996",
+    "name": "Cheddy Mac",
+    "emoji": "\ud83e\uddc0",
+    "baseAmount": "2..6 oz",
+    "calories": 270,
+    "protein": 15,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789762203392
+  },
+  {
+    "id": "74649c4b-f6b6-436a-9c2b-e321a744eaab",
+    "name": "Madras Lentil",
+    "emoji": "\ud83c\udf5b",
+    "baseAmount": "1/2 package",
+    "calories": 150,
+    "protein": 7,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789782427529
+  },
+  {
+    "id": "5a859250-d63d-4f35-b16f-4e93980ebd8a",
+    "name": "Cheddy Mac",
+    "emoji": "\ud83e\uddc0",
+    "baseAmount": "2..6 oz",
+    "calories": 270,
+    "protein": 15,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1790197779194
+  },
+  {
+    "id": "92d60b69-6feb-41ec-a063-fadabc74eefd",
+    "name": "Miso Crunch Salad",
+    "emoji": "\ud83e\udd57",
+    "baseAmount": "1 cup",
+    "calories": 170,
+    "protein": 3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1790218706869
+  },
+  {
+    "id": "e0fc4bcc-d142-4207-9e80-d7186c0adc1e",
+    "name": "One Protein Bar",
+    "emoji": "\ud83c\udf6b",
+    "baseAmount": "1 bar",
+    "calories": 220,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791003455706
+  },
+  {
+    "id": "d3983438-de08-4ff3-b803-2113973824d2",
+    "name": "Canned Chicken",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "3 oz drained",
+    "calories": 60,
+    "protein": 13,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791058010500
+  },
+  {
+    "id": "22fe8bf0-572f-4649-8f82-b7f073f29d03",
+    "name": "Clear Whey Isolate",
+    "emoji": "\ud83e\udd64",
+    "baseAmount": "1 scoop",
+    "calories": 90,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791257786221
+  },
+  {
+    "id": "8b83fcba-62d7-45de-ab78-133193dd28a2",
+    "name": "Spinach Feta Wrap",
+    "emoji": "\ud83c\udf2f",
+    "baseAmount": "1 serving",
+    "calories": 290,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791432046832
+  },
+  {
+    "id": "59a788c9-6d91-4f9d-98c2-5fb4afc24eda",
+    "name": "Butter Chicken Rice",
+    "emoji": "\ud83c\udf5b",
+    "baseAmount": "1 serving",
+    "calories": 400,
+    "protein": 24,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791440497390
+  },
+  {
+    "id": "5a438b7b-a0ac-4a45-9f11-a556d493d30f",
+    "name": "Magnifisauce",
+    "emoji": "\ud83e\udd6b",
+    "baseAmount": "2 tbsp",
+    "calories": 110,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791608868073
+  },
+  {
+    "id": "e71d5995-ac84-4986-8f5c-e748dafa20a5",
+    "name": "Lentil Soup",
+    "emoji": "\ud83e\udd63",
+    "baseAmount": "1 cup",
+    "calories": 200,
+    "protein": 9,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791683488114
+  },
+  {
+    "id": "24a0ad9e-715d-4d20-aa95-ad86d5f28908",
+    "name": "Yasso Greek Yogurt Bar",
+    "emoji": "\ud83c\udf6a",
+    "baseAmount": "1 bar",
+    "calories": 90,
+    "protein": 5,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791692474234
+  },
+  {
+    "id": "b9d48ded-2c7e-4c05-903f-3bcf5451dcb2",
+    "name": "Garlic Pesto Pizza",
+    "emoji": "\ud83c\udf55",
+    "baseAmount": "1 pizza",
+    "calories": 1280,
+    "protein": 50,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791692683238
+  },
+  {
+    "id": "7cb649da-fe60-429b-88df-a20217d18915",
+    "name": "Meat Lasagna",
+    "emoji": "\ud83c\udf5d",
+    "baseAmount": "1 cup",
+    "calories": 310,
+    "protein": 23,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791862595467
+  },
+  {
+    "id": "8ef40aab-3040-4de9-ac61-62312cec4a89",
+    "name": "Kitchari",
+    "emoji": "\ud83c\udf5b",
+    "baseAmount": "1 package",
+    "calories": 210,
+    "protein": 7,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791927368075
+  },
+  {
+    "id": "77acb7d2-5199-4e12-b3fc-edbbb56a36e5",
+    "name": "Canned Chicken",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "3 oz drained",
+    "calories": 60,
+    "protein": 13,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791927374021
+  },
+  {
+    "id": "cf49d5ce-d4ad-4f01-9ec9-9dd600672e28",
+    "name": "Yasso Greek Yogurt",
+    "emoji": "\ud83c\udf6a",
+    "baseAmount": "1 bar",
+    "calories": 90,
+    "protein": 5,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791948877566
+  },
+  {
+    "id": "dab9665e-42c0-4d39-aee7-a08271f4c737",
+    "name": "Cacio E Pepe",
+    "emoji": "\ud83c\udf5d",
+    "baseAmount": "1 cup frozen",
+    "calories": 270,
+    "protein": 11,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791949063118
+  },
+  {
+    "id": "466d3778-4b73-4ba2-a817-33435210558f",
+    "name": "Trader Joe's Carne Asada",
+    "emoji": "\ud83c\udf71",
+    "baseAmount": "1 burrito",
+    "calories": 490,
+    "protein": 22,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792284884988
+  },
+  {
+    "id": "auto-food:product%3A210087",
+    "name": "Sourdough",
+    "emoji": "\ud83c\udf5e",
+    "baseAmount": "2 slice",
+    "calories": 140,
+    "protein": 6,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789886884237,
+    "sourceFoodId": "210087",
+    "sourceNames": [
+      "Sourdough"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A17583911",
+    "name": "Rice Cracker",
+    "emoji": "\ud83c\udf58",
+    "baseAmount": "1 cracker",
+    "calories": 4,
+    "protein": 0.1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1782805436823,
+    "sourceFoodId": "17583911",
+    "sourceNames": [
+      "Rice Cracker"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A1646",
+    "name": "Grilled Chicken",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "139 g",
+    "calories": 228,
+    "protein": 42.8,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791683454526,
+    "sourceFoodId": "1646",
+    "sourceNames": [
+      "Chicken",
+      "Chicken Breast",
+      "Grilled Chicken"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A5777",
+    "name": "Mashed Potatoes",
+    "emoji": "\ud83e\udd54",
+    "baseAmount": "4 oz",
+    "calories": 112,
+    "protein": 2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1779323617155,
+    "sourceFoodId": "5777",
+    "sourceNames": [
+      "Mashed Potatoes"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A39719",
+    "name": "Rice",
+    "emoji": "\ud83c\udf5a",
+    "baseAmount": "1 oz",
+    "calories": 37,
+    "protein": 0.8,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1779770492719,
+    "sourceFoodId": "39719",
+    "sourceNames": [
+      "Rice"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A6042",
+    "name": "Carrots",
+    "emoji": "\ud83e\udd55",
+    "baseAmount": "3 oz",
+    "calories": 30,
+    "protein": 0.7,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1779431852567,
+    "sourceFoodId": "6042",
+    "sourceNames": [
+      "Carrots"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A6316",
+    "name": "Green Beans",
+    "emoji": "\ud83e\udedb",
+    "baseAmount": "107 g",
+    "calories": 37,
+    "protein": 2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1790970665167,
+    "sourceFoodId": "6316",
+    "sourceNames": [
+      "Green Beans"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A6471",
+    "name": "Cauliflower",
+    "emoji": "\ud83e\udd66",
+    "baseAmount": "2 oz",
+    "calories": 12,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1782439547705,
+    "sourceFoodId": "6471",
+    "sourceNames": [
+      "Cauliflower"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A34605",
+    "name": "Turkey Breast",
+    "emoji": "\ud83e\udd83",
+    "baseAmount": "4 oz",
+    "calories": 152,
+    "protein": 34.1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780247475834,
+    "sourceFoodId": "34605",
+    "sourceNames": [
+      "Turkey Breast"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A36320",
+    "name": "Carrots",
+    "emoji": "\ud83e\udd55",
+    "baseAmount": "5 oz",
+    "calories": 58,
+    "protein": 1.3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792040348752,
+    "sourceFoodId": "36320",
+    "sourceNames": [
+      "Carrots"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A5367",
+    "name": "Apple",
+    "emoji": "\ud83c\udf4e",
+    "baseAmount": "1 apple",
+    "calories": 72,
+    "protein": 0.4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791342670247,
+    "sourceFoodId": "5367",
+    "sourceNames": [
+      "Apple"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A34212",
+    "name": "Olive Oil",
+    "emoji": "\ud83e\uded2",
+    "baseAmount": "1 tsp",
+    "calories": 40,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1790976462405,
+    "sourceFoodId": "34212",
+    "sourceNames": [
+      "Olive Oil"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A105696130",
+    "name": "Arby's Roast Beef",
+    "emoji": "\ud83e\udd6a",
+    "baseAmount": "1 sandwich",
+    "calories": 360,
+    "protein": 23,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1779946003106,
+    "sourceFoodId": "105696130",
+    "sourceNames": [
+      "Roast Beef Sandwich",
+      "Arby's Roast Beef"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A36291",
+    "name": "Broccoli",
+    "emoji": "\ud83e\udd66",
+    "baseAmount": "208 g",
+    "calories": 71,
+    "protein": 5.9,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791496553909,
+    "sourceFoodId": "36291",
+    "sourceNames": [
+      "Broccoli"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A39725",
+    "name": "Rice",
+    "emoji": "\ud83c\udf5a",
+    "baseAmount": "4 oz",
+    "calories": 148,
+    "protein": 2.7,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789890663375,
+    "sourceFoodId": "39725",
+    "sourceNames": [
+      "Rice"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A6009",
+    "name": "Broccoli",
+    "emoji": "\ud83e\udd66",
+    "baseAmount": "6 oz",
+    "calories": 59,
+    "protein": 4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792021677126,
+    "sourceFoodId": "6009",
+    "sourceNames": [
+      "Broccoli",
+      "Grilled Broccoli"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A34214",
+    "name": "Sesame Oil",
+    "emoji": "\ud83e\uded7",
+    "baseAmount": "1 tsp",
+    "calories": 40,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780348953152,
+    "sourceFoodId": "34214",
+    "sourceNames": [
+      "Sesame Oil"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A51920",
+    "name": "Chow Mein",
+    "emoji": "\ud83c\udf5c",
+    "baseAmount": "1 serving",
+    "calories": 600,
+    "protein": 15,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780239465684,
+    "sourceFoodId": "51920",
+    "sourceNames": [
+      "Chow Mein"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A4532802",
+    "name": "Orange Chicken",
+    "emoji": "\ud83c\udf4a",
+    "baseAmount": "2 serving",
+    "calories": 1020,
+    "protein": 32,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780239465685,
+    "sourceFoodId": "4532802",
+    "sourceNames": [
+      "Orange Chicken"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A756356",
+    "name": "Beans",
+    "emoji": "\ud83e\uded8",
+    "baseAmount": "1 side",
+    "calories": 180,
+    "protein": 10,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791692767414,
+    "sourceFoodId": "756356",
+    "sourceNames": [
+      "Black Beans",
+      "Beans"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A74465886",
+    "name": "Rice",
+    "emoji": "\ud83c\udf5a",
+    "baseAmount": "1 side",
+    "calories": 110,
+    "protein": 3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791692767415,
+    "sourceFoodId": "74465886",
+    "sourceNames": [
+      "Rice"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A83389",
+    "name": "Jasmine Rice",
+    "emoji": "\ud83c\udf5a",
+    "baseAmount": "4 oz",
+    "calories": 147,
+    "protein": 3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780463894636,
+    "sourceFoodId": "83389",
+    "sourceNames": [
+      "Jasmine Rice"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A32997402",
+    "name": "Spicy Chicken Sandwich",
+    "emoji": "\ud83e\udd6a",
+    "baseAmount": "1 sandwich",
+    "calories": 450,
+    "protein": 28,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1790915565478,
+    "sourceFoodId": "32997402",
+    "sourceNames": [
+      "Spicy Chicken Sandwich"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A104058534",
+    "name": "Chick-fil-A Fries",
+    "emoji": "\ud83c\udf5f",
+    "baseAmount": "6 fry",
+    "calories": 64,
+    "protein": 0.8,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1780541059098,
+    "sourceFoodId": "104058534",
+    "sourceNames": [
+      "Chick-fil-A Fries"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A59014",
+    "name": "Oreo",
+    "emoji": "\ud83c\udf6a",
+    "baseAmount": "1 cookie",
+    "calories": 50,
+    "protein": 0.3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1782805436825,
+    "sourceFoodId": "59014",
+    "sourceNames": [
+      "Oreo"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A90023317",
+    "name": "Ramen",
+    "emoji": "\ud83c\udf5c",
+    "baseAmount": "0.67 pack",
+    "calories": 248,
+    "protein": 5.4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1789890663371,
+    "sourceFoodId": "90023317",
+    "sourceNames": [
+      "Ramen"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A305067",
+    "name": "Red Onion",
+    "emoji": "\ud83e\uddc5",
+    "baseAmount": "157 g",
+    "calories": 66,
+    "protein": 1.4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1790970612118,
+    "sourceFoodId": "305067",
+    "sourceNames": [
+      "Large Red Onion",
+      "Red Onion"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A133023469",
+    "name": "Reese's Oreo",
+    "emoji": "\ud83c\udf6a",
+    "baseAmount": "1 cookie",
+    "calories": 100,
+    "protein": 1.5,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791342670246,
+    "sourceFoodId": "133023469",
+    "sourceNames": [
+      "Reese's Oreo"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A120811534",
+    "name": "Chobani Flip",
+    "emoji": "\ud83e\udd63",
+    "baseAmount": "1 container",
+    "calories": 170,
+    "protein": 9,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791431915859,
+    "sourceFoodId": "120811534",
+    "sourceNames": [
+      "Chobani Flip"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A2754536",
+    "name": "Chicken Wontons",
+    "emoji": "\ud83e\udd5f",
+    "baseAmount": "8 wonton",
+    "calories": 130,
+    "protein": 7,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792040381214,
+    "sourceFoodId": "2754536",
+    "sourceNames": [
+      "Chicken Wontons"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A134735315",
+    "name": "Reese's Oreo",
+    "emoji": "\ud83c\udf6a",
+    "baseAmount": "2 cookie",
+    "calories": 140,
+    "protein": 2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791611239786,
+    "sourceFoodId": "134735315",
+    "sourceNames": [
+      "Reese's Oreo"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A52340",
+    "name": "Rice Cake",
+    "emoji": "\ud83c\udf58",
+    "baseAmount": "1 rice cake",
+    "calories": 35,
+    "protein": 0.5,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792202363059,
+    "sourceFoodId": "52340",
+    "sourceNames": [
+      "Rice Cakes",
+      "Rice Cake"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A65990126",
+    "name": "Pad See Ew",
+    "emoji": "\ud83c\udf5c",
+    "baseAmount": "1 plate",
+    "calories": 846,
+    "protein": 31.4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791342957171,
+    "sourceFoodId": "65990126",
+    "sourceNames": [
+      "Pad See Ew"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A36294",
+    "name": "Broccoli",
+    "emoji": "\ud83e\udd66",
+    "baseAmount": "6 oz",
+    "calories": 48,
+    "protein": 5.3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792202393577,
+    "sourceFoodId": "36294",
+    "sourceNames": [
+      "Broccoli"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A39315",
+    "name": "Popcorn",
+    "emoji": "\ud83c\udf7f",
+    "baseAmount": "2 cup",
+    "calories": 62,
+    "protein": 2.1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1791611243521,
+    "sourceFoodId": "39315",
+    "sourceNames": [
+      "Popped Popcorn",
+      "Popcorn"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A448901",
+    "name": "Chicken",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "130 g",
+    "calories": 308,
+    "protein": 35.2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792202393576,
+    "sourceFoodId": "448901",
+    "sourceNames": [
+      "Grilled Chicken",
+      "Chicken"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A5445",
+    "name": "Peach",
+    "emoji": "\ud83c\udf51",
+    "baseAmount": "1 peach",
+    "calories": 58,
+    "protein": 1.4,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792021761688,
+    "sourceFoodId": "5445",
+    "sourceNames": [
+      "Peach"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A70136501",
+    "name": "Red Onion",
+    "emoji": "\ud83e\uddc5",
+    "baseAmount": "1 onion",
+    "calories": 45,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792202393578,
+    "sourceFoodId": "70136501",
+    "sourceNames": [
+      "Red Onion"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A4254",
+    "name": "Drizzilicious",
+    "emoji": "\ud83c\udf58",
+    "baseAmount": "1 bag",
+    "calories": 90,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792466708713,
+    "sourceFoodId": "4254",
+    "sourceNames": [
+      "Drizzilicious"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A2631280",
+    "name": "Fudge Ice Cream Bar",
+    "emoji": "\ud83c\udf66",
+    "baseAmount": "1 bar",
+    "calories": 90,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792466767981,
+    "sourceFoodId": "2631280",
+    "sourceNames": [
+      "Fudge Ice Cream Bar"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A60384",
+    "name": "Ground Beef",
+    "emoji": "\ud83e\udd69",
+    "baseAmount": "2 serving",
+    "calories": 260,
+    "protein": 44,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792466785335,
+    "sourceFoodId": "60384",
+    "sourceNames": [
+      "Ground Beef"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "6124ac2a-d624-4a3f-9b10-385ae5e56fb6",
+    "name": "Steak & Stout Pie",
+    "sourceFoodId": "15142243",
+    "emoji": "\ud83e\udd67",
+    "baseAmount": "1 pie (283 g)",
+    "calories": 800,
+    "protein": 34,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792557919847
+  },
+  {
+    "id": "auto-food:product%3A7302",
+    "name": "Chocolate Peanut Butter",
+    "emoji": "\ud83c\udf6b",
+    "baseAmount": "1 container",
+    "calories": 482,
+    "protein": 10.9,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792620993675,
+    "sourceFoodId": "7302",
+    "sourceNames": [
+      "Chocolate PB Cup",
+      "Chocolate Peanut Butter"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "af7ba18e-8431-4bc4-90e0-0b5903930789",
+    "name": "Cinnamon Bites",
+    "sourceFoodId": "19735785",
+    "emoji": "\ud83c\udf65",
+    "baseAmount": "28 pieces (28 g)",
+    "calories": 120,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792641726956
+  },
+  {
+    "id": "feb4cf37-6c9c-48e4-9a0f-4b1dcefec068",
+    "name": "Coconut Chickpea Curry",
+    "sourceFoodId": "83164030",
+    "emoji": "\ud83c\udf5b",
+    "baseAmount": "2/3 cup (140 g)",
+    "calories": 170,
+    "protein": 6,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1792699143018
+  },
+  {
+    "id": "e26c1888-fc2c-42a7-a8e7-1af6079018ca",
+    "name": "Yasso Vanilla Caramel",
+    "emoji": "\ud83c\udf68",
+    "baseAmount": "1 mini cup",
+    "calories": 80,
+    "protein": 10,
+    "fat": 0.5,
+    "carbs": 15,
+    "createdAt": 1792986857922
+  },
+  {
+    "id": "a151e610-23a1-4fde-a488-a46354f8cf43",
+    "name": "Turkey Pot Pie",
+    "emoji": "\ud83e\udd67",
+    "baseAmount": "1 cup (243 g)",
+    "calories": 320,
+    "protein": 14,
+    "fat": 15,
+    "carbs": 37,
+    "createdAt": 1792986879334
+  },
+  {
+    "id": "auto-food:product%3A34194",
+    "name": "Mayonnaise",
+    "emoji": "\ud83e\udd6b",
+    "baseAmount": "1 tbsp",
+    "calories": 57,
+    "protein": 0.1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793074747874,
+    "sourceFoodId": "34194",
+    "sourceNames": [
+      "Mayonnaise"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "70ec2e65-6fcb-4316-8c2d-b31745aa773a",
+    "name": "Sandwich Buns",
+    "sourceFoodId": "103540339",
+    "emoji": "\ud83c\udf54",
+    "baseAmount": "1 bun (66 g)",
+    "calories": 180,
+    "protein": 6,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793166720217
+  },
+  {
+    "id": "c9368c1d-a916-4cdb-9292-0f093f857bc2",
+    "name": "Turkey Breast",
+    "sourceFoodId": "151740",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "2 slices (56 g)",
+    "calories": 60,
+    "protein": 12,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793166728357
+  },
+  {
+    "id": "39cddc8b-1a2f-4358-bafc-dc58c05ab2f1",
+    "name": "Miracle Whip",
+    "sourceFoodId": "4111517",
+    "emoji": "\ud83e\udd57",
+    "baseAmount": "1 tbsp (15 ml)",
+    "calories": 35,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793166825533
+  },
+  {
+    "id": "720accd9-00b2-44d3-9cde-06b12d02f52c",
+    "name": "Spicy Peanut Noodles",
+    "sourceFoodId": "76919106",
+    "emoji": "\ud83c\udf5c",
+    "baseAmount": "1 bowl (306 g)",
+    "calories": 500,
+    "protein": 19,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793223459804
+  },
+  {
+    "id": "auto-food:product%3A1378377",
+    "name": "Rice Cakes",
+    "emoji": "\ud83c\udf58",
+    "baseAmount": "2 rice cake",
+    "calories": 40,
+    "protein": 2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793671634441,
+    "sourceFoodId": "1378377",
+    "sourceNames": [
+      "Rice Cakes"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "bcebad35-916b-4dcc-8f49-e9486e8612f8",
+    "name": "Carrot Sweet Potato Soup",
+    "sourceFoodId": "25222683",
+    "emoji": "\ud83e\udd63",
+    "baseAmount": "1 cup (245 g)",
+    "calories": 150,
+    "protein": 7,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793671660610
+  },
+  {
+    "id": "daa9998d-5790-48a1-8405-39026643cd3a",
+    "name": "Canned Chicken",
+    "sourceFoodId": "3160612",
+    "emoji": "\ud83c\udf57",
+    "baseAmount": "3 oz drained (84 g)",
+    "calories": 60,
+    "protein": 13,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793671671450
+  },
+  {
+    "id": "32ccb061-9d1c-4daf-9030-6297f7b71f68",
+    "name": "Protein Spaghetti",
+    "sourceFoodId": "77077732",
+    "emoji": "\ud83c\udf5d",
+    "baseAmount": "2oz",
+    "calories": 190,
+    "protein": 10,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793685855065
+  },
+  {
+    "id": "99c98379-8b8c-4bd0-bb07-921ccaa6a7c0",
+    "name": "Cacio E Pepe Sauce",
+    "sourceFoodId": "52193074",
+    "emoji": "\ud83c\udf5d",
+    "baseAmount": "1/4 cup (63 g)",
+    "calories": 110,
+    "protein": 3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793686221834
+  },
+  {
+    "id": "40498c1b-ffc5-4cb5-be9d-b872dbabd1fc",
+    "name": "Peanut Butter Popcorn",
+    "sourceFoodId": "60792663",
+    "emoji": "\ud83c\udf7f",
+    "baseAmount": "1/2 cup (30 g)",
+    "calories": 130,
+    "protein": 3,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793768084589
+  },
+  {
+    "id": "fc3635e3-eab8-45e5-831c-2190c6822e5a",
+    "name": "Pad See Ew",
+    "sourceFoodId": "6442801",
+    "emoji": "\ud83c\udf5c",
+    "baseAmount": "1/2 container (142 g)",
+    "calories": 300,
+    "protein": 6,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793768121460
+  },
+  {
+    "id": "c7ebb416-248b-44a1-af15-eeb48cc2b065",
+    "name": "Whipped Topping",
+    "sourceFoodId": "78834",
+    "emoji": "\ud83c\udf68",
+    "baseAmount": "2 tbsp (9 g)",
+    "calories": 25,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793770165795
+  },
+  {
+    "id": "4a6e5a2d-f768-407b-8e0a-14aff310efd8",
+    "name": "Three Cheese Mini Pide",
+    "emoji": "\ud83e\uded3",
+    "baseAmount": "2 pieces (60 g)",
+    "calories": 210,
+    "protein": 4,
+    "fat": 14,
+    "carbs": 24,
+    "createdAt": 1793770183414
+  },
+  {
+    "id": "auto-food:product%3A36376",
+    "name": "Cucumber",
+    "emoji": "\ud83e\udd52",
+    "baseAmount": "1 cucumber",
+    "calories": 45,
+    "protein": 2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793850925092,
+    "sourceFoodId": "36376",
+    "sourceNames": [
+      "Large Cucumber",
+      "Cucumber"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "c5c2b9b2-7ff2-4fbc-b4e6-378c107364cf",
+    "name": "Oh Yeah! Protein Bar",
+    "sourceFoodId": "12798666",
+    "emoji": "\ud83c\udf6b",
+    "baseAmount": "1 bar (60 g)",
+    "calories": 220,
+    "protein": 20,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793927847659
+  },
+  {
+    "id": "c6c0167d-b2ea-453c-a30d-c29a4711b9f3",
+    "name": "S\u2019Mores Bites",
+    "sourceFoodId": "53844795",
+    "emoji": "\ud83c\udf6b",
+    "baseAmount": "1 bag (28 g)",
+    "calories": 120,
+    "protein": 1,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1793927873102
+  },
+  {
+    "id": "auto-food:product%3A33793",
+    "name": "Egg Whites",
+    "emoji": "\ud83e\udd5a",
+    "baseAmount": "3 egg white",
+    "calories": 51,
+    "protein": 10.8,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794025752571,
+    "sourceFoodId": "33793",
+    "sourceNames": [
+      "Egg Whites"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "fc002b06-2505-4909-b9cb-8c869ef3c49b",
+    "name": "Dill Chopped Salad",
+    "sourceFoodId": "61543498",
+    "emoji": "\ud83e\udd57",
+    "baseAmount": "1 cup (100 g)",
+    "calories": 140,
+    "protein": 2,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794268459713
+  },
+  {
+    "id": "auto-food:product%3A33981303",
+    "name": "Cookie Dough Chobani Flip",
+    "emoji": "\ud83e\udd63",
+    "baseAmount": "1 container",
+    "calories": 160,
+    "protein": 10,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794273052971,
+    "sourceFoodId": "33981303",
+    "sourceNames": [
+      "Chobani Flip",
+      "Cookie Dough Chobani Flip"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "bdad5dd0-103e-4549-8a5b-8e5172d0a44a",
+    "name": "Chicken Chile Verde Burri",
+    "sourceFoodId": "56068",
+    "emoji": "\ud83c\udf2f",
+    "baseAmount": "1 burrito (198 g)",
+    "calories": 410,
+    "protein": 19,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794273100341
+  },
+  {
+    "id": "b441a6d0-2a99-4cfc-8cbe-311fccc490ee",
+    "name": "Cheddy Mac",
+    "sourceFoodId": "95805775",
+    "emoji": "\ud83e\uddc0",
+    "baseAmount": "2..6 oz (74 g)",
+    "calories": 270,
+    "protein": 15,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794285225674
+  },
+  {
+    "id": "auto-food:product%3A17934794",
+    "name": "Honey Brisket",
+    "emoji": "\ud83e\udd6a",
+    "baseAmount": "1 sandwich",
+    "calories": 590,
+    "protein": 22,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794374568454,
+    "sourceFoodId": "17934794",
+    "sourceNames": [
+      "Honey Brisket"
+    ],
+    "autoAdded": true
+  },
+  {
+    "id": "auto-food:product%3A80468156",
+    "name": "Chobani Flip",
+    "emoji": "\ud83e\udd63",
+    "baseAmount": "1 container",
+    "calories": 190,
+    "protein": 11,
+    "fat": 0,
+    "carbs": 0,
+    "createdAt": 1794374476292,
+    "sourceFoodId": "80468156",
+    "sourceNames": [
+      "French Toast Yogurt",
+      "Chobani Flip"
+    ],
+    "autoAdded": true
+  }
+]

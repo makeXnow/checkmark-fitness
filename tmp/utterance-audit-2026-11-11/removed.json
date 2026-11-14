@@ -1,0 +1,738 @@
+[
+  {
+    "id": "46578d1b-98fe-4a0b-a139-047e282f857e",
+    "first": {
+      "at": 1793253793000,
+      "day": "2026-10-28",
+      "item": {
+        "id": "46578d1b-98fe-4a0b-a139-047e282f857e",
+        "status": "ready",
+        "barcodeLookup": true,
+        "name": "Turkey Breast",
+        "amount": "4 slices",
+        "rawText": "",
+        "timestamp": 1793166745211,
+        "emoji": "\ud83c\udf57",
+        "calories": 120,
+        "protein": 24,
+        "servingType": "2 slices (56 g)",
+        "servingSize": 2,
+        "servingUnit": "slices",
+        "servingMultiplier": 2,
+        "baseCalories": 60,
+        "baseProtein": 12,
+        "fromBarcode": true,
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 1,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "libraryFoodId": "c9368c1d-a916-4cdb-9292-0f093f857bc2",
+        "userEditedName": false,
+        "_selectedFood": {
+          "foodId": "151740",
+          "name": "Oven Roasted Turkey Breast",
+          "brandName": "Trader Joe's",
+          "foodType": "Brand",
+          "servings": [
+            {
+              "servingId": "195580",
+              "description": "2 slices (56 g)",
+              "calories": 60,
+              "protein": 12,
+              "isDefault": true
+            },
+            {
+              "servingId": "0",
+              "description": "100 g",
+              "calories": 107,
+              "protein": 21.43,
+              "isDefault": false
+            }
+          ]
+        }
+      }
+    },
+    "last": {
+      "at": 1793253793000,
+      "day": "2026-10-28",
+      "item": {
+        "id": "46578d1b-98fe-4a0b-a139-047e282f857e",
+        "status": "ready",
+        "barcodeLookup": true,
+        "name": "Turkey Breast",
+        "amount": "4 slices",
+        "rawText": "",
+        "timestamp": 1793166745211,
+        "emoji": "\ud83c\udf57",
+        "calories": 120,
+        "protein": 24,
+        "servingType": "2 slices (56 g)",
+        "servingSize": 2,
+        "servingUnit": "slices",
+        "servingMultiplier": 2,
+        "baseCalories": 60,
+        "baseProtein": 12,
+        "fromBarcode": true,
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 1,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "libraryFoodId": "c9368c1d-a916-4cdb-9292-0f093f857bc2",
+        "userEditedName": false,
+        "_selectedFood": {
+          "foodId": "151740",
+          "name": "Oven Roasted Turkey Breast",
+          "brandName": "Trader Joe's",
+          "foodType": "Brand",
+          "servings": [
+            {
+              "servingId": "195580",
+              "description": "2 slices (56 g)",
+              "calories": 60,
+              "protein": 12,
+              "isDefault": true
+            },
+            {
+              "servingId": "0",
+              "description": "100 g",
+              "calories": 107,
+              "protein": 21.43,
+              "isDefault": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "3d0cb33e-df4a-4a05-a0c3-709cfe150e03",
+    "first": {
+      "at": 1793253793000,
+      "day": "2026-10-28",
+      "item": {
+        "id": "3d0cb33e-df4a-4a05-a0c3-709cfe150e03",
+        "status": "ready",
+        "barcodeLookup": true,
+        "name": "Sandwich Bun",
+        "amount": "1 bun",
+        "rawText": "",
+        "timestamp": 1793166753805,
+        "emoji": "\ud83c\udf54",
+        "calories": 180,
+        "protein": 6,
+        "servingType": "1 bun (66 g)",
+        "servingSize": 1,
+        "servingUnit": "bun",
+        "servingMultiplier": 1,
+        "baseCalories": 180,
+        "baseProtein": 6,
+        "fromBarcode": true,
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 1,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "libraryFoodId": "70ec2e65-6fcb-4316-8c2d-b31745aa773a",
+        "_selectedFood": {
+          "foodId": "103540339",
+          "name": "Sandwich Starters",
+          "brandName": "Trader Joe's",
+          "foodType": "Brand",
+          "servings": [
+            {
+              "servingId": "82321923",
+              "description": "1 bun (66 g)",
+              "calories": 180,
+              "protein": 6,
+              "isDefault": true
+            },
+            {
+              "servingId": "0",
+              "description": "100 g",
+              "calories": 273,
+              "protein": 9.09,
+              "isDefault": false
+            }
+          ]
+        }
+      }
+    },
+    "last": {
+      "at": 1793253793000,
+      "day": "2026-10-28",
+      "item": {
+        "id": "3d0cb33e-df4a-4a05-a0c3-709cfe150e03",
+        "status": "ready",
+        "barcodeLookup": true,
+        "name": "Sandwich Bun",
+        "amount": "1 bun",
+        "rawText": "",
+        "timestamp": 1793166753805,
+        "emoji": "\ud83c\udf54",
+        "calories": 180,
+        "protein": 6,
+        "servingType": "1 bun (66 g)",
+        "servingSize": 1,
+        "servingUnit": "bun",
+        "servingMultiplier": 1,
+        "baseCalories": 180,
+        "baseProtein": 6,
+        "fromBarcode": true,
+        "macroEstimateSnapshot": {
+          "fatSecretIndex": 1,
+          "servingIndex": 1,
+          "multiplier": 1
+        },
+        "libraryFoodId": "70ec2e65-6fcb-4316-8c2d-b31745aa773a",
+        "_selectedFood": {
+          "foodId": "103540339",
+          "name": "Sandwich Starters",
+          "brandName": "Trader Joe's",
+          "foodType": "Brand",
+          "servings": [
+            {
+              "servingId": "82321923",
+              "description": "1 bun (66 g)",
+              "calories": 180,
+              "protein": 6,
+              "isDefault": true
+            },
+            {
+              "servingId": "0",
+              "description": "100 g",
+              "calories": 273,
+              "protein": 9.09,
+              "isDefault": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "9de6a6e1-dfac-4784-8392-db010e2cd623",
+    "first": {
+      "at": 1793927845000,
+      "day": "2026-11-05",
+      "item": {
+        "id": "9de6a6e1-dfac-4784-8392-db010e2cd623",
+        "emoji": "\ud83e\udd57",
+        "name": "Miso Crunch Salad",
+        "amount": "4 serving",
+        "notes": "170 calories per serving, 680 calories total",
+        "fatSecretSearch": "Trader Joe's Miso Crunch Salad",
+        "parseSnapshot": {
+          "emoji": "\ud83e\udd57",
+          "name": "Miso Crunch Salad",
+          "quantity": 4,
+          "unit": "servings",
+          "unitSingular": "serving",
+          "unitPlural": "servings",
+          "unitFamily": "serving",
+          "estimated": false,
+          "amount": "4 servings",
+          "notes": "170 calories per serving, 680 calories total",
+          "fatSecretSearch": "Trader Joe's Miso Crunch Salad"
+        },
+        "status": "ready",
+        "timestamp": 1793916049140,
+        "calories": 170,
+        "protein": 0,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "180 grams of grilled chicken and an entire Trader Joe's Miso Crunch, which is four servings, for a total of 170 calories per serving.",
+        "servingType": "serving",
+        "servingSize": 1,
+        "servingUnit": "serving",
+        "servingMultiplier": 4,
+        "baseCalories": 43,
+        "baseProtein": 0,
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "servingIndex": null,
+          "relationshipV7": null,
+          "calories": 170,
+          "protein": 0,
+          "servingType": "serving",
+          "multiplier": 4,
+          "statedNutritionApplied": true
+        },
+        "_selectedFood": null
+      }
+    },
+    "last": {
+      "at": 1793927845000,
+      "day": "2026-11-05",
+      "item": {
+        "id": "9de6a6e1-dfac-4784-8392-db010e2cd623",
+        "emoji": "\ud83e\udd57",
+        "name": "Miso Crunch Salad",
+        "amount": "4 serving",
+        "notes": "170 calories per serving, 680 calories total",
+        "fatSecretSearch": "Trader Joe's Miso Crunch Salad",
+        "parseSnapshot": {
+          "emoji": "\ud83e\udd57",
+          "name": "Miso Crunch Salad",
+          "quantity": 4,
+          "unit": "servings",
+          "unitSingular": "serving",
+          "unitPlural": "servings",
+          "unitFamily": "serving",
+          "estimated": false,
+          "amount": "4 servings",
+          "notes": "170 calories per serving, 680 calories total",
+          "fatSecretSearch": "Trader Joe's Miso Crunch Salad"
+        },
+        "status": "ready",
+        "timestamp": 1793916049140,
+        "calories": 170,
+        "protein": 0,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "180 grams of grilled chicken and an entire Trader Joe's Miso Crunch, which is four servings, for a total of 170 calories per serving.",
+        "servingType": "serving",
+        "servingSize": 1,
+        "servingUnit": "serving",
+        "servingMultiplier": 4,
+        "baseCalories": 43,
+        "baseProtein": 0,
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": null,
+          "servingIndex": null,
+          "relationshipV7": null,
+          "calories": 170,
+          "protein": 0,
+          "servingType": "serving",
+          "multiplier": 4,
+          "statedNutritionApplied": true
+        },
+        "_selectedFood": null
+      }
+    }
+  },
+  {
+    "id": "2c926e3c-fcb0-44d4-bae3-99a2aebb78e6",
+    "first": {
+      "at": 1794273048000,
+      "day": "2026-11-09",
+      "item": {
+        "id": "2c926e3c-fcb0-44d4-bae3-99a2aebb78e6",
+        "status": "transcribing",
+        "timestamp": 1794267977064,
+        "name": "",
+        "amount": "1 serving",
+        "servingType": "1 serving",
+        "servingSize": 1,
+        "servingUnit": "serving",
+        "servingMultiplier": 1,
+        "_selectedFood": null
+      }
+    },
+    "last": {
+      "at": 1794273048000,
+      "day": "2026-11-09",
+      "item": {
+        "id": "2c926e3c-fcb0-44d4-bae3-99a2aebb78e6",
+        "status": "transcribing",
+        "timestamp": 1794267977064,
+        "name": "",
+        "amount": "1 serving",
+        "servingType": "1 serving",
+        "servingSize": 1,
+        "servingUnit": "serving",
+        "servingMultiplier": 1,
+        "_selectedFood": null
+      }
+    }
+  },
+  {
+    "id": "2d54b5a4-6dda-4bfe-b719-611f3a72b038",
+    "first": {
+      "at": 1794374570000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "2d54b5a4-6dda-4bfe-b719-611f3a72b038",
+        "emoji": "\ud83e\udd6a",
+        "name": "Brisket Sandwich",
+        "amount": "1 sandwich",
+        "notes": "Honey brisket",
+        "fatSecretSearch": "honey brisket sandwich",
+        "parseSnapshot": {
+          "emoji": "\ud83e\udd6a",
+          "name": "Brisket Sandwich",
+          "quantity": 1,
+          "unit": "sandwich",
+          "unitSingular": "sandwich",
+          "unitPlural": "sandwiches",
+          "unitFamily": "count",
+          "estimated": false,
+          "amount": "1 sandwich",
+          "notes": "Honey brisket",
+          "fatSecretSearch": "honey brisket sandwich"
+        },
+        "status": "ready",
+        "timestamp": 1794374536299,
+        "calories": 862,
+        "protein": 27.6,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Honey brisket sandwich zuppa",
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": 19,
+          "servingIndex": 1,
+          "relationshipV7": "NEEDS_UNIT_BRIDGE",
+          "estimateQuantity": null,
+          "estimateUnit": null,
+          "unitsPerServing": 0.3,
+          "unitBridgeQuestion": "How many brisket sandwiches are represented by 85 g of sandwich?",
+          "calories": 0,
+          "protein": 0,
+          "servingType": "sandwich",
+          "rawMacrosPass1Json": "{\"libraryIndex\":null,\"fatSecretIndex\":12,\"servingIndex\":1,\"relationship\":\"WHOLE_ITEM\",\"bridgeQuestion\":null,\"unitsPerServing\":null,\"calories\":0,\"protein\":0,\"servingType\":\"sandwich\"}",
+          "rawMacrosRetryJson": "{\"libraryIndex\":null,\"fatSecretIndex\":12,\"servingIndex\":1,\"relationship\":\"NEEDS_UNIT_BRIDGE\",\"bridgeQuestion\":\"How many brisket sandwiches are represented by 85 g of sandwich?\",\"unitsPerServing\":0.3,\"calories\":0,\"protein\":0,\"servingType\":\"sandwich\"}",
+          "multiplier": 3.33,
+          "deterministicOk": false,
+          "unitBridgeRan": true,
+          "relationshipRetryRan": false,
+          "guardrailFlags": [
+            "crosscheck_disagree"
+          ],
+          "crossCheckCalories": 700,
+          "escalatedModel": "gpt-5.6-sol"
+        },
+        "servingType": "sandwich",
+        "servingSize": 1,
+        "servingUnit": "sandwich",
+        "servingMultiplier": 1,
+        "baseCalories": 862,
+        "baseProtein": 27.6,
+        "_selectedFood": {
+          "foodId": "2707",
+          "name": "Sandwich",
+          "foodType": "Generic",
+          "servings": [
+            {
+              "servingId": "2707-0",
+              "description": "85g",
+              "calories": 259,
+              "protein": 8.29,
+              "isDefault": true
+            }
+          ]
+        }
+      }
+    },
+    "last": {
+      "at": 1794374600000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "2d54b5a4-6dda-4bfe-b719-611f3a72b038",
+        "emoji": "\ud83e\udd6a",
+        "name": "Brisket Sandwich",
+        "amount": "1 sandwich",
+        "notes": "Honey brisket",
+        "fatSecretSearch": "honey brisket sandwich",
+        "parseSnapshot": {
+          "emoji": "\ud83e\udd6a",
+          "name": "Brisket Sandwich",
+          "quantity": 1,
+          "unit": "sandwich",
+          "unitSingular": "sandwich",
+          "unitPlural": "sandwiches",
+          "unitFamily": "count",
+          "estimated": false,
+          "amount": "1 sandwich",
+          "notes": "Honey brisket",
+          "fatSecretSearch": "honey brisket sandwich"
+        },
+        "status": "ready",
+        "timestamp": 1794374536299,
+        "calories": 862,
+        "protein": 27.6,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Honey brisket sandwich zuppa",
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": 19,
+          "servingIndex": 1,
+          "relationshipV7": "NEEDS_UNIT_BRIDGE",
+          "estimateQuantity": null,
+          "estimateUnit": null,
+          "unitsPerServing": 0.3,
+          "unitBridgeQuestion": "How many brisket sandwiches are represented by 85 g of sandwich?",
+          "calories": 0,
+          "protein": 0,
+          "servingType": "sandwich",
+          "rawMacrosPass1Json": "{\"libraryIndex\":null,\"fatSecretIndex\":12,\"servingIndex\":1,\"relationship\":\"WHOLE_ITEM\",\"bridgeQuestion\":null,\"unitsPerServing\":null,\"calories\":0,\"protein\":0,\"servingType\":\"sandwich\"}",
+          "rawMacrosRetryJson": "{\"libraryIndex\":null,\"fatSecretIndex\":12,\"servingIndex\":1,\"relationship\":\"NEEDS_UNIT_BRIDGE\",\"bridgeQuestion\":\"How many brisket sandwiches are represented by 85 g of sandwich?\",\"unitsPerServing\":0.3,\"calories\":0,\"protein\":0,\"servingType\":\"sandwich\"}",
+          "multiplier": 3.33,
+          "deterministicOk": false,
+          "unitBridgeRan": true,
+          "relationshipRetryRan": false,
+          "guardrailFlags": [
+            "crosscheck_disagree"
+          ],
+          "crossCheckCalories": 700,
+          "escalatedModel": "gpt-5.6-sol"
+        },
+        "servingType": "sandwich",
+        "servingSize": 1,
+        "servingUnit": "sandwich",
+        "servingMultiplier": 1,
+        "baseCalories": 862,
+        "baseProtein": 27.6,
+        "_selectedFood": {
+          "foodId": "2707",
+          "name": "Sandwich",
+          "foodType": "Generic",
+          "servings": [
+            {
+              "servingId": "2707-0",
+              "description": "85g",
+              "calories": 259,
+              "protein": 8.29,
+              "isDefault": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "608d4b82-3e3d-401f-aea3-bd26a33d51a5",
+    "first": {
+      "at": 1794374570000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "608d4b82-3e3d-401f-aea3-bd26a33d51a5",
+        "emoji": "\ud83c\udf72",
+        "name": "Zuppa",
+        "amount": "1 bowl",
+        "fatSecretSearch": "zuppa",
+        "parseSnapshot": {
+          "emoji": "\ud83c\udf72",
+          "name": "Zuppa",
+          "quantity": 1,
+          "unit": "bowl",
+          "unitSingular": "bowl",
+          "unitPlural": "bowls",
+          "unitFamily": "count",
+          "estimated": true,
+          "originalPortion": "zuppa",
+          "amount": "1 bowl",
+          "fatSecretSearch": "zuppa"
+        },
+        "status": "ready",
+        "timestamp": 1794374536300,
+        "calories": 220,
+        "protein": 7,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Honey brisket sandwich zuppa",
+        "servingType": "bowl",
+        "servingSize": 1,
+        "servingUnit": "bowl",
+        "servingMultiplier": 1,
+        "baseCalories": 220,
+        "baseProtein": 7,
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": 2,
+          "servingIndex": 1,
+          "relationshipV7": "WHOLE_ITEM",
+          "estimateQuantity": null,
+          "estimateUnit": null,
+          "unitsPerServing": null,
+          "unitBridgeQuestion": null,
+          "calories": 0,
+          "protein": 0,
+          "servingType": "bowl",
+          "rawMacrosPass1Json": "{\"libraryIndex\":null,\"fatSecretIndex\":1,\"servingIndex\":1,\"relationship\":\"WHOLE_ITEM\",\"bridgeQuestion\":null,\"unitsPerServing\":null,\"calories\":0,\"protein\":0,\"servingType\":\"bowl\"}",
+          "multiplier": 1,
+          "deterministicOk": true,
+          "unitBridgeRan": false,
+          "relationshipRetryRan": false,
+          "crossCheckCalories": 220
+        },
+        "_selectedFood": {
+          "foodId": "70359755",
+          "name": "Zuppa Toscana Soup",
+          "brandName": "Olive Garden",
+          "foodType": "Brand",
+          "servings": [
+            {
+              "servingId": "57445639",
+              "description": "1 serving",
+              "calories": 220,
+              "protein": 7,
+              "isDefault": false
+            }
+          ]
+        }
+      }
+    },
+    "last": {
+      "at": 1794374598000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "608d4b82-3e3d-401f-aea3-bd26a33d51a5",
+        "emoji": "\ud83c\udf72",
+        "name": "Zuppa",
+        "amount": "1 bowl",
+        "fatSecretSearch": "zuppa",
+        "parseSnapshot": {
+          "emoji": "\ud83c\udf72",
+          "name": "Zuppa",
+          "quantity": 1,
+          "unit": "bowl",
+          "unitSingular": "bowl",
+          "unitPlural": "bowls",
+          "unitFamily": "count",
+          "estimated": true,
+          "originalPortion": "zuppa",
+          "amount": "1 bowl",
+          "fatSecretSearch": "zuppa"
+        },
+        "status": "ready",
+        "timestamp": 1794374536300,
+        "calories": 220,
+        "protein": 7,
+        "fat": 0,
+        "carbs": 0,
+        "userInput": "Honey brisket sandwich zuppa",
+        "servingType": "bowl",
+        "servingSize": 1,
+        "servingUnit": "bowl",
+        "servingMultiplier": 1,
+        "baseCalories": 220,
+        "baseProtein": 7,
+        "macroEstimateSnapshot": {
+          "libraryIndex": null,
+          "fatSecretIndex": 2,
+          "servingIndex": 1,
+          "relationshipV7": "WHOLE_ITEM",
+          "estimateQuantity": null,
+          "estimateUnit": null,
+          "unitsPerServing": null,
+          "unitBridgeQuestion": null,
+          "calories": 0,
+          "protein": 0,
+          "servingType": "bowl",
+          "rawMacrosPass1Json": "{\"libraryIndex\":null,\"fatSecretIndex\":1,\"servingIndex\":1,\"relationship\":\"WHOLE_ITEM\",\"bridgeQuestion\":null,\"unitsPerServing\":null,\"calories\":0,\"protein\":0,\"servingType\":\"bowl\"}",
+          "multiplier": 1,
+          "deterministicOk": true,
+          "unitBridgeRan": false,
+          "relationshipRetryRan": false,
+          "crossCheckCalories": 220
+        },
+        "_selectedFood": {
+          "foodId": "70359755",
+          "name": "Zuppa Toscana Soup",
+          "brandName": "Olive Garden",
+          "foodType": "Brand",
+          "servings": [
+            {
+              "servingId": "57445639",
+              "description": "1 serving",
+              "calories": 220,
+              "protein": 7,
+              "isDefault": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "1583801d-32b1-4c36-89a1-0a53445d59f7",
+    "first": {
+      "at": 1794374570000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "1583801d-32b1-4c36-89a1-0a53445d59f7",
+        "status": "processing_cancellable",
+        "rawText": "Cafe zuppa honey brisket sandwich",
+        "timestamp": 1794374566291,
+        "name": "",
+        "amount": "",
+        "_selectedFood": null
+      }
+    },
+    "last": {
+      "at": 1794374570000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "1583801d-32b1-4c36-89a1-0a53445d59f7",
+        "status": "processing_cancellable",
+        "rawText": "Cafe zuppa honey brisket sandwich",
+        "timestamp": 1794374566291,
+        "name": "",
+        "amount": "",
+        "_selectedFood": null
+      }
+    }
+  },
+  {
+    "id": "bdde60cd-cac2-4473-ac3a-912bb58c7749",
+    "first": {
+      "at": 1794374617000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "bdde60cd-cac2-4473-ac3a-912bb58c7749",
+        "status": "processing_cancellable",
+        "rawText": "Cafe Zupa cauliflower soup",
+        "timestamp": 1794374611823,
+        "name": "",
+        "amount": "",
+        "_selectedFood": null
+      }
+    },
+    "last": {
+      "at": 1794374617000,
+      "day": "2026-11-10",
+      "item": {
+        "id": "bdde60cd-cac2-4473-ac3a-912bb58c7749",
+        "status": "processing_cancellable",
+        "rawText": "Cafe Zupa cauliflower soup",
+        "timestamp": 1794374611823,
+        "name": "",
+        "amount": "",
+        "_selectedFood": null
+      }
+    }
+  },
+  {
+    "id": "69e7b6c6-e1ac-4e76-bb1d-274141906705",
+    "first": {
+      "at": 1794430961000,
+      "day": "2026-11-11",
+      "item": {
+        "id": "69e7b6c6-e1ac-4e76-bb1d-274141906705",
+        "status": "transcribing",
+        "timestamp": 1794430955398,
+        "name": "",
+        "amount": "",
+        "_selectedFood": null
+      }
+    },
+    "last": {
+      "at": 1794430966000,
+      "day": "2026-11-11",
+      "item": {
+        "id": "69e7b6c6-e1ac-4e76-bb1d-274141906705",
+        "status": "processing_cancellable",
+        "timestamp": 1794430959336,
+        "name": "",
+        "amount": "",
+        "rawText": "150 grams of grilled chicken breast, 6 ounces of frozen broccoli, 5 ounces of frozen green beans.",
+        "_selectedFood": null
+      }
+    }
+  }
+]

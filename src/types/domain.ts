@@ -83,6 +83,10 @@ export interface BootstrapResponse {
     customFoods: MacroCustomFood[]
     logs: Record<string, MacroDayItem[]>
     updatedAt: number
+    metadataRevision?: number
+    entryRevisions?: import('../lib/macroEntryChanges').EntryVersions
+    entryMutations?: import('../lib/macroEntryChanges').EntryMutation[]
+    clientSaveId?: string
   }
   lift: {
     payload: LiftPayload
@@ -95,6 +99,8 @@ export type FatSecretServingRef = {
   description: string
   calories: number
   protein: number
+  caloriesMissing?: true
+  proteinMissing?: true
   isDefault?: boolean
 }
 
@@ -134,6 +140,10 @@ export type MacroGoalHistoryEntry = MacroDayGoalsSnapshot & {
 }
 
 export interface MacroCustomFood {
+  /** Retired duplicate IDs retained so historical logs still count toward this food's usage. */
+  mergedFoodIds?: string[]
+  sourceFoodIds?: string[]
+  sourceBrandName?: string
   /** Product identity and observed names for matching scan, text and voice history. */
   sourceFoodId?: string
   sourceNames?: string[]
@@ -224,6 +234,7 @@ export type MacroEstimateSnapshot = {
   normalizedEstimate?: import('../features/macro/macroAiSchemas').NormalizedEstimate | null
   /** Calories/protein came from numbers the user said, not a database match. */
   statedNutritionApplied?: boolean
+  statedNutritionConflict?: boolean
   /** Plausibility checks that fired (e.g. whole-recipe serving, disagreement with cross-check). */
   guardrailFlags?: string[]
   /** Independent AI estimate used to sanity-check the database pick. */
@@ -237,6 +248,9 @@ export type MacroEstimateSnapshot = {
 }
 
 export interface MacroDayItem {
+  audioKey?: string
+  audioPending?: boolean
+  scanImages?: {frontKey:string;nutritionKey:string}
   id: string
   emoji?: string
   name: string
@@ -278,6 +292,7 @@ export interface MacroDayItem {
   fatSecretResults?: FatSecretFoodRef[]
   /** Card is waiting on FatSecret barcode lookup (no code shown in UI). */
   barcodeLookup?: boolean
+  barcodeValue?: string
   /** Macros came from a barcode scan (single fixed FatSecret match). */
   fromBarcode?: boolean
   /** User hand-picked this database match — trusted for personal food memory. */

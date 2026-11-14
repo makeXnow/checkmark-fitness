@@ -104,6 +104,7 @@ export type MacroEstimateResponse = {
   /** @deprecated V5 */
   resolvedAmount?: string
   statedNutritionApplied?: boolean
+  statedNutritionConflict?: boolean
   guardrailFlags?: string[]
   crossCheckCalories?: number
   /** Standard reference food the cross-check named for a plain whole food (empty otherwise). */
@@ -769,7 +770,8 @@ function nutritionFromDbDisplayPortion(
   const mult = resolveItemServingMultiplier(item)
   const unit = (item.servingUnit || item.servingType || '').trim()
   if (!unit || mult <= 0) return null
-  const nutritionMult = resolveDbMultiplier({ qty: mult, unit }, dbDescription)
+  const size = typeof item.servingSize === 'number' && item.servingSize > 0 ? item.servingSize : 1
+  const nutritionMult = resolveDbMultiplier({ qty: mult * size, unit }, dbDescription)
   if (nutritionMult == null) return null
   const scaled = scaleFatSecretServing({ calories: dbCalories, protein: dbProtein }, nutritionMult)
   return {
@@ -803,6 +805,10 @@ export function resolveCanonicalBaseMacros(
   item: MacroDayItem,
   customFoods: MacroCustomFood[] = [],
 ): { baseCalories: number; baseProtein: number } | null {
+  if (item.calories == null || item.protein == null) return null
+  if (item.macroEstimateSnapshot?.statedNutritionApplied && item.baseCalories != null && item.baseProtein != null) {
+    return { baseCalories: item.baseCalories, baseProtein: item.baseProtein }
+  }
   const serving = fatSecretServingFromItem(item)
 
   // V8+ rows: reuse the stored relationship (incl. unit bridge) for ONE user unit; generic
@@ -1305,6 +1311,7 @@ export function normalizeMacroCustomFoodsOnLoad(
 const MACRO_ITEM_STATUS_RANK: Record<string, number> = {
   ready: 4,
   pending: 3,
+  error: 3,
   editing_raw: 2,
   processing_cancellable: 1,
   transcribing: 1,
@@ -1318,14 +1325,17 @@ function macroItemStatusRank(status?: string): number {
 export function mergeMacroDayItem(a: MacroDayItem, b: MacroDayItem): MacroDayItem {
   const ra = macroItemStatusRank(a.status)
   const rb = macroItemStatusRank(b.status)
-  const base =
-    ra !== rb
-      ? ra > rb
-        ? { ...b, ...a }
-        : { ...a, ...b }
-      : (a.timestamp ?? 0) > (b.timestamp ?? 0)
-        ? { ...b, ...a }
-        : { ...a, ...b }
+  const preferA = ra !== rb ? ra > rb : (a.timestamp ?? 0) > (b.timestamp ?? 0)
+  const preferred = preferA ? a : b
+  const base = preferA ? { ...b, ...a } : { ...a, ...b }
+  if (preferred.macroEstimateSnapshot?.statedNutritionApplied) {
+    // Missing nutrients from a completed lookup are omitted in JSON. Don't restore
+    // an older estimate for those fields when combining diary updates.
+    base.calories = preferred.calories
+    base.protein = preferred.protein
+    base.baseCalories = preferred.baseCalories
+    base.baseProtein = preferred.baseProtein
+  }
   const fatSecretResults =
     (a.fatSecretResults?.length ? a.fatSecretResults : undefined) ??
     (b.fatSecretResults?.length ? b.fatSecretResults : undefined) ??
@@ -1422,13 +1432,9 @@ export function isBarcodeFatSecretItem(item: MacroDayItem): boolean {
   )
 }
 
-/** Incoming list defines which items exist (so deletes stick). Per-id fields merge for parallel macro races. */
-export function mergeMacroDayLists(prev: MacroDayItem[], incoming: MacroDayItem[]): MacroDayItem[] {
-  const prevById = new Map(prev.map((item) => [item.id, item]))
-  return incoming.map((item) => {
-    const existing = prevById.get(item.id)
-    return existing ? mergeMacroDayItem(existing, item) : item
-  })
+/** Local edits define the complete next day. Server revisions handle concurrent writes. */
+export function mergeMacroDayLists(_prev: MacroDayItem[], incoming: MacroDayItem[]): MacroDayItem[] {
+  return incoming
 }
 
 function servingDefinitionForBackfill(item: MacroDayItem, customFoods: MacroCustomFood[]): ServingDefinition {
@@ -1457,6 +1463,7 @@ export function backfillMacroItemServingFields(
   const serving = fatSecretServingFromItem(item)
   if (
     serving &&
+    !item.macroEstimateSnapshot?.statedNutritionApplied &&
     isCorruptDbServingAsDisplayBase(item, serving.description, serving.calories)
   ) {
     const healed = nutritionFromDbDisplayPortion(
@@ -1537,6 +1544,7 @@ export function macroDayItemNeedsEstimate(item: MacroDayItem): boolean {
 /** Heal stale statuses without wiping saved macro values. */
 export function normalizeMacroDayItemStatus(item: MacroDayItem): MacroDayItem {
   if (!item.name?.trim() || item.status === 'ready' || item.status === 'error') return item
+  if (item.status === 'pending' && item.estimateError) return { ...item, status: 'error' }
   // Keep packaging “enter servings” / failed-read cards editable.
   if (item.status === 'editing_raw' && (item.fromPackagingScan || item.packagingSnapshot)) {
     return item

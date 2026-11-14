@@ -1,3 +1,6 @@
+import { entryChanges } from './lib/macroEntryChanges'
+import { acknowledgeDurablePending, LocalFoodStorageError, readDurableBootstrap, readDurablePending, readMediaDrafts, saveDurablePending, writeDurableBootstrap } from './lib/durableMacroStore'
+import { pendingMacro, rebaseUnsavedMacro, recoveryHasChanges } from './lib/macroRecovery'
 import { reconcileFoodLibrary } from './features/macro/foodLibrary'
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -17,7 +20,7 @@ import { AppAccentTextButton } from './core/AppAccentTextButton'
 import { AppLoadingAnimation } from './core/AppLoadingAnimation'
 import { TabPager } from './core/TabPager'
 import { getApiProfile } from './core/apiProfile'
-import { applyAppStatePatch, clearLiftAssumption, dismissLiftAssumption, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
+import { ApiError, confirmedMacroLogs, applyAppStatePatch, clearLiftAssumption, dismissLiftAssumption, fetchBootstrap, patchAppState, putHabits, putLift, putMacro } from './core/api'
 import { normalizeMacroGoals } from './features/macro/macroCalculator'
 import { mergeMacroLogs } from './features/macro/macroLib'
 import {
@@ -31,7 +34,7 @@ import {
   type HabitsGoalsBundleData,
   type MacroGoalsBundleData,
 } from './lib/goalSnapshots'
-import { readBootstrapCache, writeBootstrapCache, writeMacroRecoveryCache } from './lib/bootstrapCache'
+import { readBootstrapCache, writeBootstrapCache, writeMacroRecoveryCache, readPendingMacroCache, writePendingMacroCache, readLegacyFoodRecovery } from './lib/bootstrapCache'
 import { hydrateBootstrap } from './lib/bootstrapHydrate'
 import { queueMacroSave } from './lib/queueMacroSave'
 import { preferNewerBootstrapBundles } from './lib/preferNewerBootstrapBundles'
@@ -140,6 +143,11 @@ export default function App() {
   const [uiReady, setUiReady] = useState(false)
   const [loadingVisible, setLoadingVisible] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [outboxReady,setOutboxReady]=useState(false)
+  const autoSyncAllowedRef=useRef(true)
+  const flushingMacroRef=useRef(false)
+  const [macroSaveBusy, setMacroSaveBusy] = useState(false)
+  const [macroRecoveryAvailable, setMacroRecoveryAvailable] = useState(false)
   const [macroSaveNotice, setMacroSaveNotice] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
@@ -157,7 +165,10 @@ export default function App() {
   const cacheBootSnapshot = useCallback(() => {
     const profile = getApiProfile()
     const snap = bootRef.current
-    if (profile && snap) writeBootstrapCache(profile, snap)
+    if (profile && snap) {
+      writeBootstrapCache(profile, snap)
+      void writeDurableBootstrap(profile,snap).catch(()=>undefined)
+    }
   }, [])
 
   const acknowledgeMacroSave = useCallback((macro: BootstrapResponse['macro'], updatedAt: number) => {
@@ -171,25 +182,37 @@ export default function App() {
   }, [cacheBootSnapshot])
 
   const refreshMacroAfterFailedSave = useCallback(async (cause: unknown) => {
+    autoSyncAllowedRef.current=!(cause instanceof ApiError && cause.status===409)
     macroSaveGeneration.current += 1
     macroRefreshingRef.current = true
     const profile = getApiProfile()
     const unsaved = bootRef.current?.macro
     if (profile && unsaved) writeMacroRecoveryCache(profile, unsaved)
-    setMacroSaveNotice(cause instanceof Error ? cause.message : 'Food could not be saved. Please try again.')
-    pendingMacroRef.current = null
+    // A failed save must never replace the user's visible food with an older list.
+    pendingMacroRef.current = unsaved ?? null
+    const confirmedBeforeRefresh = (confirmedMacroLogs.get(profile ?? '')?.logs ?? {}) as BootstrapResponse['macro']['logs']
+    const localPending = unsaved ? pendingMacro(unsaved, confirmedBeforeRefresh) : null
+    if (profile && localPending) writePendingMacroCache(profile, localPending)
+    setMacroSaveNotice(cause instanceof LocalFoodStorageError ? cause.message : cause instanceof ApiError && cause.status === 409
+      ? 'Your diary changed on another device. Your unsaved food is still shown here. Retry saving to keep these edits.'
+      : cause instanceof Error && /timed out/i.test(cause.message)
+        ? 'Saving timed out. Your entries are still on this device. Check your connection and retry.'
+        : `Food has not synced${cause instanceof ApiError ? ` (error ${cause.status})` : ''}. Your entries are still shown on this device. Retry saving when connected.`)
     try {
       const fresh = await fetchBootstrap()
       const cur = bootRef.current
-      if (cur) {
-        // A rejected optimistic edit must not defeat the server's confirmed revision.
-        const next = { ...cur, macro: hydrateBootstrap(fresh).data.macro }
+      if (cur && localPending) {
+        const latestPending = pendingMacro(cur.macro, confirmedBeforeRefresh)
+        const macro = rebaseUnsavedMacro(hydrateBootstrap(fresh).data.macro, latestPending)
+        pendingMacroRef.current = macro
+        const next = { ...cur, macro }
         bootRef.current = next
         setBoot(next)
+        if (profile) writePendingMacroCache(profile, { ...latestPending, macro })
         cacheBootSnapshot()
       }
     } catch {
-      setMacroSaveNotice('Food could not be saved. A recovery copy is stored on this device. Reconnect and reload before editing.')
+      // Keep both the visible entries and the separate pending recovery copy.
     } finally {
       macroRefreshingRef.current = false
     }
@@ -240,7 +263,7 @@ export default function App() {
                 goalsSnapshotsByDay: cur.macro.goalsSnapshotsByDay,
                 goalsHistory: cur.macro.goalsHistory,
                 customFoods: cur.macro.customFoods,
-                logs: cur.macro.logs,
+                logs: confirmedMacroLogs.get(getApiProfile() ?? '')?.logs ?? cur.macro.logs,
               })
               acknowledgeMacroSave(cur.macro, saved.updatedAt)
             })
@@ -297,15 +320,77 @@ export default function App() {
     const todayIso = localDateISO(new Date())
 
     if (profile) {
-      const cached = readBootstrapCache(profile)
+      const cached = readBootstrapCache(profile) ?? await readDurableBootstrap(profile).catch(()=>null)
       // Local cache is for instant UI only — never PUT it back (it can be older than the server).
       if (cached) applyPayload(cached, { allowPersist: false })
     }
 
+    let durableRecovery = profile ? await readDurablePending(profile).catch(()=>null) : null
+    const mediaDrafts=profile?await readMediaDrafts(profile).catch(()=>[]):[]
+    if(mediaDrafts.length && bootRef.current){
+      const macro=durableRecovery?.macro ?? bootRef.current.macro
+      const logs={...macro.logs}
+      const deleted=new Set((macro.entryMutations ?? []).filter(op=>op.item===null).map(op=>`${op.date}/${op.id}`))
+      for(const draft of mediaDrafts){
+        if(deleted.has(`${draft.date}/${draft.item.id}`) || logs[draft.date]?.some(i=>i.id===draft.item.id))continue
+        logs[draft.date]=[...(logs[draft.date] ?? []),draft.item]
+      }
+      durableRecovery=pendingMacro({...macro,logs,entryMutations:entryChanges(macro.logs,logs,macro.entryRevisions ?? {},macro.entryMutations ?? [])},bootRef.current.macro.logs)
+      if(profile) await saveDurablePending(profile,durableRecovery).catch(()=>undefined)
+    }
+    if (durableRecovery && bootRef.current) {
+      pendingMacroRef.current = durableRecovery.macro
+      const next = {...bootRef.current,macro:durableRecovery.macro}
+      bootRef.current=next
+      setBoot(next)
+      setMacroSaveNotice('Food is saved on this device and waiting to sync.')
+    }
     try {
       const fresh = await fetchBootstrap()
+      let recovery = profile ? (await readDurablePending(profile).catch(()=>null)) ?? readPendingMacroCache(profile) : null
+      if(recovery){
+        for(const draft of mediaDrafts){
+          if(!fresh.macro.entryRevisions?.[draft.date]?.[draft.item.id])continue
+          const serverItem=fresh.macro.logs[draft.date]?.find(i=>i.id===draft.item.id)
+          // Remove only the orphan placeholder synthesized above; retained user edits
+          // and explicitly queued mutations still control their own entry.
+          const hasEdit=(recovery.macro.entryMutations ?? []).some(op=>op.id===draft.item.id && op.date===draft.date && op.baseRevision>0)
+          if(!hasEdit){
+            recovery.macro.logs[draft.date]=(recovery.macro.logs[draft.date] ?? []).filter(i=>i.id!==draft.item.id)
+            if(serverItem)recovery.macro.logs[draft.date].push(serverItem)
+            recovery.macro.entryMutations=(recovery.macro.entryMutations ?? []).filter(op=>op.id!==draft.item.id || op.date!==draft.date)
+          }
+        }
+      }
+      if(recovery && !recoveryHasChanges(fresh.macro,rebaseUnsavedMacro(fresh.macro,recovery))){
+        if(profile){
+          await acknowledgeDurablePending(profile,recovery.macro.clientSaveId).catch(()=>undefined)
+          writePendingMacroCache(profile,null)
+        }
+        recovery=null
+        pendingMacroRef.current=null
+        setMacroRecoveryAvailable(false)
+        setMacroSaveNotice(null)
+      }
+      const legacyRecovery = !recovery && profile ? readLegacyFoodRecovery(profile, fresh.macro, todayIso) : null
+      if (legacyRecovery && profile) {
+        // Older copies may include an intentional deletion. Let the user review first.
+        writePendingMacroCache(profile, legacyRecovery)
+        autoSyncAllowedRef.current=false
+        setMacroRecoveryAvailable(true)
+        setMacroSaveNotice('A recovery copy on this device contains additional food for today. Restore it to review the entries before saving.')
+      }
+      if (recovery && recovery.macro.updatedAt === fresh.macro.updatedAt) {
+        pendingMacroRef.current = rebaseUnsavedMacro(fresh.macro, recovery)
+        setMacroSaveNotice('Unsaved food was recovered from this device. Retry saving to sync it.')
+      } else if (recovery) {
+        autoSyncAllowedRef.current=false
+        setMacroRecoveryAvailable(true)
+        setMacroSaveNotice('There is unsaved food on this device and a newer server diary. Restore your unsaved edits to review them before saving.')
+      }
       const hydrated = applyPayload(fresh)
-      if (profile) writeBootstrapCache(profile, hydrated.data)
+      setOutboxReady(true)
+      if (profile) {writeBootstrapCache(profile, hydrated.data);void writeDurableBootstrap(profile,hydrated.data).catch(()=>undefined)}
       if (forceToday) {
         staleResumeRef.current = false
         markPageLoadStaleResumeHandled()
@@ -692,7 +777,6 @@ export default function App() {
       logs?: Record<string, MacroDayItem[]>
       customFoods?: MacroCustomFood[]
     }) => {
-      if (macroRefreshingRef.current) return macroSaveSeq.current
       const generation = macroSaveGeneration.current
       const editVersion = ++macroEditVersion.current
       const prev = bootRef.current
@@ -709,27 +793,47 @@ export default function App() {
       }
       const mergedLogs = next.logs ? mergeMacroLogs(prev.macro.logs, next.logs) : prev.macro.logs
       const library = reconcileFoodLibrary(next.customFoods ?? prev.macro.customFoods, mergedLogs)
-      const macro = {
+      const macro:BootstrapResponse['macro'] = {
         goals: bundle.current,
         goalsSnapshotsByDay: bundle.snapshotsByDay,
         goalsHistory: bundle.goalHistory,
         customFoods: library,
         logs: mergedLogs,
         updatedAt: prev.macro.updatedAt,
+        entryRevisions: confirmedMacroLogs.get(getApiProfile() ?? '')?.entryRevisions ?? prev.macro.entryRevisions ?? {},
+        entryMutations: entryChanges(prev.macro.logs,mergedLogs,
+          confirmedMacroLogs.get(getApiProfile() ?? '')?.entryRevisions ?? prev.macro.entryRevisions ?? {},
+          pendingMacroRef.current?.entryMutations ?? []),
+        clientSaveId: crypto.randomUUID(),
       }
       macroSaveSeq.current = queueMacroSave(macroSaveSeq.current, macro, {
+        stage: value => { const current=bootRef.current; if(current) bootRef.current={...current,macro:value} },
+        durable: async value => {
+          const profile=getApiProfile()
+          if(profile) await saveDurablePending(profile,pendingMacro(value,(confirmedMacroLogs.get(profile)?.logs ?? {})))
+          setMacroSaveNotice('Saved on this device. Syncing…')
+        },
         read: () => bootRef.current?.macro,
         publish: (value) => {
+          const profile=getApiProfile()
+          if (!pendingMacroRef.current) {
+            value={...value,entryMutations:[],entryRevisions:confirmedMacroLogs.get(profile ?? '')?.entryRevisions ?? value.entryRevisions}
+            if(profile) void acknowledgeDurablePending(profile,value.clientSaveId).catch(()=>undefined)
+          }
           const current = bootRef.current
           if (!current) return
           const nextBoot = { ...current, macro: value }
           bootRef.current = nextBoot
           setBoot(nextBoot)
-          const profile = getApiProfile()
           if (profile) writeMacroRecoveryCache(profile, value)
           cacheBootSnapshot()
         },
-        pending: (value) => { pendingMacroRef.current = value },
+        pending: (value) => {
+          pendingMacroRef.current = value
+          const profile = getApiProfile()
+          if (profile) writePendingMacroCache(profile, value
+            ? pendingMacro(value, (confirmedMacroLogs.get(profile)?.logs ?? {}) as BootstrapResponse['macro']['logs']) : null)
+        },
         persist: (snapshot, revision) => putMacro({ ...snapshot, baseUpdatedAt: revision }),
         isCurrent: () => generation === macroSaveGeneration.current,
         isLatest: () => editVersion === macroEditVersion.current,
@@ -739,6 +843,33 @@ export default function App() {
     },
     [cacheBootSnapshot, refreshMacroAfterFailedSave, todayDateStr],
   )
+
+  const flushPendingMacro=useCallback(async (manual=false)=>{
+    if(flushingMacroRef.current || (!manual && !autoSyncAllowedRef.current)) return
+    const pending=pendingMacroRef.current
+    if(!pending) return
+    flushingMacroRef.current=true
+    setMacroSaveBusy(true)
+    if(manual) autoSyncAllowedRef.current=true
+    const before=confirmedMacroLogs.get(getApiProfile() ?? '')?.logs ?? {}
+    try {
+      const fresh=await fetchBootstrap()
+      const current=bootRef.current
+      if(!current) return
+      const rebased=rebaseUnsavedMacro(fresh.macro,pendingMacro(current.macro,before))
+      pendingMacroRef.current=rebased
+      bootRef.current={...current,macro:rebased}
+      setBoot(bootRef.current)
+      await saveMacroBundle({goals:rebased.goals,logs:rebased.logs,customFoods:rebased.customFoods})
+    } catch(error) {await refreshMacroAfterFailedSave(error)}
+    finally {flushingMacroRef.current=false;setMacroSaveBusy(false)}
+  },[refreshMacroAfterFailedSave,saveMacroBundle])
+  useEffect(()=>{
+    if(outboxReady && navigator.onLine) void flushPendingMacro()
+    const online=()=>{void flushPendingMacro()}
+    window.addEventListener('online',online)
+    return ()=>window.removeEventListener('online',online)
+  },[outboxReady,flushPendingMacro])
 
   const saveLiftBundle = useCallback((next: LiftPayload) => {
     setBoot((prev) => {
@@ -1078,7 +1209,24 @@ export default function App() {
       >
         {macroSaveNotice && (
           <div role="alert" className="mx-4 mb-2 rounded-xl bg-amber-500/15 p-3 text-sm text-amber-200">
-            {macroSaveNotice}
+            <p>{macroSaveNotice}</p>
+            {macroRecoveryAvailable ? (
+              <button type="button" className="mt-2 font-bold underline" onClick={async () => {
+                const profile = getApiProfile()
+                const recovery = profile ? (await readDurablePending(profile).catch(()=>null)) ?? readPendingMacroCache(profile) : null
+                const cur = bootRef.current
+                if (!recovery || !cur) return
+                const macro = rebaseUnsavedMacro(cur.macro, recovery)
+                pendingMacroRef.current = macro
+                bootRef.current = { ...cur, macro }
+                setBoot(bootRef.current)
+                setMacroRecoveryAvailable(false)
+                setMacroSaveNotice('Recovered your unsaved edits. Review the food list, then retry saving.')
+              }}>Restore unsaved edits</button>
+            ) : (
+              <button type="button" disabled={macroSaveBusy} className="mt-2 font-bold underline disabled:opacity-60"
+                onClick={()=>void flushPendingMacro(true)}>{macroSaveBusy ? 'Saving…' : 'Retry saving'}</button>
+            )}
           </div>
         )}
         {settingsOpen ? (

@@ -1,4 +1,12 @@
+import { applyEstimateResult } from '../src/features/macro/applyEstimateResult'
+import { parsedItemsToDayItems, type ParsedFoodItem } from '../src/features/macro/macroLib'
+import { ensureInputEntry, entryVersions, mutateEntry, readEntry } from './macroEntries'
+import { entryChanges, type EntryMutation } from '../src/lib/macroEntryChanges'
+import { readMacroLogs } from './macroLogs'
+import { macroLogPatch } from '../src/lib/macroLogPatch'
 import { trackedOpenAiFetch, withAiUsage } from './aiUsage'
+import { normalizeFoodLibrary } from '../src/features/macro/foodLibrary'
+import type { MacroCustomFood, MacroDayItem } from '../src/types/domain'
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import { fatSecretLookupBarcode, fatSecretSearchFoods } from './fatsecret'
@@ -317,7 +325,9 @@ profileApi.get('/bootstrap', async (c) => {
         goalsSnapshotsByDay: macroStored.snapshotsByDay,
         goalsHistory: macroStored.goalHistory,
         customFoods: safeJsonParse((macro?.custom_foods_json as string) || '', []),
-        logs: safeJsonParse((macro?.logs_json as string) || '', {}),
+        logs: await readMacroLogs(db, profileId),
+        entryRevisions: await entryVersions(db, profileId),
+        metadataRevision:macro?.metadata_revision ?? 1,
         updatedAt: macro?.updated_at,
       },
       lift: {
@@ -432,16 +442,87 @@ profileApi.put('/habits', async (c) => {
   return c.json({ ok: true })
 })
 
+profileApi.post('/macro/parse', async (c) => {
+  const profile=c.get('profileId'), db=c.env.DB
+  await ensureDevice(db,profile)
+  const body=await c.req.json<{date:string;item:MacroDayItem;rawText:string;userEditedText?:boolean}>()
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(body.date) || !body.item?.id || !body.rawText?.trim()) return c.json({error:'Food description is required.'},400)
+  const receipt=await db.prepare('SELECT * FROM macro_input_receipts WHERE device_id=? AND request_id=?')
+    .bind(profile,body.item.id).first<{status:string;result_json:string|null;raw_text:string;updated_at:number}>()
+  if(receipt?.status==='parsed' && receipt.raw_text===body.rawText) {
+    const ids=JSON.parse(receipt.result_json || '[]') as string[]
+    const entries=await Promise.all(ids.map(id=>readEntry(db,profile,body.date,id)))
+    return c.json({items:entries.filter(r=>r&&r.deleted_at==null).map(r=>JSON.parse(r!.payload_json)),entryRevisions:await entryVersions(db,profile),updatedAt:(await db.prepare('SELECT updated_at FROM macro_bundle WHERE device_id=?').bind(profile).first<{updated_at:number}>())!.updated_at})
+  }
+  if(receipt?.status==='processing' && Date.now()-receipt.updated_at<120000) return c.json({error:'This food is still processing. Retry shortly.'},409)
+  let input=await ensureInputEntry(db,profile,body.date,{...body.item,rawText:body.rawText,status:'processing_cancellable'})
+  const token=crypto.randomUUID(), now=Date.now()
+  await db.batch([
+    db.prepare(`INSERT INTO macro_input_receipts(device_id,request_id,date_key,raw_text,status,processing_token,updated_at)
+      VALUES(?,?,?,?,'processing',?,?) ON CONFLICT(device_id,request_id) DO UPDATE SET
+      raw_text=excluded.raw_text,status='processing',processing_token=excluded.processing_token,updated_at=excluded.updated_at,error=NULL`)
+      .bind(profile,body.item.id,body.date,body.rawText,token,now),
+    db.prepare('UPDATE macro_entries SET processing_token=? WHERE device_id=? AND date_key=? AND entry_id=? AND revision=? AND deleted_at IS NULL')
+      .bind(token,profile,body.date,body.item.id,input.revision),
+  ])
+  try {
+    if(!c.env.OPENAI_API_KEY) throw new Error('Food processing is temporarily unavailable. Your description has been saved.')
+    const prompts=await getMacroPrompts(db)
+    const system=resolveMacroPromptSystem(prompts,'PARSER',undefined)
+    const known=await vocabularyList(db,profile)
+    const user=`Input: ${rewriteSpokenFoodLog(body.rawText)}${known.length ? `\n\nKNOWN FOODS FOR THIS USER (spelling reference only — never add items from this list): ${known.join('; ')}` : ''}`
+    const raw=await callOpenAiJsonWithRetry(c.env.OPENAI_API_KEY,system ?? '',user,{model:OPENAI_MODELS.chatFast,schema:schemaForPromptKey('PARSER')!,validate:validateParserResponse,validationHint:r=>parserValidationErrors(r).join('; ')}) as {items:ParsedFoodItem[]}
+    if(!raw.items?.length) throw new Error('No food recognized. Your description is saved; edit it and retry.')
+    const items=parsedItemsToDayItems(raw.items,{userInput:body.rawText}).map((item,i)=>({...item,id:`${body.item.id}-${i}`,timestamp:body.item.timestamp ?? now,...(body.userEditedText?{userEditedName:true}:{})}))
+    const guard='EXISTS(SELECT 1 FROM macro_entries WHERE device_id=? AND date_key=? AND entry_id=? AND revision=? AND processing_token=? AND deleted_at IS NULL)'
+    const guardArgs=[profile,body.date,body.item.id,input.revision,token]
+    const writes=items.map((item,i)=>db.prepare(`INSERT OR IGNORE INTO macro_entries(device_id,date_key,entry_id,ordinal,payload_json,revision,updated_at)
+      SELECT ?,?,?,?,?,1,? WHERE ${guard}`).bind(profile,body.date,item.id,now+i,JSON.stringify(item),now,...guardArgs))
+    const result=await db.batch([
+      ...writes,
+      db.prepare(`UPDATE macro_input_receipts SET status='parsed',result_json=?,updated_at=? WHERE device_id=? AND request_id=? AND processing_token=? AND ${guard}`)
+        .bind(JSON.stringify(items.map(i=>i.id)),now,profile,body.item.id,token,...guardArgs),
+      db.prepare(`UPDATE macro_entries SET deleted_at=?,revision=revision+1,processing_token=NULL,updated_at=? WHERE device_id=? AND date_key=? AND entry_id=? AND revision=? AND processing_token=? AND deleted_at IS NULL RETURNING revision`)
+        .bind(now,now,...guardArgs),
+      db.prepare('UPDATE macro_bundle SET updated_at=MAX(updated_at+1,?) WHERE device_id=?').bind(now,profile),
+    ])
+    if(!result[writes.length+1].results.length) return c.json({error:'This entry changed or was deleted during processing.'},409)
+    return c.json({items,entryRevisions:await entryVersions(db,profile),updatedAt:(await db.prepare('SELECT updated_at FROM macro_bundle WHERE device_id=?').bind(profile).first<{updated_at:number}>())!.updated_at})
+  } catch(error) {
+    const message=error instanceof Error?error.message:'Food processing failed'
+    input=(await readEntry(db,profile,body.date,body.item.id))!
+    if(input && input.deleted_at==null && input.processing_token===token) {
+      const item={...JSON.parse(input.payload_json),status:'editing_raw',estimateError:message}
+      await mutateEntry(db,profile,{date:body.date,id:body.item.id,item,baseRevision:input.revision,ordinal:input.ordinal,mutationId:`failed:${token}`,supersedes:[]})
+      await db.prepare("UPDATE macro_input_receipts SET status='failed',error=?,updated_at=? WHERE device_id=? AND request_id=? AND processing_token=?").bind(message,Date.now(),profile,body.item.id,token).run()
+    }
+    return c.json({error:message},502)
+  }
+})
+
+profileApi.put('/macro/entries/:date/:id', async (c) => {
+  const profile = c.get('profileId')
+  await ensureDevice(c.env.DB, profile)
+  const body = await c.req.json<EntryMutation>()
+  if (body.date !== c.req.param('date') || body.id !== c.req.param('id')) return c.json({ error: 'Food identity does not match.' }, 400)
+  const result = await mutateEntry(c.env.DB, profile, body)
+  if (result.status !== 200) return c.json(result, result.status)
+  const metadata = await c.env.DB.prepare('SELECT updated_at FROM macro_bundle WHERE device_id=?').bind(profile).first<{ updated_at: number }>()
+  const row=await readEntry(c.env.DB,profile,body.date,body.id)
+  return c.json({ ok: true, revision: result.revision, updatedAt: metadata!.updated_at, item:row?.deleted_at==null?JSON.parse(row!.payload_json):null })
+})
+
 profileApi.put('/macro', async (c) => {
   const profileId = c.get('profileId')
   const db = c.env.DB
   await ensureDevice(db, profileId)
   const body = (await c.req.json()) as {
+    baseMetadataRevision?: number
     baseUpdatedAt?: number
     goals?: Record<string, unknown>
     goalsSnapshotsByDay?: Record<string, { calorieGoal: number; proteinPctGoal: number }>
     goalsHistory?: { effectiveDate: string; calorieGoal: number; proteinPctGoal: number }[]
-    customFoods?: unknown[]
+    customFoods?: MacroCustomFood[]
     logs?: Record<string, unknown>
   }
   if (!Number.isSafeInteger(body.baseUpdatedAt) || Number(body.baseUpdatedAt) < 0) {
@@ -451,36 +532,55 @@ profileApi.put('/macro', async (c) => {
       !Array.isArray(body.customFoods) || !body.logs || Array.isArray(body.logs) || typeof body.logs !== 'object') {
     return c.json({ error: 'A complete food diary is required to save.' }, 400)
   }
+  // Older clients send the entire history. Do not bind that multi-megabyte JSON
+  // into every SQL statement: only changed days belong in the merge patch.
+  const current = await db.prepare('SELECT updated_at,metadata_revision FROM macro_bundle WHERE device_id = ?')
+    .bind(profileId).first<{ updated_at: number;metadata_revision:number }>()
+  const metadataOnly=Number.isSafeInteger(body.baseMetadataRevision) && Object.keys(body.logs).length===0
+  if (!current || (metadataOnly ? current.metadata_revision!==body.baseMetadataRevision : current.updated_at !== body.baseUpdatedAt)) {
+    return c.json({ error: 'Your food diary changed elsewhere. Reload the latest diary and try your edit again.' }, 409)
+  }
+  const previousLogs = await readMacroLogs(db, profileId)
+  const logsPatch = macroLogPatch(previousLogs, body.logs)
+  const mergedLogs = { ...previousLogs, ...body.logs } as Record<string, MacroDayItem[]>
+  for (const [day, items] of Object.entries(logsPatch)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(items)) {
+      return c.json({ error: 'Food diary days must contain a list of entries.' }, 400)
+    }
+    if (new TextEncoder().encode(JSON.stringify(items)).byteLength > 1_500_000) {
+      return c.json({ error: 'This day contains too much food lookup detail to save. Remove an entry and try again.' }, 413)
+    }
+  }
   const macroCurrent = unwrapMacroGoalsLeaf(body.goals) ?? asObjectRecord(body.goals || {})
   const stored = serializeMacroGoalsStored({
     current: macroCurrent,
     snapshotsByDay: body.goalsSnapshotsByDay || {},
     goalHistory: body.goalsHistory || [],
   })
-  const now = Date.now()
-  const saved = await db
-    .prepare(
-      `UPDATE macro_bundle SET
-         goals_json = ?, custom_foods_json = ?,
-         logs_json = json_patch(logs_json, ?),
-         updated_at = MAX(updated_at + 1, ?)
-       WHERE device_id = ? AND updated_at = ?
-       RETURNING updated_at`,
-    )
-    .bind(
-      JSON.stringify(stored),
-      JSON.stringify(body.customFoods || []),
-      JSON.stringify(body.logs || {}),
-      now,
-      profileId,
-      body.baseUpdatedAt,
-    )
-    .first<{ updated_at: number }>()
+  const now = Math.max(Date.now(), current.updated_at + 1)
+  const writeToken = crypto.randomUUID()
+  const goalsJson=JSON.stringify(stored),foodsJson=JSON.stringify(normalizeFoodLibrary(body.customFoods || [],mergedLogs))
+  const saved = await db.prepare(`UPDATE macro_bundle SET metadata_revision=metadata_revision+CASE WHEN goals_json<>? OR custom_foods_json<>? THEN 1 ELSE 0 END,
+      goals_json=?,custom_foods_json=?,updated_at=?,write_token=?
+      WHERE device_id=? AND ${metadataOnly?'metadata_revision':'updated_at'}=? RETURNING updated_at,metadata_revision`)
+    .bind(goalsJson,foodsJson,goalsJson,foodsJson,now,writeToken,profileId,metadataOnly?body.baseMetadataRevision:body.baseUpdatedAt)
+    .first<{updated_at:number;metadata_revision:number}>()
+  if (saved) {
+    const versions = await entryVersions(db, profileId)
+    const operations = entryChanges(previousLogs, logsPatch as Record<string,MacroDayItem[]>, versions)
+    for(const date of Object.keys(logsPatch)) await db.prepare('INSERT OR IGNORE INTO macro_diary_days(device_id,date_key) VALUES(?,?)').bind(profileId,date).run()
+    for (const op of operations) {
+      const result = await mutateEntry(db,profileId,op)
+      if (result.status !== 200) return c.json(result,result.status)
+    }
+    const revision = await db.prepare('SELECT updated_at FROM macro_bundle WHERE device_id=?').bind(profileId).first<{updated_at:number}>()
+    saved.updated_at = revision!.updated_at
+  }
 
   if (!saved) {
     return c.json({ error: 'Your food diary changed elsewhere. Reload the latest diary and try your edit again.' }, 409)
   }
-  return c.json({ ok: true, updatedAt: saved.updated_at })
+  return c.json({ ok: true, updatedAt: saved.updated_at,metadataRevision:saved.metadata_revision })
 })
 
 profileApi.put('/lift', async (c) => {
@@ -802,10 +902,30 @@ async function vocabularyList(db: D1Database, profileId: string | null, max = 80
 /** OpenAI: audio transcription (webm/mp3/wav/m4a) */
 api.post('/api/ai/transcribe', async (c) => {
   const key = c.env.OPENAI_API_KEY
-  if (!key) return c.json({ error: 'OPENAI_API_KEY missing' }, 500)
 
   const formData = await c.req.formData()
-  const upload = audioUploadFromFormData(formData)
+  let upload = audioUploadFromFormData(formData)
+  const contextRaw=formData.get('diaryEntry')
+  const context=typeof contextRaw==='string'?JSON.parse(contextRaw) as {date:string;item:MacroDayItem}:null
+  const profile=optionalProfileId(c.req.query('profile'))
+  let input:Awaited<ReturnType<typeof readEntry>>=null
+  let audioKey:string|undefined
+  if(context && profile) {
+    await ensureDevice(c.env.DB,profile)
+    input=await ensureInputEntry(c.env.DB,profile,context.date,{...context.item,audioPending:true})
+    audioKey=JSON.parse(input.payload_json).audioKey || `${profile}/voice/${context.item.id}`
+    if(!c.env.SCAN_IMAGES) return c.json({error:'Recording storage is unavailable. Your recording remains on this device.'},503)
+    if(upload) await c.env.SCAN_IMAGES.put(audioKey,upload.blob,{httpMetadata:{contentType:upload.blob.type}})
+    else {
+      const saved=await c.env.SCAN_IMAGES.get(audioKey)
+      if(saved) upload={blob:new Blob([await saved.arrayBuffer()],{type:saved.httpMetadata?.contentType || 'audio/webm'}),filename:'recording.webm'}
+    }
+    const item={...JSON.parse(input.payload_json),audioKey,audioPending:true}
+    const ack=await mutateEntry(c.env.DB,profile,{date:context.date,id:context.item.id,item,baseRevision:input.revision,ordinal:input.ordinal,mutationId:crypto.randomUUID(),supersedes:[]})
+    if(ack.status!==200) return c.json(ack,ack.status)
+    input=(await readEntry(c.env.DB,profile,context.date,context.item.id))!
+  }
+  if(!key) return c.json({error:'Transcription is unavailable. Your recording has been saved.'},503)
   if (!upload) return c.json({ error: 'Expected file field' }, 400)
   if (upload.blob.size === 0) return c.json({ error: 'Empty audio file' }, 400)
 
@@ -846,6 +966,13 @@ api.post('/api/ai/transcribe', async (c) => {
   }
 
   const data = (await res.json()) as { text?: string }
+  if(context && profile && input) {
+    const item={...JSON.parse(input.payload_json),name:'',audioKey,audioPending:false,status:'editing_raw',rawText:data.text || ''}
+    const ack=await mutateEntry(c.env.DB,profile,{date:context.date,id:context.item.id,item,baseRevision:input.revision,ordinal:input.ordinal,mutationId:crypto.randomUUID(),supersedes:[]})
+    if(ack.status!==200) return c.json(ack,ack.status)
+    const meta=await c.env.DB.prepare('SELECT updated_at FROM macro_bundle WHERE device_id=?').bind(profile).first<{updated_at:number}>()
+    return c.json({text:data.text || '',savedEntry:item,entryRevision:ack.revision,updatedAt:meta!.updated_at})
+  }
   return c.json({ text: data.text || '' })
 })
 
@@ -1008,9 +1135,43 @@ api.post('/api/ai/vision', async (c) => {
 /** FatSecret search + macro AI in one Worker call (credentials stay server-side). */
 api.post('/api/macro/estimate', async (c) => {
   try {
-    const body = (await c.req.json()) as Parameters<typeof runMacroEstimate>[1] & { profile?: unknown }
-    const result = await runMacroEstimate(c.env, body, { profileId: optionalProfileId(body.profile) })
-    return c.json(result)
+    const body = (await c.req.json()) as Parameters<typeof runMacroEstimate>[1] & { profile?: unknown; diaryEntry?: {date:string;item:MacroDayItem} }
+    const profile=optionalProfileId(body.profile)
+    const context=body.diaryEntry
+    let row: Awaited<ReturnType<typeof readEntry>>=null
+    const token=crypto.randomUUID()
+    if(context && profile) {
+      await ensureDevice(c.env.DB,profile)
+      row=await ensureInputEntry(c.env.DB,profile,context.date,context.item)
+      await c.env.DB.prepare('UPDATE macro_entries SET processing_token=? WHERE device_id=? AND date_key=? AND entry_id=? AND revision=? AND deleted_at IS NULL')
+        .bind(token,profile,context.date,context.item.id,row.revision).run()
+    }
+    try {
+      const result = await runMacroEstimate(c.env, body, { profileId: profile })
+      if(context && profile && row) {
+        const savedEntry=applyEstimateResult(context.item,result,(body.customFoods ?? []) as MacroCustomFood[],Boolean(body.userDatabasePick),Boolean(body.skipFatSecretForAi))
+        const writes=await c.env.DB.batch([
+          c.env.DB.prepare(`UPDATE macro_entries SET payload_json=?,revision=revision+1,processing_token=NULL,updated_at=?
+            WHERE device_id=? AND date_key=? AND entry_id=? AND revision=? AND processing_token=? AND deleted_at IS NULL RETURNING revision`)
+            .bind(JSON.stringify(savedEntry),Date.now(),profile,context.date,context.item.id,row.revision,token),
+          c.env.DB.prepare('UPDATE macro_bundle SET updated_at=MAX(updated_at+1,?) WHERE device_id=?').bind(Date.now(),profile),
+        ])
+        const ack=writes[0].results[0] as {revision:number}|undefined
+        if(!ack) return c.json({error:'This food was changed or deleted during processing.'},409)
+        const meta=await c.env.DB.prepare('SELECT updated_at FROM macro_bundle WHERE device_id=?').bind(profile).first<{updated_at:number}>()
+        return c.json({...result,savedEntry,entryRevision:ack.revision,updatedAt:meta!.updated_at})
+      }
+      return c.json(result)
+    } catch(error) {
+      if(context && profile && row) {
+        const current=await readEntry(c.env.DB,profile,context.date,context.item.id)
+        if(current && current.deleted_at==null && current.processing_token===token && current.revision===row.revision) {
+          const item={...JSON.parse(current.payload_json),status:'error',estimateError:error instanceof Error?error.message:'Food processing failed'}
+          await mutateEntry(c.env.DB,profile,{date:context.date,id:context.item.id,item,baseRevision:current.revision,ordinal:current.ordinal,mutationId:`failed:${token}`,supersedes:[]})
+        }
+      }
+      throw error
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Macro estimate failed'
     const partial =

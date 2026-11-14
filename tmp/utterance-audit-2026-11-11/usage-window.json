@@ -1,0 +1,115 @@
+[
+  {
+    "results": [
+      {
+        "source": "app",
+        "feature": "ai:json:PARSER",
+        "model": "gpt-5.6-luna",
+        "calls": 98,
+        "requests": 97,
+        "first_at": 1792287425440,
+        "last_at": 1794460539198,
+        "input_tokens": 478536,
+        "output_tokens": 16753,
+        "avg_ms": 2813.0714285714284,
+        "failed_calls": 0
+      },
+      {
+        "source": "app",
+        "feature": "ai:transcribe",
+        "model": "gpt-4o-transcribe",
+        "calls": 80,
+        "requests": 80,
+        "first_at": 1792287433575,
+        "last_at": 1794460537336,
+        "input_tokens": 16385,
+        "output_tokens": 1159,
+        "avg_ms": 1402.175,
+        "failed_calls": 2
+      },
+      {
+        "source": "app",
+        "feature": "ai:vision:ANALYZE_FRONT",
+        "model": "gpt-5.6-luna",
+        "calls": 4,
+        "requests": 4,
+        "first_at": 1792716341224,
+        "last_at": 1793770170646,
+        "input_tokens": 2864,
+        "output_tokens": 211,
+        "avg_ms": 1721.75,
+        "failed_calls": 0
+      },
+      {
+        "source": "app",
+        "feature": "ai:vision:ANALYZE_NUTRITION",
+        "model": "gpt-5.6-luna",
+        "calls": 4,
+        "requests": 4,
+        "first_at": 1792716345924,
+        "last_at": 1793770175640,
+        "input_tokens": 6060,
+        "output_tokens": 3187,
+        "avg_ms": 7781,
+        "failed_calls": 0
+      },
+      {
+        "source": "app",
+        "feature": "fatsecret:barcode",
+        "model": "gpt-5.6-luna",
+        "calls": 26,
+        "requests": 26,
+        "first_at": 1792468037212,
+        "last_at": 1794285223745,
+        "input_tokens": 9313,
+        "output_tokens": 552,
+        "avg_ms": 1747.6538461538462,
+        "failed_calls": 0
+      },
+      {
+        "source": "app",
+        "feature": "macro:estimate",
+        "model": "gpt-5.6-luna",
+        "calls": 288,
+        "requests": 140,
+        "first_at": 1792287423141,
+        "last_at": 1794460779341,
+        "input_tokens": 1538858,
+        "output_tokens": 60774,
+        "avg_ms": 3219.0173611111113,
+        "failed_calls": 0
+      },
+      {
+        "source": "app",
+        "feature": "macro:estimate",
+        "model": "gpt-5.6-sol",
+        "calls": 37,
+        "requests": 37,
+        "first_at": 1792466790662,
+        "last_at": 1794460784984,
+        "input_tokens": 393450,
+        "output_tokens": 9483,
+        "avg_ms": 4267.486486486487,
+        "failed_calls": 0
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "LAX",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 10.0169
+      },
+      "duration": 10.0169,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 309493760,
+      "rows_read": 1075,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

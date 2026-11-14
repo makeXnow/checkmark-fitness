@@ -179,6 +179,7 @@ NOTES
 User-stated calories, protein, preparation context, or other useful non-portion information belongs in notes.
 Do not allow nutrition numbers to become the food quantity.
 When the user states calories/protein, copy the numbers into that item's notes together with what they describe, e.g. "620 calories, 26 g protein for the whole container", "190 calories per bottle", "400 calories total". Only put them on the item they describe.
+Keep each number next to its own basis. Never invent a missing nutrient. If the user ate the whole package and explicitly gave the number of label servings in it, use that many servings as the consumed quantity.
 
 ONLY FOODS THAT WERE EATEN
 Log only foods and drinks the user says they consumed.
@@ -415,8 +416,8 @@ estimated=false: AI #1 amount is authoritative. Prefer convertible servings only
 estimated=true: prefer a credible serving matching originalPortion when present; else use the numeric estimate with a compatible serving.
 
 DIRECT USER NUTRITION
-User-stated calories/protein in notes beat any database candidate.
-If notes provide explicit calories/protein: libraryIndex/fatSecretIndex/servingIndex/relationship/bridgeQuestion/unitsPerServing null; return calories/protein; servingType from parser unit.
+Only skip matching if both calories and protein are stated and can be scaled to the amount eaten.
+If either nutrient is missing, use the stated values as label and serving clues. Select a reliable match for the same food and serving to fill the missing value. Never treat an omitted nutrient as zero or use a different product to fill it.
 
 USER-CONFIRMED FATSECRET: use fatSecretIndex 1, best servingIndex, correct relationship.
 USER-REJECTED FATSECRET: direct AI estimate only.

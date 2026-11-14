@@ -1,0 +1,93 @@
+utterance,date,score,verdict,transcript,item_records,fixes
+4,2026-10-13,1,Close / assumption-dependent,One peach and a built protein bar.,"9,10",F1
+5,2026-10-13,0,Missed the mark,Drizzleicious bag.,14,F1
+6,2026-10-14,0,Missed the mark,"Entire bag of instant mashed potatoes, 150 grams of grilled chicken, six ounces of broccoli, one of those 90-calorie fudge bars from Costco, a Drizzlicious cinnamon swirl bits, which is 90 calories.","15,16,17,18","F1,F2"
+7,2026-10-14,2,Basically right,Maple one protein bar and a peach.,"19,20",
+8,2026-10-14,1,Close / assumption-dependent,90-calorie fudge ice cream bar.,21,
+9,2026-10-14,2,Basically right,5 ounces of carrots.,22,
+10,2026-10-14,0,Missed the mark,130 grams of grilled chicken and half a white onion.,"23,24",F1
+11,2026-10-14,2,Basically right,"Eight of those, like, Trader Joe's chicken wonton cilantro thingies.",25,
+12,2026-10-14,1,Close / assumption-dependent,1/4 halo top container,26,F2
+13,2026-10-14,2,Basically right,1 tbs magic shell,27,
+14,2026-10-14,2,Basically right,1 oreo,28,
+15,2026-10-15,0,Missed the mark,188g grilled chicken,29,F1
+16,2026-10-15,1,Close / assumption-dependent,1 whole red onion,30,
+17,2026-10-16,2,Basically right,Rice cake.,31,
+18,2026-10-16,0,Missed the mark,"130 grams of grilled chicken, 6 ounces of frozen broccoli, 1 red onion, a skinny dipped chocolate peanut butter cup.","32,33,34,35",F1
+19,2026-10-16,1,Close / assumption-dependent,2 servings of 96% lean ground beef foorm trader joes,36,
+20,2026-10-16,0,Missed the mark,Trader Joe's sandwich starters.,37,F2
+21,2026-10-16,0,Missed the mark,"One, well, two cups of popcorn.",38,F2
+22,2026-10-16,1,Close / assumption-dependent,Mini strawberry Trader Joe's ice cream cone.,39,
+23,2026-10-16,0,Missed the mark,Skinny dipped dark chocolate coconut almond. It has 70 calories and one gram of protein.,40,F3
+24,2026-10-17,1,Close / assumption-dependent,Two rice cakes.,42,F2
+25,2026-10-17,2,Basically right,A brownie batter flavored barbell bar.,43,
+26,2026-10-17,2,Basically right,"One scoop of my protein, that's the brand, clear.",44,
+27,2026-10-19,1,Close / assumption-dependent,"6 ounces of carrots, 6 ounces of celery, a Drizzilicious 90 calorie bag.","45,46,47",F3
+28,2026-10-19,1,Close / assumption-dependent,A 90-calorie fudge ice cream bar thing from Costco.,48,F3
+29,2026-10-19,0,Missed the mark,Two servings of ground beef from Trader Joe's. It was 96% lean in a Trader Joe's sandwich starter. It's like bread.,"49,50",F1
+30,2026-10-19,2,Basically right,Pumpkin Spice Barebell Bar,51,
+31,2026-10-19,2,Basically right,Seven ounces of grilled chicken breast.,53,
+32,2026-10-20,1,Close / assumption-dependent,"I had six ounces of grilled chicken breast and 75% of the packet of like, it's like a Trader Joe's teriyaki noodles thing, and a red onion.","54,55,56",F2
+33,2026-10-20,0,Missed the mark,"I had one of those feta spinach wrap things from Costco. I forget how many calories, but I think they're like 280 or something like that. Maybe 350, something like that. Somewhere around that range.",57,F3
+34,2026-10-21,1,Close / assumption-dependent,177 grams of green beans and one red onion.,"59,60",
+35,2026-10-21,2,Basically right,95 grams of carrots,61,
+36,2026-10-21,2,Basically right,234 grams of grilled chicken breast.,62,
+37,2026-10-21,1,Close / assumption-dependent,Trader Joe's Strawberry Hold the Cone,63,
+38,2026-10-21,2,Basically right,"Skinny Dipped Chocolate Peanut Butter Cup, it's 80 calories and 2 grams of protein.",64,
+39,2026-10-21,2,Basically right,Apple,66,
+40,2026-10-21,2,Basically right,183g grilled chicken breast,67,
+41,2026-10-21,2,Basically right,Frozen broccoli 159g,68,
+42,2026-10-22,1,Close / assumption-dependent,Whole can of Great Value chicken breast.,71,F2
+43,2026-10-22,2,Basically right,One SkinnyDipped dark chocolate coconut almond. It is 70 calories and 1 gram of protein.,72,
+44,2026-10-22,0,Missed the mark,Cafe Zupas Honey Brisket Sandwich and their like southwest soup thing.,"74,75",F1
+45,2026-10-22,0,Missed the mark,Cafe Zupas bread roll and chocolate covered strawberry,"76,77",F1
+46,2026-10-25,2,Basically right,"6 ounces of green beans, 7 ounces of grilled chicken breast, 1 cup of rice.","78,79,80",
+47,2026-10-26,2,Basically right,half a cup of rice,86,
+48,2026-10-26,1,Close / assumption-dependent,A Skinny Dipped Peanut Butter Cup. I think they're 80 calories or something close to that.,87,F3
+49,2026-10-26,0,Missed the mark,half a Trader Joe's sandwich starters and a tablespoon of mayonnaise and two slices of deli turkey.,"88,89,90",F1
+50,2026-10-27,2,Basically right,7 oz of grilled chicken,91,
+51,2026-10-27,1,Close / assumption-dependent,"One serving of Trader Joe's lasagna soup, one rice cake, one of those Costco healthy fudge ice cream pop thingies, two cups of popped popcorn.","92,93,94,95",F3
+52,2026-10-27,2,Basically right,Trader Joe’s pad Thai,96,
+53,2026-10-27,2,Basically right,"Six ounces of broccoli, half a red onion, a tablespoon of sesame oil, and six ounces of grilled chicken breast.","97,98,99,100",
+54,2026-10-27,1,Close / assumption-dependent,A built chocolate protein bar.,101,F1
+55,2026-10-28,2,Basically right,139 grams of grilled chicken breast.,103,
+56,2026-10-28,2,Basically right,Broccoli.,104,
+57,2026-10-28,2,Basically right,One tablespoon of sesame oil.,105,
+58,2026-10-28,2,Basically right,One rice cake,107,
+59,2026-10-28,1,Close / assumption-dependent,Seventy-five percent of a box of Goodles and six ounces of grilled chicken breast.,"108,109",F2
+60,2026-10-28,1,Close / assumption-dependent,Brownie batter barbell bar,110,F1
+61,2026-11-02,1,Close / assumption-dependent,"7 oz of chicken breast, 6 oz of broccoli, 5 oz of green beans, 2 rice cakes, a cookie dough chobani flip.","111,112,113,114,115",F1
+62,2026-11-02,2,Basically right,"4 ounces of grilled chicken, 4 ounces of red onion, 4 ounces of frozen broccoli.","119,120,121",
+63,2026-11-03,2,Basically right,4.5 ounces of grilled chicken breast and a spicy peanut noodle bowl with chicken from Trader Joe's.,"123,124",
+64,2026-11-03,2,Basically right,6 ounces of grilled chicken breast,127,
+65,2026-11-03,1,Close / assumption-dependent,Five servings of sea salt caramel halo top.,128,F2
+66,2026-11-04,0,Missed the mark,Trader Joe's Sandwich Starter bread and four ounces of carrots and one third of a donut and a Trader Joe's 500 calorie carne asada burrito and a cucumber.,"132,133,134,135,136","F1,F3"
+67,2026-11-04,1,Close / assumption-dependent,Cookie Dough Chobani Flip,137,F1
+68,2026-11-04,2,Basically right,"6 ounces of chicken, 4 ounces of red onion.","138,139",
+69,2026-11-04,1,Close / assumption-dependent,Garlic bread slice,141,F1
+70,2026-11-05,0,Missed the mark,"180 grams of grilled chicken and an entire Trader Joe's Miso Crunch, which is four servings, for a total of 170 calories per serving.","143,189","F3,F5"
+71,2026-11-05,1,Close / assumption-dependent,Two zero sugar Oreos.,146,F1
+72,2026-11-05,2,Basically right,So I had four ounces of rice and an apple and like one of those carne asada burritos from Trader Joe's.,"148,149,150",
+73,2026-11-06,1,Close / assumption-dependent,Cafe Rio steak bowl,151,F1
+74,2026-11-06,0,Missed the mark,250 cal of jasmine rice,152,F3
+75,2026-11-06,2,Basically right,96% lean beef from Trader Joe’s 2 servings,153,
+76,2026-11-06,2,Basically right,3 egg whites,154,
+77,2026-11-06,2,Basically right,Key line by barbell bar,155,
+78,2026-11-06,2,Basically right,Loaded oreo,156,
+79,2026-11-06,1,Close / assumption-dependent,Chobani flip chocolate strawberry flavor,157,F1
+80,2026-11-06,2,Basically right,4oz of carrots,158,
+81,2026-11-08,2,Basically right,Trader Joe's spicy peanut noodles and six ounces of chicken,"159,160",
+82,2026-11-08,2,Basically right,mini Trader Joe's hold the cone,161,
+83,2026-11-08,2,Basically right,4 ounces of red onion.,162,
+84,2026-11-08,2,Basically right,8 McDonald's chicken nuggets,163,
+85,2026-11-08,2,Basically right,"Trader Joe's Pad See Ew, 6 ounces of chicken, 2 ounces of carrots, and 4 ounces of frozen broccoli.","164,165,166,167",
+86,2026-11-09,2,Basically right,Cookie Dough Chobani Flip and one large cucumber.,"169,170",
+87,2026-11-09,2,Basically right,6 ounces of grilled chicken breast.,171,
+88,2026-11-09,2,Basically right,One Loaded Oreo.,172,
+89,2026-11-10,2,Basically right,200g grilled chicken breast,177,
+90,2026-11-10,1,Close / assumption-dependent,Chobani flip French toast,178,F6
+91,2026-11-10,2,Basically right,2 cups of popcorn,179,
+92,2026-11-10,0,Missed the mark,Cafe zuppa honey brisket sandwich,181,F1
+93,2026-11-10,1,Close / assumption-dependent,Cafe Zupa cauliflower soup,182,F2
+94,2026-11-11,0,Missed the mark,"150 grams of grilled chicken breast, 6 ounces of frozen broccoli, 5 ounces of frozen green beans.","184,185,186",F8
+95,2026-11-10,0,Missed the mark,Honey brisket sandwich zuppa,"190,191",F1

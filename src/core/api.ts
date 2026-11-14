@@ -1,3 +1,5 @@
+import { entryChanges, type EntryMutation, type EntryVersions } from '../lib/macroEntryChanges'
+import { withRequestTimeout } from '../lib/requestTimeout'
 import { MACRO_PROMPTS_OWNER, type MacroPromptKey, type MacroPrompts } from '../features/macro/prompts'
 import type {
   AppStateRow,
@@ -5,9 +7,14 @@ import type {
   FatSecretFoodRef,
   MacroEstimateSnapshot,
   MacroParseSnapshot,
+  MacroDayItem,
 } from '../types/domain'
 import { apiFetch, apiFetchForProfile } from './apiPaths'
 import { getApiProfile } from './apiProfile'
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = 'ApiError' }
+}
 
 function htmlResponseHint(text: string): string | undefined {
   const t = text.trimStart()
@@ -37,7 +44,7 @@ async function parseJson<T>(res: Response): Promise<T> {
       const htmlHint = htmlResponseHint(text)
       if (htmlHint) msg = (msg || 'Invalid response') + htmlHint
     }
-    throw new Error(msg)
+    throw new ApiError(msg, res.status)
   }
   if (!text) return {} as T
   try {
@@ -58,9 +65,19 @@ export async function checkProfileExists(profile: string): Promise<boolean> {
   return Boolean(data.exists)
 }
 
+export const confirmedMacroLogs = new Map<string, { updatedAt: number; logs: Record<string, MacroDayItem[]>; entryRevisions: EntryVersions; metadataRevision?:number }>()
+
+export const MACRO_SAVE_TIMEOUT_MS = 30_000
+
 export async function fetchBootstrap(): Promise<BootstrapResponse> {
-  const res = await apiFetch('/api/bootstrap', { cache: 'no-store' })
-  return parseJson<BootstrapResponse>(res)
+  return withRequestTimeout(async (signal) => {
+    const profile = getApiProfile() ?? ''
+    const res = await apiFetch('/api/bootstrap', { cache: 'no-store', signal })
+    const data = await parseJson<BootstrapResponse>(res)
+    if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError')
+    confirmedMacroLogs.set(profile, { updatedAt: data.macro.updatedAt, logs: structuredClone(data.macro.logs), entryRevisions: data.macro.entryRevisions ?? {},metadataRevision:data.macro.metadataRevision })
+    return data
+  }, MACRO_SAVE_TIMEOUT_MS, 'Connecting to your diary timed out.')
 }
 
 export type AppStatePatch = Partial<
@@ -135,14 +152,40 @@ export async function putMacro(data: {
   goalsSnapshotsByDay?: unknown
   goalsHistory?: unknown
   customFoods: unknown
-  logs: unknown
+  logs: Record<string, MacroDayItem[]>
+  entryMutations?: EntryMutation[]
 }): Promise<{ ok: boolean; updatedAt: number }> {
-  const res = await apiFetch('/api/macro', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  })
-  return parseJson<{ ok: boolean; updatedAt: number }>(res)
+  const profile = getApiProfile() ?? ''
+  let known = confirmedMacroLogs.get(profile)
+  const operations = data.entryMutations ?? entryChanges(known?.logs ?? {},data.logs,known?.entryRevisions ?? {})
+  let revision = data.baseUpdatedAt
+  for (const operation of operations) {
+    const saved = await withRequestTimeout(async signal => {
+      const response = await apiFetch(`/api/macro/entries/${encodeURIComponent(operation.date)}/${encodeURIComponent(operation.id)}`, {
+        method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(operation),signal,
+      })
+      return parseJson<{revision:number;updatedAt:number;item:MacroDayItem|null}>(response)
+    }, MACRO_SAVE_TIMEOUT_MS,'Saving timed out. Your unsaved food is still on this device.')
+    revision = saved.updatedAt
+    known = confirmedMacroLogs.get(profile) ?? {updatedAt:revision,logs:{},entryRevisions:{}}
+    const day = known.logs[operation.date] ?? []
+    const canonical=saved.item
+    const items = canonical === null ? day.filter(i=>i.id!==operation.id)
+      : day.some(i=>i.id===operation.id) ? day.map(i=>i.id===operation.id ? canonical : i) : [...day,canonical]
+    confirmedMacroLogs.set(profile,{updatedAt:revision,logs:{...known.logs,[operation.date]:structuredClone(items)},
+      entryRevisions:{...known.entryRevisions,[operation.date]:{...known.entryRevisions[operation.date],[operation.id]:saved.revision}},metadataRevision:known.metadataRevision})
+  }
+  return withRequestTimeout(async signal => {
+    const response = await apiFetch('/api/macro', {
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...data,entryMutations:undefined,logs:{},baseUpdatedAt:revision,baseMetadataRevision:confirmedMacroLogs.get(profile)?.metadataRevision}),signal,
+    })
+    const saved = await parseJson<{ok:boolean;updatedAt:number;metadataRevision?:number}>(response)
+    if (signal.aborted) throw new DOMException('Request cancelled','AbortError')
+    const latest = confirmedMacroLogs.get(profile)
+    if(latest) confirmedMacroLogs.set(profile,{...latest,updatedAt:saved.updatedAt,metadataRevision:saved.metadataRevision})
+    return saved
+  },MACRO_SAVE_TIMEOUT_MS,'Saving timed out. Your unsaved food is still on this device.')
 }
 
 export async function putLift(payload: unknown): Promise<void> {
@@ -223,11 +266,12 @@ export async function saveMacroPrompts(prompts: Partial<MacroPrompts>): Promise<
 }
 
 export async function transcribeAudio(
-  file: File,
-  options?: { model?: string; promptKey?: MacroPromptKey },
+  file: File | undefined,
+  options?: { model?: string; promptKey?: MacroPromptKey; diaryEntry?: {date:string;item:MacroDayItem}; signal?:AbortSignal },
 ): Promise<string> {
   const fd = new FormData()
-  fd.append('file', file)
+  if(file) fd.append('file', file)
+  if(options?.diaryEntry) fd.append('diaryEntry',JSON.stringify(options.diaryEntry))
   const params = new URLSearchParams()
   if (options?.model) params.set('model', options.model)
   if (options?.promptKey) params.set('promptKey', options.promptKey)
@@ -235,12 +279,15 @@ export async function transcribeAudio(
   const profile = getApiProfile()
   if (profile) params.set('profile', profile)
   const q = params.toString() ? `?${params}` : ''
-  const res = await apiFetch(`/api/ai/transcribe${q}`, { method: 'POST', body: fd })
-  const data = await parseJson<{ text?: string; error?: string }>(res)
+  return withRequestTimeout(async signal=>{
+  const res = await apiFetch(`/api/ai/transcribe${q}`, { method: 'POST', body: fd,signal })
+  const data = await parseJson<{ text?: string; error?: string; savedEntry?:MacroDayItem;entryRevision?:number;updatedAt?:number }>(res)
   if (data.error) throw new Error(data.error)
+  if(options?.diaryEntry && data.savedEntry && data.entryRevision && data.updatedAt) rememberServerEntries(options.diaryEntry.date,[data.savedEntry],{[options.diaryEntry.date]:{[data.savedEntry.id]:data.entryRevision}},data.updatedAt)
   const text = (data.text ?? '').trim()
   if (!text) throw new Error('No speech detected — try speaking longer or check your mic.')
   return text
+  },MACRO_ESTIMATE_TIMEOUT_MS,'Transcription timed out. Your recording is saved; retry it.',options?.signal)
 }
 
 /** Live worker still uses `json_object`, which requires the word "json" in messages. */
@@ -254,15 +301,18 @@ export async function aiJson(body: {
   promptKey?: MacroPromptKey
   user: string
   images?: { mimeType: string; base64: string }[]
-}): Promise<unknown> {
-  const res = await apiFetch('/api/ai/json', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, user: withJsonHint(body.user), profile: getApiProfile() ?? undefined }),
-  })
-  const data = await parseJson<{ result?: unknown; error?: string }>(res)
-  if (data.result === undefined) throw new Error(data.error || 'AI failed')
-  return data.result
+}, signal?: AbortSignal): Promise<unknown> {
+  return withRequestTimeout(async (requestSignal) => {
+    const res = await apiFetch('/api/ai/json', {
+      signal: requestSignal,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, user: withJsonHint(body.user), profile: getApiProfile() ?? undefined }),
+    })
+    const data = await parseJson<{ result?: unknown; error?: string }>(res)
+    if (data.result === undefined) throw new Error(data.error || 'AI failed')
+    return data.result
+  }, MACRO_ESTIMATE_TIMEOUT_MS, 'Food parsing timed out — edit the entry or try again.', signal)
 }
 
 export async function fatSecretSearch(query: string): Promise<{ foods: FatSecretFoodRef[] }> {
@@ -290,9 +340,40 @@ export async function fatSecretBarcodeLookup(
   return { food: data.food, name: data.name, emoji: data.emoji }
 }
 
+export async function persistDiaryEntry(date:string,item:MacroDayItem):Promise<void> {
+  const profile=getApiProfile() ?? ''
+  const known=confirmedMacroLogs.get(profile)
+  const op:EntryMutation={date,id:item.id,item,baseRevision:known?.entryRevisions[date]?.[item.id] ?? 0,ordinal:item.timestamp ?? Date.now(),mutationId:crypto.randomUUID(),supersedes:[]}
+  const saved=await withRequestTimeout(async signal=>{
+    const response=await apiFetch(`/api/macro/entries/${encodeURIComponent(date)}/${encodeURIComponent(item.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(op),signal})
+    return parseJson<{revision:number;updatedAt:number;item:MacroDayItem|null}>(response)
+  },MACRO_SAVE_TIMEOUT_MS,'Saving this food timed out. It is still on this device.')
+  if(saved.item) rememberServerEntries(date,[saved.item],{[date]:{[item.id]:saved.revision}},saved.updatedAt)
+}
+function rememberServerEntries(date:string,items:MacroDayItem[],versions:EntryVersions,updatedAt:number,removedId?:string) {
+  const profile=getApiProfile() ?? ''
+  const known=confirmedMacroLogs.get(profile) ?? {updatedAt,logs:{},entryRevisions:{}}
+  const ids=new Set(items.map(i=>i.id))
+  const day=(known.logs[date] ?? []).filter(i=>i.id!==removedId && !ids.has(i.id))
+  confirmedMacroLogs.set(profile,{updatedAt,logs:{...known.logs,[date]:[...day,...structuredClone(items)]},
+    entryRevisions:{...known.entryRevisions,[date]:{...known.entryRevisions[date],...versions[date]}},metadataRevision:known.metadataRevision})
+}
+export async function parseDiaryInput(date:string,item:MacroDayItem,rawText:string,userEditedText:boolean,signal?:AbortSignal):Promise<MacroDayItem[]> {
+  return withRequestTimeout(async requestSignal=>{
+    const response=await apiFetch('/api/macro/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,item,rawText,userEditedText}),signal:requestSignal})
+    const data=await parseJson<{items:MacroDayItem[];entryRevisions:EntryVersions;updatedAt:number}>(response)
+    if(requestSignal.aborted) throw new DOMException('Request cancelled','AbortError')
+    rememberServerEntries(date,data.items,data.entryRevisions,data.updatedAt,item.id)
+    return data.items
+  },MACRO_ESTIMATE_TIMEOUT_MS,'Food processing timed out. Your description is saved; retry this entry.',signal)
+}
+
 export type MacroEstimateApiResult = {
-  calories: number
-  protein: number
+  savedEntry?: MacroDayItem
+  entryRevision?: number
+  updatedAt?: number
+  calories?: number
+  protein?: number
   libraryFoodId?: string
   servingType?: string
   servingSize?: number
@@ -319,6 +400,7 @@ function isAbortOrTimeoutError(e: unknown): boolean {
 }
 
 export async function macroEstimateItem(body: {
+  diaryEntry?: {date:string;item:MacroDayItem}
   name: string
   amount: string
   notes?: string
@@ -340,47 +422,48 @@ export async function macroEstimateItem(body: {
     estimateQuantity?: number | null
     estimateUnit?: string | null
   }
-}): Promise<MacroEstimateApiResult> {
-  const signal =
-    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-      ? AbortSignal.timeout(MACRO_ESTIMATE_TIMEOUT_MS)
-      : undefined
-  let res: Response
-  try {
-    res = await apiFetch('/api/macro/estimate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...body,
-        extraCtx: withJsonHint(body.extraCtx ?? ''),
-        profile: getApiProfile() ?? undefined,
-      }),
-      signal,
-    })
-  } catch (e) {
-    if (isAbortOrTimeoutError(e)) {
-      throw new MacroEstimateError(
-        `Macro estimate timed out after ${Math.round(MACRO_ESTIMATE_TIMEOUT_MS / 1000)}s — tap Retry to try again.`,
-      )
+}, parentSignal?: AbortSignal): Promise<MacroEstimateApiResult> {
+  return withRequestTimeout(async (signal) => {
+    let res: Response
+    try {
+      res = await apiFetch('/api/macro/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...body,
+          extraCtx: withJsonHint(body.extraCtx ?? ''),
+          profile: getApiProfile() ?? undefined,
+        }),
+        signal,
+      })
+    } catch (e) {
+      if (isAbortOrTimeoutError(e)) {
+        throw new MacroEstimateError(
+          `Macro estimate timed out after ${Math.round(MACRO_ESTIMATE_TIMEOUT_MS / 1000)}s — tap Retry to try again.`,
+        )
+      }
+      throw e
     }
-    throw e
-  }
-  const text = await res.text()
-  let data: MacroEstimateApiResult & { error?: string }
-  try {
-    data = JSON.parse(text) as MacroEstimateApiResult & { error?: string }
-  } catch {
-    throw new Error(res.ok ? 'Invalid JSON in API response' : text.trim().slice(0, 600) || res.statusText)
-  }
-  if (!res.ok || data.error) {
-    const err = new MacroEstimateError(data.error || res.statusText)
-    if (data.fatSecretResults?.length) {
-      err.fatSecretResults = data.fatSecretResults
-      err.fatSecretSource = data.fatSecretSource
+    const text = await res.text()
+    let data: MacroEstimateApiResult & { error?: string }
+    try {
+      data = JSON.parse(text) as MacroEstimateApiResult & { error?: string }
+    } catch {
+      throw new Error(res.ok ? 'Invalid JSON in API response' : text.trim().slice(0, 600) || res.statusText)
     }
-    throw err
-  }
-  return data
+    if (!res.ok || data.error) {
+      const err = new MacroEstimateError(data.error || res.statusText)
+      if (data.fatSecretResults?.length) {
+        err.fatSecretResults = data.fatSecretResults
+        err.fatSecretSource = data.fatSecretSource
+      }
+      throw err
+    }
+    if(body.diaryEntry && data.savedEntry && data.entryRevision && data.updatedAt) {
+      rememberServerEntries(body.diaryEntry.date,[data.savedEntry],{[body.diaryEntry.date]:{[data.savedEntry.id]:data.entryRevision}},data.updatedAt)
+    }
+    return data
+  }, MACRO_ESTIMATE_TIMEOUT_MS, 'Macro estimate timed out — tap Retry to try again.', parentSignal)
 }
 
 /** Nutrition / label photos → structured JSON (uses vision-capable model). */
@@ -401,6 +484,14 @@ export async function aiVisionJson(body: {
   return data.result
 }
 
+export async function readSavedScanImage(key:string):Promise<string> {
+  return withRequestTimeout(async signal=>{
+    const response=await apiFetch(`/api/macro/scan-images/${key.split('/').map(encodeURIComponent).join('/')}`,{signal})
+    if(!response.ok)throw new Error('Saved photo could not be loaded. Reconnect and retry.')
+    const blob=await response.blob()
+    return new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob)})
+  },MACRO_SAVE_TIMEOUT_MS,'Loading the saved photo timed out.')
+}
 export async function uploadPackagingScanImages(body: {
   itemId: string
   front: { mimeType: string; base64: string }

@@ -1,0 +1,65 @@
+{
+  "precision": {
+    "initial": {
+      "calories": 295,
+      "protein": 55.4,
+      "servingType": "g",
+      "servingSize": 1,
+      "servingUnit": "g",
+      "servingMultiplier": 180,
+      "baseCalories": 2,
+      "baseProtein": 0.3,
+      "libraryFoodId": "x"
+    },
+    "afterSameQuantity": {
+      "baseCalories": 2,
+      "baseProtein": 0.3,
+      "calories": 360,
+      "protein": 54
+    }
+  },
+  "percentage": {
+    "multiplier": 1,
+    "amountLabel": "70% of the whole thing",
+    "containerFraction": null
+  },
+  "stated": {
+    "notes": "170 calories per serving, 680 calories total",
+    "parsed": {
+      "calories": [
+        {
+          "value": 170,
+          "scope": "per_unit",
+          "unit": "serving"
+        },
+        {
+          "value": 680,
+          "scope": "total_eaten"
+        }
+      ]
+    },
+    "result": {
+      "calories": 680
+    }
+  },
+  "hedged": {
+    "calories": [
+      {
+        "value": 280
+      },
+      {
+        "value": 350
+      }
+    ]
+  },
+  "genericServingVsPieces": {
+    "multiplier": 0.05,
+    "deterministicOk": true,
+    "usedUnitBridge": false
+  },
+  "haloSameBasis": {
+    "multiplier": 1.67,
+    "deterministicOk": false,
+    "usedUnitBridge": true
+  }
+}
