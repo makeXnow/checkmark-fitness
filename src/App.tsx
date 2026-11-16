@@ -148,6 +148,7 @@ export default function App() {
   const flushingMacroRef=useRef(false)
   const [macroSaveBusy, setMacroSaveBusy] = useState(false)
   const [macroRecoveryAvailable, setMacroRecoveryAvailable] = useState(false)
+  const [macroSaveCritical,setMacroSaveCritical]=useState(false)
   const [macroSaveNotice, setMacroSaveNotice] = useState<string | null>(null)
   const [liftAssumptionPrompt, setLiftAssumptionPrompt] = useState<LiftAssumptionPrompt | null>(null)
   const [liftAssumptionBusy, setLiftAssumptionBusy] = useState(false)
@@ -193,11 +194,12 @@ export default function App() {
     const confirmedBeforeRefresh = (confirmedMacroLogs.get(profile ?? '')?.logs ?? {}) as BootstrapResponse['macro']['logs']
     const localPending = unsaved ? pendingMacro(unsaved, confirmedBeforeRefresh) : null
     if (profile && localPending) writePendingMacroCache(profile, localPending)
+    setMacroSaveCritical(cause instanceof LocalFoodStorageError)
     setMacroSaveNotice(cause instanceof LocalFoodStorageError ? cause.message : cause instanceof ApiError && cause.status === 409
-      ? 'Your diary changed on another device. Your unsaved food is still shown here. Retry saving to keep these edits.'
+      ? 'Your diary changed on another device. Review your unsaved edits before retrying.'
       : cause instanceof Error && /timed out/i.test(cause.message)
-        ? 'Saving timed out. Your entries are still on this device. Check your connection and retry.'
-        : `Food has not synced${cause instanceof ApiError ? ` (error ${cause.status})` : ''}. Your entries are still shown on this device. Retry saving when connected.`)
+        ? 'Couldn’t sync yet. Your food is saved on this device.'
+        : 'Couldn’t sync your food. It’s saved on this device.')
     try {
       const fresh = await fetchBootstrap()
       const cur = bootRef.current
@@ -343,7 +345,6 @@ export default function App() {
       const next = {...bootRef.current,macro:durableRecovery.macro}
       bootRef.current=next
       setBoot(next)
-      setMacroSaveNotice('Food is saved on this device and waiting to sync.')
     }
     try {
       const fresh = await fetchBootstrap()
@@ -378,15 +379,15 @@ export default function App() {
         writePendingMacroCache(profile, legacyRecovery)
         autoSyncAllowedRef.current=false
         setMacroRecoveryAvailable(true)
-        setMacroSaveNotice('A recovery copy on this device contains additional food for today. Restore it to review the entries before saving.')
+        setMacroSaveNotice('This device has additional food entries available to review.')
       }
       if (recovery && recovery.macro.updatedAt === fresh.macro.updatedAt) {
         pendingMacroRef.current = rebaseUnsavedMacro(fresh.macro, recovery)
-        setMacroSaveNotice('Unsaved food was recovered from this device. Retry saving to sync it.')
+        setMacroSaveNotice(null)
       } else if (recovery) {
         autoSyncAllowedRef.current=false
         setMacroRecoveryAvailable(true)
-        setMacroSaveNotice('There is unsaved food on this device and a newer server diary. Restore your unsaved edits to review them before saving.')
+        setMacroSaveNotice('This device has unsaved edits to review.')
       }
       const hydrated = applyPayload(fresh)
       setOutboxReady(true)
@@ -811,7 +812,6 @@ export default function App() {
         durable: async value => {
           const profile=getApiProfile()
           if(profile) await saveDurablePending(profile,pendingMacro(value,(confirmedMacroLogs.get(profile)?.logs ?? {})))
-          setMacroSaveNotice('Saved on this device. Syncing…')
         },
         read: () => bootRef.current?.macro,
         publish: (value) => {
@@ -837,7 +837,7 @@ export default function App() {
         persist: (snapshot, revision) => putMacro({ ...snapshot, baseUpdatedAt: revision }),
         isCurrent: () => generation === macroSaveGeneration.current,
         isLatest: () => editVersion === macroEditVersion.current,
-        saved: () => setMacroSaveNotice(null),
+        saved: () => {setMacroSaveNotice(null);setMacroSaveCritical(false)},
       }).catch(refreshMacroAfterFailedSave)
       return macroSaveSeq.current
     },
@@ -1208,10 +1208,10 @@ export default function App() {
         className="mx-auto flex min-h-0 w-full max-w-[var(--app-max-width)] flex-1 flex-col overflow-hidden pt-[var(--app-main-pad-top)]"
       >
         {macroSaveNotice && (
-          <div role="alert" className="mx-4 mb-2 rounded-xl bg-amber-500/15 p-3 text-sm text-amber-200">
-            <p>{macroSaveNotice}</p>
+          <div role="alert" className={`mx-4 mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-xs ${macroSaveCritical ? 'bg-red-500/10 text-red-200' : 'bg-white/5 text-white/60'}`}>
+            <p className="min-w-0 flex-1">{macroSaveNotice}</p>
             {macroRecoveryAvailable ? (
-              <button type="button" className="mt-2 font-bold underline" onClick={async () => {
+              <button type="button" className="shrink-0 py-1 font-medium text-white/80 hover:text-white" onClick={async () => {
                 const profile = getApiProfile()
                 const recovery = profile ? (await readDurablePending(profile).catch(()=>null)) ?? readPendingMacroCache(profile) : null
                 const cur = bootRef.current
@@ -1221,11 +1221,11 @@ export default function App() {
                 bootRef.current = { ...cur, macro }
                 setBoot(bootRef.current)
                 setMacroRecoveryAvailable(false)
-                setMacroSaveNotice('Recovered your unsaved edits. Review the food list, then retry saving.')
-              }}>Restore unsaved edits</button>
+                setMacroSaveNotice('Recovered edits are ready to save.')
+              }}>Review edits</button>
             ) : (
-              <button type="button" disabled={macroSaveBusy} className="mt-2 font-bold underline disabled:opacity-60"
-                onClick={()=>void flushPendingMacro(true)}>{macroSaveBusy ? 'Saving…' : 'Retry saving'}</button>
+              <button type="button" disabled={macroSaveBusy} className="shrink-0 py-1 font-medium text-white/80 hover:text-white disabled:opacity-60"
+                onClick={()=>void flushPendingMacro(true)}>{macroSaveBusy ? 'Saving…' : 'Retry'}</button>
             )}
           </div>
         )}
