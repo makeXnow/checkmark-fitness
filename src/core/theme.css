@@ -172,11 +172,11 @@ html.lift-workout-swapping #app-main {
 
 /*
  * Pages that manage their own internal scroll (e.g. macro/diet with a pinned dock)
- * must disable page-level overflow so the browser cannot scroll the page itself.
- * Only the inner scroll container (overflow-y: auto) will receive scroll events.
+ * let card outlines paint into the page gutters. The inner scroll container
+ * owns vertical scrolling; the pager viewport still clips at the screen edge.
  */
 .tab-pager-page:has([data-macro-diet-page]) {
-  overflow-y: hidden;
+  overflow: visible;
 }
 
 .tab-pager-page:has([data-macro-diet-page]) .tab-pager-frame,
@@ -195,6 +195,9 @@ html.lift-workout-swapping #app-main {
 }
 
 .macro-diet-scroll {
+  /* Move the scroll clip to the outside of the gutters without moving cards. */
+  margin-inline: calc(-1 * var(--app-pad-x));
+  padding-inline: var(--app-pad-x);
   padding-bottom: 0.5rem;
   scroll-padding-bottom: 0.5rem;
 }

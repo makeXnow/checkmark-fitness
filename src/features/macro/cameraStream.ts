@@ -24,6 +24,7 @@ export async function openCameraStream(): Promise<MediaStream> {
 
   const attempts: MediaStreamConstraints[] = isLikelyMobile()
     ? [
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
         { video: { facingMode: { ideal: 'environment' } }, audio: false },
         { video: { facingMode: 'user' }, audio: false },
         { video: true, audio: false },
@@ -36,7 +37,19 @@ export async function openCameraStream(): Promise<MediaStream> {
   let lastErr: unknown
   for (const constraints of attempts) {
     try {
-      return await navigator.mediaDevices.getUserMedia(constraints)
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      const track = stream.getVideoTracks()[0]
+      try {
+        const capabilities = track?.getCapabilities?.() as MediaTrackCapabilities & { focusMode?: string[] }
+        if (capabilities?.focusMode?.includes('continuous')) {
+          await track.applyConstraints({
+            advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+          })
+        }
+      } catch {
+        // A browser may expose focus controls but reject changes. Keep the usable stream.
+      }
+      return stream
     } catch (e) {
       lastErr = e
     }

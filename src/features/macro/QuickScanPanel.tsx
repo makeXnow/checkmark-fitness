@@ -9,6 +9,7 @@ import {
 } from './cameraStream'
 import { trackStableBarcodeRead, type BarcodeStableTracker } from './barcodeScan'
 import { startZxingVideoScan } from './zxingScan'
+import { startBarcodeRecording } from './barcodeRecording'
 
 export type QuickScanCaptureState = {
   frontPreview: string | null
@@ -157,10 +158,15 @@ export function QuickScanPanel({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [cameraReady, setCameraReady] = useState(false)
-  const [scanningEnabled, setScanningEnabled] = useState(false)
+  const scanningEnabled = cameraReady
+  const [recordingStatus, setRecordingStatus] = useState('')
+  const recordingRef = useRef<ReturnType<typeof startBarcodeRecording> | null>(null)
+  const lastDecodeRef = useRef<Record<string, unknown>>({})
   const [pendingStream, setPendingStream] = useState<MediaStream | null>(null)
 
   const stopCamera = useCallback(() => {
+    recordingRef.current?.stop()
+    recordingRef.current = null
     cameraSessionRef.current += 1
     attachInFlightRef.current = false
     retryAttachRef.current = false
@@ -297,13 +303,20 @@ export function QuickScanPanel({
   }, [attachStreamToVideo])
 
   useEffect(() => {
-    if (!cameraReady) {
-      setScanningEnabled(false)
+    if (!cameraReady || !videoRef.current) {
       barcodeCandidateRef.current = null
       return
     }
-    const t = setTimeout(() => setScanningEnabled(true), 250)
-    return () => clearTimeout(t)
+    const recording = startBarcodeRecording(videoRef.current, () => ({
+      decoder: detectorRef.current ? 'native' : 'zxing',
+      candidate: barcodeCandidateRef.current,
+      lastDecode: lastDecodeRef.current,
+    }), setRecordingStatus)
+    recordingRef.current = recording
+    return () => {
+      recording.stop()
+      if (recordingRef.current === recording) recordingRef.current = null
+    }
   }, [cameraReady])
 
   // Safety net: if the live preview already has frames but readiness was lost in a
@@ -342,6 +355,7 @@ export function QuickScanPanel({
   const fireBarcode = useCallback(
     (digits: string) => {
       if (!digits || barcodeLockRef.current) return
+      recordingRef.current?.stop(digits)
       barcodeLockRef.current = true
       barcodeCandidateRef.current = null
       stopCamera()
@@ -366,32 +380,38 @@ export function QuickScanPanel({
     const canvas = canvasRef.current
     if (!video || !canvas) return
 
-    let intervalId: ReturnType<typeof setInterval> | undefined
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
 
     const scanWithDetector = async () => {
       if (!detectorRef.current || barcodeLockRef.current || !scanningEnabled) return
-      if (video.videoWidth === 0 || video.videoHeight === 0) return
+      const started = performance.now()
       try {
-        const scale = Math.min(640 / video.videoWidth, 1)
+        if (video.videoWidth === 0 || video.videoHeight === 0) return
+        const scale = Math.min(1280 / video.videoWidth, 1)
         canvas.width = Math.round(video.videoWidth * scale)
         canvas.height = Math.round(video.videoHeight * scale)
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
         const barcodes = await detectorRef.current.detect(canvas)
+        lastDecodeRef.current = { at: Date.now(), durationMs: Math.round(performance.now() - started), values: barcodes.map(code => code.rawValue) }
         if (barcodes.length > 0 && !cancelled) considerBarcode(barcodes[0]!.rawValue)
       } catch {
-        /* ignore frame errors */
+        lastDecodeRef.current = { at: Date.now(), error: 'Frame detection failed' }
+      } finally {
+        if (!cancelled && !barcodeLockRef.current) {
+          timeoutId = setTimeout(() => void scanWithDetector(), 80)
+        }
       }
     }
 
     if (detectorRef.current) {
-      intervalId = setInterval(() => void scanWithDetector(), 350)
+      void scanWithDetector()
     } else if (video) {
       void startZxingVideoScan(video, (text) => {
         if (!cancelled) considerBarcode(text)
-      })
+      }, 80, (attempt) => { lastDecodeRef.current = attempt })
         .then((controls) => {
           if (cancelled) {
             controls.stop()
@@ -406,7 +426,7 @@ export function QuickScanPanel({
 
     return () => {
       cancelled = true
-      if (intervalId) clearInterval(intervalId)
+      if (timeoutId) clearTimeout(timeoutId)
       zxingControlsRef.current?.stop()
       zxingControlsRef.current = null
     }
@@ -497,6 +517,8 @@ export function QuickScanPanel({
           </div>
         )}
       </div>
+
+      {recordingStatus && <p className="text-[10px] text-[var(--color-text-muted)]" role="status">{recordingStatus}</p>}
 
       <div className="flex gap-2 w-full">
         <CaptureSlot

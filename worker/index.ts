@@ -673,6 +673,52 @@ profileApi.put('/macro/prompts', async (c) => {
   return c.json({ prompts, updatedAt: Date.now() })
 })
 
+// Scanner diagnostics use the existing profile-scoped image bucket.
+profileApi.put('/macro/barcode-recordings/:session/:sequence', async (c) => {
+  const bucket = c.env.SCAN_IMAGES
+  if (!bucket) return c.json({ error: 'Image storage unavailable' }, 503)
+  const session = c.req.param('session')
+  const sequence = c.req.param('sequence')
+  if (!/^[a-f0-9-]{36}$/.test(session) || !/^\d{1,8}$/.test(sequence)) {
+    return c.json({ error: 'Invalid frame identifier' }, 400)
+  }
+  if (Number(c.req.header('content-length')) > 2_100_000) {
+    return c.json({ error: 'Frame too large' }, 413)
+  }
+  const form = await c.req.formData()
+  const image = form.get('image')
+  const metadata = form.get('metadata')
+  if (!(image instanceof File) || image.type !== 'image/jpeg' || image.size > 2_000_000 ||
+      typeof metadata !== 'string' || new TextEncoder().encode(metadata).length > 1800) {
+    return c.json({ error: 'Invalid scanner frame' }, 400)
+  }
+  try { JSON.parse(metadata) } catch { return c.json({ error: 'Invalid metadata' }, 400) }
+  const key = `${c.get('profileId')}/barcode-recordings/${session}/${sequence.padStart(8, '0')}.jpg`
+  await bucket.put(key, image.stream(), {
+    httpMetadata: { contentType: 'image/jpeg' },
+    customMetadata: { scan: metadata },
+  })
+  return c.json({ key })
+})
+
+profileApi.get('/macro/barcode-recordings', async (c) => {
+  const bucket = c.env.SCAN_IMAGES
+  if (!bucket) return c.json({ error: 'Image storage unavailable' }, 503)
+  const result = await bucket.list({
+    prefix: `${c.get('profileId')}/barcode-recordings/`,
+    cursor: c.req.query('cursor') || undefined,
+    limit: 100,
+    include: ['customMetadata'],
+  })
+  return c.json({
+    frames: result.objects.map(object => ({
+      key: object.key, size: object.size, uploadedAt: object.uploaded,
+      metadata: object.customMetadata?.scan ? JSON.parse(object.customMetadata.scan) : null,
+    })),
+    cursor: result.truncated ? result.cursor : null,
+  })
+})
+
 profileApi.post('/macro/scan-images', async (c) => {
   const bucket = c.env.SCAN_IMAGES
   if (!bucket) return c.json({ error: 'SCAN_IMAGES bucket not configured' }, 500)
