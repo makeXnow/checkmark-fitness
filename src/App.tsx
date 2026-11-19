@@ -315,6 +315,25 @@ export default function App() {
     }
   }, [applyPayload])
 
+  const voiceVersions = useRef(new Map<string,number>())
+  const refreshVoiceDiary = useCallback(async (version:number,date:string) => {
+    const profile=getApiProfile()
+    const current=bootRef.current
+    const key=profile+'/'+date
+    if (!profile || !current || pendingMacroRef.current || (voiceVersions.current.get(key) ?? 0)>=version) return
+    const fresh=await fetchBootstrap(false)
+    const latest=bootRef.current
+    if (!latest || getApiProfile()!==profile || pendingMacroRef.current || latest.macro!==current.macro ||
+      Number(fresh.macro.updatedAt)<Number(latest.macro.updatedAt) || Number(fresh.macro.updatedAt)<version) return
+    confirmedMacroLogs.set(profile,{updatedAt:fresh.macro.updatedAt,logs:structuredClone(fresh.macro.logs),
+      entryRevisions:fresh.macro.entryRevisions ?? {},metadataRevision:fresh.macro.metadataRevision})
+    const next={...latest,macro:hydrateBootstrap(fresh).data.macro}
+    bootRef.current=next
+    setBoot(next)
+    voiceVersions.current.set(key,version)
+    writeBootstrapCache(profile,next)
+  },[])
+
   const load = useCallback(async () => {
     setError(null)
     const profile = getApiProfile()
@@ -387,7 +406,7 @@ export default function App() {
       } else if (recovery) {
         autoSyncAllowedRef.current=false
         setMacroRecoveryAvailable(true)
-        setMacroSaveNotice('This device has unsaved edits to review.')
+        setMacroSaveNotice('Food diary edits on this device are waiting to sync.')
       }
       const hydrated = applyPayload(fresh)
       setOutboxReady(true)
@@ -1296,6 +1315,7 @@ export default function App() {
                   logs={macroLogs}
                   customFoods={macroFoods}
                   view="tracker"
+                  onVoiceVersion={refreshVoiceDiary}
                   onSaveGoals={(g) => void saveMacroBundle({ goals: g })}
                   onSaveLogs={(l) => void saveMacroBundle({ logs: l })}
                   onSaveFoods={(foods) => void saveMacroBundle({ customFoods: foods })}

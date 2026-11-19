@@ -99,6 +99,9 @@ async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
   if (profile) headers.set('x-checkmark-profile', profile)
   init = { ...init, headers }
 
+  // A recording ID and its status belong to one backend, including in local development.
+  if (/^\/api\/u\/[^/]+\/macro\/voice\//.test(path)) return fetch(apiUrl(path), init)
+
   if (typeof window !== 'undefined' && isLocalDevHost()) {
     const remote = remoteWorkerOrigin()
 

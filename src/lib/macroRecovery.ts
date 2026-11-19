@@ -36,7 +36,10 @@ export function rebaseUnsavedMacro(server:Macro,pending:PendingMacro):Macro{
  return {...pending.macro,updatedAt:server.updatedAt,logs,entryRevisions:server.entryRevisions,entryMutations:operations}
 }
 export function recoveryHasChanges(server:Macro,recovered:Macro):boolean{
- return Boolean(recovered.entryMutations?.length) || ['goals','goalsSnapshotsByDay','goalsHistory','customFoods'].some(key=>
+ const changedFood = recovered.entryMutations?.some(({date, id}) =>
+   stableJson(server.logs[date]?.find(item => item.id === id)) !==
+   stableJson(recovered.logs[date]?.find(item => item.id === id)))
+ return Boolean(changedFood) || ['goals','goalsSnapshotsByDay','goalsHistory','customFoods'].some(key=>
    stableJson((server as any)[key] ?? null)!==stableJson((recovered as any)[key] ?? null))
 }
 export function pendingMacro(macro:Macro,confirmedLogs:Macro['logs']):PendingMacro{

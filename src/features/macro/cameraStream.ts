@@ -142,16 +142,13 @@ function videoHasUsableFrames(video: HTMLVideoElement): boolean {
  * and autoplay `play()` rejection must not leave us waiting forever.
  */
 export async function bindStreamToVideo(video: HTMLVideoElement, stream: MediaStream): Promise<void> {
-  video.srcObject = stream
   video.muted = true
   video.playsInline = true
   video.setAttribute('playsinline', '')
   video.setAttribute('webkit-playsinline', '')
 
-  if (videoHasUsableFrames(video)) {
-    await video.play().catch(() => undefined)
-    return
-  }
+  if (video.srcObject !== stream) video.srcObject = stream
+  if (!video.paused && videoHasUsableFrames(video)) return
 
   await new Promise<void>((resolve, reject) => {
     let settled = false
@@ -165,7 +162,7 @@ export async function bindStreamToVideo(video: HTMLVideoElement, stream: MediaSt
     }
 
     const tryReady = () => {
-      if (videoHasUsableFrames(video) || (!video.paused && video.videoWidth > 0)) {
+      if (!video.paused && videoHasUsableFrames(video)) {
         finish(true)
       }
     }
@@ -182,7 +179,7 @@ export async function bindStreamToVideo(video: HTMLVideoElement, stream: MediaSt
 
     const timer = setTimeout(() => {
       // Frames visible without a playing event still count as ready (common on iOS).
-      if (video.videoWidth > 0 || video.readyState >= 2) {
+      if (!video.paused && videoHasUsableFrames(video)) {
         finish(true)
         return
       }
@@ -199,9 +196,6 @@ export async function bindStreamToVideo(video: HTMLVideoElement, stream: MediaSt
       .then(() => {
         tryReady()
       })
-      .catch(() => {
-        // Autoplay blocked — still succeed if frames are already available.
-        tryReady()
-      })
+      .catch(() => finish(false, new Error('Camera playback could not start. Tap Retry.')))
   })
 }

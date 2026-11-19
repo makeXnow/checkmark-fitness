@@ -142,6 +142,7 @@ export function QuickScanPanel({
   onBarcodeDetected,
 }: QuickScanPanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const previewRef = useRef<HTMLCanvasElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const barcodeLockRef = useRef(false)
@@ -319,24 +320,31 @@ export function QuickScanPanel({
     }
   }, [cameraReady])
 
-  // Safety net: if the live preview already has frames but readiness was lost in a
-  // session race, clear the spinner instead of hanging forever.
+  // Paint the same camera frames used for capture into the visible preview.
   useEffect(() => {
-    if (cameraReady || hasPermission === false) return
-    const id = window.setInterval(() => {
-      const video = videoRef.current
-      const stream = streamRef.current ?? pendingStreamRef.current
-      if (!video || !stream) return
-      if (video.srcObject === stream && video.videoWidth > 0) {
-        streamRef.current = stream
-        cacheCameraStream(stream)
-        setCameraReady(true)
-        setHasPermission(true)
-        setErrorMsg('')
+    const video = videoRef.current
+    const preview = previewRef.current
+    const context = preview?.getContext('2d')
+    if (!cameraReady || !video || !preview || !context) return
+    let animation = 0
+    let lastTime = -1
+    const paint = () => {
+      if (video.readyState >= 2 && video.videoWidth && video.videoHeight && video.currentTime !== lastTime) {
+        const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight))
+        const width = Math.max(1, Math.round(video.videoWidth * scale))
+        const height = Math.max(1, Math.round(video.videoHeight * scale))
+        if (preview.width !== width || preview.height !== height) {
+          preview.width = width
+          preview.height = height
+        }
+        context.drawImage(video, 0, 0, width, height)
+        lastTime = video.currentTime
       }
-    }, 400)
-    return () => window.clearInterval(id)
-  }, [cameraReady, hasPermission])
+      animation = requestAnimationFrame(paint)
+    }
+    paint()
+    return () => cancelAnimationFrame(animation)
+  }, [cameraReady])
 
   useEffect(() => {
     if (typeof window.BarcodeDetector !== 'undefined') {
@@ -477,6 +485,8 @@ export function QuickScanPanel({
           muted
           className="absolute inset-0 z-0 w-full h-full object-cover"
         />
+
+        <canvas ref={previewRef} aria-hidden className="pointer-events-none absolute inset-0 z-[1] w-full h-full object-cover" />
 
         {!cameraReady && (
           <div className="absolute inset-0 z-[5] flex items-center justify-center bg-black/50 pointer-events-none">

@@ -38,3 +38,16 @@ it('retains other-device foods while applying an explicit entry edit',()=>{
  const recovered=rebaseUnsavedMacro(server,pendingMacro(local,{}))
  expect(recovered.logs.today.map(i=>i.id)).toEqual(['mine','other-device'])
 })
+
+it('only requests review while a queued edit differs from the server', () => {
+  const server = bundle({today: [{id: 'food', name: 'Beans', calories: 40}]}, 20)
+  const local = bundle(server.logs, 10)
+  local.entryMutations = [{
+    id: 'food', date: 'today', item: server.logs.today[0], baseRevision: 1,
+    mutationId: 'saved', ordinal: 0, supersedes: [],
+  }]
+  const pending = pendingMacro(local, {})
+  expect(recoveryHasChanges(server, rebaseUnsavedMacro(server, pending))).toBe(false)
+  local.entryMutations[0].item = null
+  expect(recoveryHasChanges(server, rebaseUnsavedMacro(server, pending))).toBe(true)
+})

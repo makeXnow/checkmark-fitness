@@ -1,3 +1,4 @@
+import { localDateISO } from '../../lib/localDate'
 import { getApiProfile } from '../../core/apiProfile'
 import type { MacroCustomFood, MacroDayItem, MacroGoals } from '../../types/domain'
 import { MacroPromptSettings } from './MacroPromptSettings'
@@ -7,6 +8,7 @@ import { MacroVoiceTracker } from './MacroVoiceTracker'
 
 export function MacroScreen({
   currentDate,
+  onVoiceVersion,
   goals,
   logs,
   customFoods,
@@ -15,6 +17,7 @@ export function MacroScreen({
   onSaveFoods,
   view,
 }: {
+  onVoiceVersion?: (version:number,date:string)=>Promise<void>
   currentDate: Date
   goals: MacroGoals
   logs: Record<string, MacroDayItem[]>
@@ -24,12 +27,13 @@ export function MacroScreen({
   onSaveFoods?: (foods: MacroCustomFood[]) => void
   view: 'tracker' | 'settings'
 }) {
-  const dateKey = currentDate.toISOString().split('T')[0]
+  const dateKey = localDateISO(currentDate)
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       {view === 'tracker' && onSaveLogs && onSaveFoods && (
         <MacroVoiceTracker
+          onVoiceVersion={onVoiceVersion}
           dateKey={dateKey}
           goals={goals}
           logs={logs}

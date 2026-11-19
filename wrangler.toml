@@ -1,5 +1,5 @@
 name = "mxn-checkmark-fitness"
-main = "worker/index.ts"
+main = "worker/runtime.ts"
 compatibility_date = "2025-12-01"
 compatibility_flags = ["nodejs_als"]
 
@@ -17,6 +17,14 @@ remote = true
 [[r2_buckets]]
 binding = "SCAN_IMAGES"
 bucket_name = "checkmark-fitness-scans"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[workflows]]
+name = "checkmark-voice-diary"
+binding = "VOICE_JOBS"
+class_name = "VoiceDiaryWorkflow"
 
 [assets]
 directory = "./dist"

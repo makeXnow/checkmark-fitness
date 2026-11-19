@@ -1,3 +1,6 @@
+import { normalizeLibraryFood } from './foodLibrary'
+import { applyDayMacroEditChange } from './MacroFoodCard'
+import { buildPackagingDayItem } from './packagingScan'
 import { describe, expect, it } from 'vitest'
 import type { FatSecretFoodRef, MacroDayItem } from '../../types/domain'
 import {
@@ -123,5 +126,33 @@ describe('backfillMacroItemServingFields', () => {
     )
     expect(healed.calories).toBe(resolved.calories)
     expect(healed.protein).toBe(resolved.protein)
+  })
+})
+
+describe('editing a scanned serving count', () => {
+  const description = '4 cups (100 g) salad + dressing'
+  const nutrition = {
+    baseAmount: description, calories: 170, protein: 4, fat: 14, carbs: 7,
+    servingsPerContainer: 3, caloriesPerContainer: 470, proteinPerContainer: 12,
+    fatPerContainer: null, carbsPerContainer: null, packageAmount: null,
+  }
+
+  it.each(['packaging', 'barcode'])('scales the %s serving even with a per-cup library entry', (source) => {
+    const scan = buildPackagingDayItem({
+      id: 'salad', amountText: '1 serving', front: { name: 'Salad Kit', emoji: '🥗' },
+      nutrition, addToDatabase: true,
+    })
+    const library = [normalizeLibraryFood(scan.libraryFood!)]
+    expect(library[0].calories).toBe(42.5)
+    const item: MacroDayItem = source === 'packaging' ? scan.item : {
+      ...scan.item, fromPackagingScan: undefined, packagingSnapshot: undefined, fromBarcode: true,
+      fatSecretResults: [{ foodId: 'salad', name: 'Salad Kit', servings: [
+        { servingId: '1', description, calories: 170, protein: 4, isDefault: true },
+      ] }],
+      macroEstimateSnapshot: { fatSecretIndex: 1, servingIndex: 1, multiplier: 1 },
+    }
+    const fields = { ...item, emoji: '🥗' }
+    expect(applyDayMacroEditChange(item, fields, { ...fields, servingMultiplier: 3 }, library))
+      .toMatchObject({ calories: 510, protein: 12 })
   })
 })

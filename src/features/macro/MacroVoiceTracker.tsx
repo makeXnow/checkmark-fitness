@@ -1,4 +1,5 @@
-import { readDurableAudio, saveDurableAudio, readDurableScan, saveVoiceDraft, saveScanDraft, removeMediaDraft } from '../../lib/durableMacroStore'
+import { useVoiceInbox } from './useVoiceInbox'
+import { readDurableAudio, saveDurableAudio, readDurableScan, saveScanDraft, removeMediaDraft } from '../../lib/durableMacroStore'
 import { getApiProfile } from '../../core/apiProfile'
 import { findMatchingLibraryFood, indexFoodLibrary, searchFoodLibrary } from './foodLibrary'
 import { localDateISO } from '../../lib/localDate'
@@ -266,12 +267,14 @@ const MAX_AUTO_ESTIMATE_ATTEMPTS = 2
 
 export function MacroVoiceTracker({
   dateKey,
+  onVoiceVersion,
   goals,
   logs,
   customFoods,
   onSaveLogs,
   onSaveFoods,
 }: {
+  onVoiceVersion?: (version:number,date:string)=>Promise<void>
   dateKey: string
   goals: MacroGoals
   logs: Record<string, MacroDayItem[]>
@@ -279,6 +282,7 @@ export function MacroVoiceTracker({
   onSaveLogs: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods: (foods: MacroCustomFood[]) => void
 }) {
+  const {jobs:voiceJobs, enqueue:enqueueVoice, act:voiceAction,error:voiceError}=useVoiceInbox(dateKey,onVoiceVersion)
   const items = logs[dateKey] || []
   const sortedCustomFoods = useMemo(
     () => sortCustomFoodsByUsage(customFoods, logs),
@@ -1184,17 +1188,12 @@ export function MacroVoiceTracker({
         if (audioChunksRef.current.length === 0) return
         const tempId = crypto.randomUUID()
         const mime = rec.mimeType || recorderMime || 'audio/webm'
-        const ext = mime.includes('mp4') || mime.includes('aac') ? 'm4a' : 'webm'
         const blob = new Blob(audioChunksRef.current, { type: mime })
-        void ext
-        const draft:MacroDayItem={id:tempId,status:'transcribing',audioPending:true,timestamp:Date.now(),name:'',amount:''}
         try{
           const profile=getApiProfile()
           if(!profile)throw new Error('Select a profile before recording.')
-          await saveVoiceDraft(profile,{date:dateKey,item:draft},blob)
-          replaceDay(prev=>[...prev,draft])
+          await enqueueVoice(profile,dateKey,tempId,blob)
           scrollDietListToTop()
-          await resumeVoiceEntry(tempId)
         }catch(error){setCaptureError(error instanceof Error?error.message:'Recording could not be saved. Keep the app open.') }
       }
       rec.start()
@@ -1209,9 +1208,8 @@ export function MacroVoiceTracker({
     clearRecordingLimitTimer,
     recording,
     releaseMicHardware,
-    replaceDay,
+    enqueueVoice,
     scrollDietListToTop,
-    resumeVoiceEntry,
     stopRecording,
   ])
 
@@ -1653,7 +1651,20 @@ export function MacroVoiceTracker({
       />
 
       <section className="space-y-3">
-        {items.length === 0 ? (
+        {voiceError && <p role="alert">{voiceError}</p>}
+        {voiceJobs.map(job=><div key={job.id} className="rounded-xl bg-white/5 px-4 py-3 text-sm">
+          <p role="status">{({
+            uploading:'Recording saved on this device. Waiting to upload…',
+            uploadFailed:'Upload failed. Your recording is saved on this device.',
+            queued:'Recording received. Waiting to process…', transcribing:'Transcribing recording…',
+            splitting:'Finding foods in your recording…', estimating:'Calculating nutrition…',
+            failed:'Processing failed. Your recording is saved on the server.',
+          } as Record<string,string>)[job.phase]}</p>
+          {job.names || job.transcript ? <p className="text-white/65">{job.names || job.transcript}</p> : null}
+          {(job.phase==='failed'||job.phase==='uploadFailed') && <button className="mr-4 py-1" onClick={()=>void voiceAction(job,'retry')}>Retry</button>}
+          {job.phase!=='uploading' && job.phase!=='uploadFailed' && <button className="py-1" onClick={()=>void voiceAction(job,'cancel')}>{job.phase==='failed' ? 'Dismiss' : 'Cancel processing'}</button>}
+        </div>)}
+        {items.length === 0 && !voiceJobs.length ? (
           <div className="bg-white/5 rounded-[var(--radius-card)] border border-white/5 p-8 text-center">
             <p className="opacity-30 font-bold text-[10px] uppercase tracking-widest text-white">No entries yet</p>
           </div>

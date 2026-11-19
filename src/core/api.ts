@@ -69,13 +69,13 @@ export const confirmedMacroLogs = new Map<string, { updatedAt: number; logs: Rec
 
 export const MACRO_SAVE_TIMEOUT_MS = 30_000
 
-export async function fetchBootstrap(): Promise<BootstrapResponse> {
+export async function fetchBootstrap(remember = true): Promise<BootstrapResponse> {
   return withRequestTimeout(async (signal) => {
     const profile = getApiProfile() ?? ''
     const res = await apiFetch('/api/bootstrap', { cache: 'no-store', signal })
     const data = await parseJson<BootstrapResponse>(res)
     if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError')
-    confirmedMacroLogs.set(profile, { updatedAt: data.macro.updatedAt, logs: structuredClone(data.macro.logs), entryRevisions: data.macro.entryRevisions ?? {},metadataRevision:data.macro.metadataRevision })
+    if (remember) confirmedMacroLogs.set(profile, { updatedAt: data.macro.updatedAt, logs: structuredClone(data.macro.logs), entryRevisions: data.macro.entryRevisions ?? {},metadataRevision:data.macro.metadataRevision })
     return data
   }, MACRO_SAVE_TIMEOUT_MS, 'Connecting to your diary timed out.')
 }

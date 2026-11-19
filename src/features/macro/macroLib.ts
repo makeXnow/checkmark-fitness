@@ -811,6 +811,12 @@ export function resolveCanonicalBaseMacros(
   }
   const serving = fatSecretServingFromItem(item)
 
+  // Barcode quantities count the selected product serving. A linked library food
+  // can express the same nutrition per cup, gram, or other single unit.
+  if (item.fromBarcode && serving) {
+    return { baseCalories: serving.calories, baseProtein: serving.protein }
+  }
+
   // V8+ rows: reuse the stored relationship (incl. unit bridge) for ONE user unit; generic
   // unit conversion below cannot see the bridge and mis-scales package/can/container units.
   const bridged = baseFromStoredRelationship(item)
@@ -844,7 +850,7 @@ export function resolveCanonicalBaseMacros(
     }
   }
 
-  // Barcode / matching serving-count model: base is one DB serving.
+  // Matching serving-count model: base is one DB serving.
   if (serving && dbServingMatchesItemDisplay(item, serving.description)) {
     return { baseCalories: serving.calories, baseProtein: serving.protein }
   }

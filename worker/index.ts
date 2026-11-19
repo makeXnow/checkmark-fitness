@@ -1,3 +1,4 @@
+import { registerVoiceRoutes, type VoiceRequest } from './voiceJobs'
 import { applyEstimateResult } from '../src/features/macro/applyEstimateResult'
 import { parsedItemsToDayItems, type ParsedFoodItem } from '../src/features/macro/macroLib'
 import { ensureInputEntry, entryVersions, mutateEntry, readEntry } from './macroEntries'
@@ -53,6 +54,7 @@ import {
 } from './habitShortcuts'
 
 export interface Env {
+  VOICE_JOBS?: Workflow<VoiceRequest>
   DB: D1Database
   ASSETS: Fetcher
   SCAN_IMAGES?: R2Bucket
@@ -442,6 +444,20 @@ profileApi.put('/habits', async (c) => {
   return c.json({ ok: true })
 })
 
+export async function parseFoodDescription(env:Env,profile:string,id:string,rawText:string,timestamp:number,userEditedText=false) {
+    const db=env.DB
+    if (!env.OPENAI_API_KEY) throw new Error('Food processing is temporarily unavailable.')
+    const prompts=await getMacroPrompts(db)
+    const system=resolveMacroPromptSystem(prompts,'PARSER',undefined)
+    const known=await vocabularyList(db,profile)
+    const user=`Input: ${rewriteSpokenFoodLog(rawText)}${known.length ? `\n\nKNOWN FOODS FOR THIS USER (spelling reference only — never add items from this list): ${known.join('; ')}` : ''}`
+    const raw=await callOpenAiJsonWithRetry(env.OPENAI_API_KEY,system ?? '',user,{model:OPENAI_MODELS.chatFast,schema:schemaForPromptKey('PARSER')!,validate:validateParserResponse,validationHint:r=>parserValidationErrors(r).join('; ')}) as {items:ParsedFoodItem[]}
+    if(!raw.items?.length) throw new Error('No food recognized. Your description is saved; edit it and retry.')
+    return parsedItemsToDayItems(raw.items,{userInput:rawText}).map((item,i)=>({...item,id:`${id}-${i}`,timestamp,...(userEditedText?{userEditedName:true}:{})}))
+}
+
+registerVoiceRoutes(profileApi, ensureDevice)
+
 profileApi.post('/macro/parse', async (c) => {
   const profile=c.get('profileId'), db=c.env.DB
   await ensureDevice(db,profile)
@@ -467,13 +483,7 @@ profileApi.post('/macro/parse', async (c) => {
   ])
   try {
     if(!c.env.OPENAI_API_KEY) throw new Error('Food processing is temporarily unavailable. Your description has been saved.')
-    const prompts=await getMacroPrompts(db)
-    const system=resolveMacroPromptSystem(prompts,'PARSER',undefined)
-    const known=await vocabularyList(db,profile)
-    const user=`Input: ${rewriteSpokenFoodLog(body.rawText)}${known.length ? `\n\nKNOWN FOODS FOR THIS USER (spelling reference only — never add items from this list): ${known.join('; ')}` : ''}`
-    const raw=await callOpenAiJsonWithRetry(c.env.OPENAI_API_KEY,system ?? '',user,{model:OPENAI_MODELS.chatFast,schema:schemaForPromptKey('PARSER')!,validate:validateParserResponse,validationHint:r=>parserValidationErrors(r).join('; ')}) as {items:ParsedFoodItem[]}
-    if(!raw.items?.length) throw new Error('No food recognized. Your description is saved; edit it and retry.')
-    const items=parsedItemsToDayItems(raw.items,{userInput:body.rawText}).map((item,i)=>({...item,id:`${body.item.id}-${i}`,timestamp:body.item.timestamp ?? now,...(body.userEditedText?{userEditedName:true}:{})}))
+    const items=await parseFoodDescription(c.env,profile,body.item.id,body.rawText,body.item.timestamp ?? now,body.userEditedText)
     const guard='EXISTS(SELECT 1 FROM macro_entries WHERE device_id=? AND date_key=? AND entry_id=? AND revision=? AND processing_token=? AND deleted_at IS NULL)'
     const guardArgs=[profile,body.date,body.item.id,input.revision,token]
     const writes=items.map((item,i)=>db.prepare(`INSERT OR IGNORE INTO macro_entries(device_id,date_key,entry_id,ordinal,payload_json,revision,updated_at)
@@ -1021,6 +1031,18 @@ api.post('/api/ai/transcribe', async (c) => {
   }
   return c.json({ text: data.text || '' })
 })
+
+export async function transcribeStoredVoice(env: Env, profile: string, recording: R2ObjectBody) {
+  const mime = recording.httpMetadata?.contentType || 'audio/webm'
+  const form = new FormData()
+  form.set('file', new Blob([await recording.arrayBuffer()], {type: mime}),
+    mime.includes('mp4') || mime.includes('aac') ? 'recording.m4a' : 'recording.webm')
+  const response = await api.request('/api/ai/transcribe?profile=' + encodeURIComponent(profile), {method:'POST', body:form}, env)
+  if (!response.ok) throw new Error('Transcription failed.')
+  const {text} = await response.json() as {text:string}
+  if (!text?.trim()) throw new Error('No speech was detected.')
+  return text.trim()
+}
 
 /** OpenAI: multimodal JSON extraction (vision + instructions) */
 api.post('/api/ai/json', async (c) => {
