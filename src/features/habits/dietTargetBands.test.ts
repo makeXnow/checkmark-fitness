@@ -103,3 +103,8 @@ describe('diet target bands', () => {
     ).toBeNull()
   })
 })
+
+it('does not bring an unanswered Wednesday prompt back on Friday', () => {
+  expect(findDietTargetBandPrompt({}, { '2026-11-18': [meal(2000,150)] },
+    () => dietOn, () => targets, '2026-11-20')).toBeNull()
+})

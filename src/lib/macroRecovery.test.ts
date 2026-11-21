@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pendingMacro, rebaseUnsavedMacro, recoveryHasChanges } from './macroRecovery'
+import { canResumeRecovery, pendingMacro, rebaseUnsavedMacro, recoveryHasChanges } from './macroRecovery'
 import type { BootstrapResponse } from '../types/domain'
 const bundle = (logs: unknown, updatedAt: number) => ({ logs, updatedAt, goals: {}, customFoods: [] }) as BootstrapResponse['macro']
 describe('unsaved food recovery', () => {
@@ -50,4 +50,15 @@ it('only requests review while a queued edit differs from the server', () => {
   expect(recoveryHasChanges(server, rebaseUnsavedMacro(server, pending))).toBe(false)
   local.entryMutations[0].item = null
   expect(recoveryHasChanges(server, rebaseUnsavedMacro(server, pending))).toBe(true)
+})
+
+it('quietly resumes edits across unrelated revisions and holds actual conflicts for review', () => {
+  const server=bundle({today:[]},20)
+  const local=bundle({today:[]},10)
+  local.entryMutations=[{id:'new',date:'today',baseRevision:0,mutationId:'m1',item:{id:'new',name:'Beans',amount:'1 cup'},ordinal:0,supersedes:[]}]
+  const pending=pendingMacro(local,{})
+  expect(canResumeRecovery(server,pending)).toBe(true)
+  expect(canResumeRecovery(server,{...pending,requiresReview:true})).toBe(false)
+  server.entryRevisions={today:{new:2}}
+  expect(canResumeRecovery(server,pending)).toBe(false)
 })

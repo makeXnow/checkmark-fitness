@@ -187,4 +187,23 @@ describe('individual entry reliability',()=>{
    expect(await db.prepare('SELECT phase FROM voice_jobs WHERE id=?').bind(id).first('phase')).toBe('cancelled')
  })
 
+ it('hands pending cards to the diary editor individually and preserves transcript editing',async()=>{
+   const profile='voice-cards',date='2026-11-20'
+   await seed(profile)
+   const id=crypto.randomUUID(), foods=[item(id+'-0'),item(id+'-1')]
+   await db.prepare("INSERT INTO voice_jobs(profile,id,date,recorded_at,phase,transcript,foods) VALUES(?,?,?,1,'estimating','beans and rice',?)")
+     .bind(profile,id,date,JSON.stringify(foods)).run()
+   const card=(job:string,cardId:string,action:string)=>mf.dispatchFetch(`https://example.test/api/u/${profile}/macro/voice/${job}/card`,
+     {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,cardId})})
+   expect((await card(id,foods[0].id,'edit')).status).toBe(200)
+   expect((await card(id,foods[1].id,'delete')).status).toBe(200)
+   expect((await readMacroLogs(db,profile))[date]).toMatchObject([{id:foods[0].id,status:'error'}])
+   const rawId=crypto.randomUUID()
+   await db.prepare("INSERT INTO voice_jobs(profile,id,date,recorded_at,phase,transcript) VALUES(?,?,?,1,'splitting','beans')")
+     .bind(profile,rawId,date).run()
+   expect((await card(rawId,rawId,'edit')).status).toBe(200)
+   expect((await readMacroLogs(db,profile))[date]).toContainEqual(expect.objectContaining({status:'editing_raw',rawText:'beans'}))
+   expect(await db.prepare('SELECT phase FROM voice_jobs WHERE id=?').bind(rawId).first('phase')).toBe('cancelled')
+ })
+
 })

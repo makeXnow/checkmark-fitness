@@ -1,6 +1,6 @@
 import { entryChanges } from './lib/macroEntryChanges'
 import { acknowledgeDurablePending, LocalFoodStorageError, readDurableBootstrap, readDurablePending, readMediaDrafts, saveDurablePending, writeDurableBootstrap } from './lib/durableMacroStore'
-import { pendingMacro, rebaseUnsavedMacro, recoveryHasChanges } from './lib/macroRecovery'
+import { canResumeRecovery, pendingMacro, rebaseUnsavedMacro, recoveryHasChanges } from './lib/macroRecovery'
 import { reconcileFoodLibrary } from './features/macro/foodLibrary'
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -196,7 +196,7 @@ export default function App() {
     if (profile && localPending) writePendingMacroCache(profile, localPending)
     setMacroSaveCritical(cause instanceof LocalFoodStorageError)
     setMacroSaveNotice(cause instanceof LocalFoodStorageError ? cause.message : cause instanceof ApiError && cause.status === 409
-      ? 'Your diary changed on another device. Review your unsaved edits before retrying.'
+      ? 'The saved diary has changed. Review your local edits before retrying.'
       : cause instanceof Error && /timed out/i.test(cause.message)
         ? 'Couldn’t sync yet. Your food is saved on this device.'
         : 'Couldn’t sync your food. It’s saved on this device.')
@@ -320,11 +320,29 @@ export default function App() {
     const profile=getApiProfile()
     const current=bootRef.current
     const key=profile+'/'+date
-    if (!profile || !current || pendingMacroRef.current || (voiceVersions.current.get(key) ?? 0)>=version) return
+    if (!profile || !current || (voiceVersions.current.get(key) ?? 0)>=version) return
     const fresh=await fetchBootstrap(false)
     const latest=bootRef.current
-    if (!latest || getApiProfile()!==profile || pendingMacroRef.current || latest.macro!==current.macro ||
+    if (!latest || getApiProfile()!==profile || latest.macro!==current.macro ||
       Number(fresh.macro.updatedAt)<Number(latest.macro.updatedAt) || Number(fresh.macro.updatedAt)<version) return
+    const pending=pendingMacroRef.current
+    // While a save is waiting, merge newly published cards into the display only.
+    // Keep any local edit or deletion of the same food and its original revision.
+    if (pending) {
+      const edits=new Set((pending.entryMutations ?? []).filter(op=>op.date===date).map(op=>op.id))
+      const local=latest.macro.logs[date] ?? []
+      const known=confirmedMacroLogs.get(profile)?.logs[date] ?? []
+      const additions=(fresh.macro.logs[date] ?? []).filter(item=>!edits.has(item.id) &&
+        !local.some(existing=>existing.id===item.id) && (pending.entryMutations!==undefined || !known.some(existing=>existing.id===item.id)))
+      if(additions.length) {
+        const macro={...latest.macro,logs:{...latest.macro.logs,[date]:[...local,...additions]}}
+        const next={...latest,macro}
+        bootRef.current=next
+        setBoot(next)
+      }
+      voiceVersions.current.set(key,version)
+      return
+    }
     confirmedMacroLogs.set(profile,{updatedAt:fresh.macro.updatedAt,logs:structuredClone(fresh.macro.logs),
       entryRevisions:fresh.macro.entryRevisions ?? {},metadataRevision:fresh.macro.metadataRevision})
     const next={...latest,macro:hydrateBootstrap(fresh).data.macro}
@@ -395,18 +413,20 @@ export default function App() {
       const legacyRecovery = !recovery && profile ? readLegacyFoodRecovery(profile, fresh.macro, todayIso) : null
       if (legacyRecovery && profile) {
         // Older copies may include an intentional deletion. Let the user review first.
-        writePendingMacroCache(profile, legacyRecovery)
+        writePendingMacroCache(profile, { ...legacyRecovery, requiresReview:true })
         autoSyncAllowedRef.current=false
         setMacroRecoveryAvailable(true)
         setMacroSaveNotice('This device has additional food entries available to review.')
       }
-      if (recovery && recovery.macro.updatedAt === fresh.macro.updatedAt) {
+      if (recovery && canResumeRecovery(fresh.macro,recovery)) {
+        autoSyncAllowedRef.current=true
+        setMacroRecoveryAvailable(false)
         pendingMacroRef.current = rebaseUnsavedMacro(fresh.macro, recovery)
         setMacroSaveNotice(null)
       } else if (recovery) {
         autoSyncAllowedRef.current=false
         setMacroRecoveryAvailable(true)
-        setMacroSaveNotice('Food diary edits on this device are waiting to sync.')
+        setMacroSaveNotice('This device has diary edits to review.')
       }
       const hydrated = applyPayload(fresh)
       setOutboxReady(true)
@@ -875,7 +895,14 @@ export default function App() {
       const fresh=await fetchBootstrap()
       const current=bootRef.current
       if(!current) return
-      const rebased=rebaseUnsavedMacro(fresh.macro,pendingMacro(current.macro,before))
+      const recovery=pendingMacro(current.macro,before)
+      if (!manual && !canResumeRecovery(fresh.macro,recovery)) {
+        autoSyncAllowedRef.current=false
+        setMacroRecoveryAvailable(true)
+        setMacroSaveNotice('This device has diary edits to review.')
+        return
+      }
+      const rebased=rebaseUnsavedMacro(fresh.macro,recovery)
       pendingMacroRef.current=rebased
       bootRef.current={...current,macro:rebased}
       setBoot(bootRef.current)
@@ -1226,7 +1253,7 @@ export default function App() {
         id="app-main"
         className="mx-auto flex min-h-0 w-full max-w-[var(--app-max-width)] flex-1 flex-col overflow-hidden pt-[var(--app-main-pad-top)]"
       >
-        {macroSaveNotice && (
+        {macroSaveNotice && (macroSaveCritical || (settingsOpen && settingsSection === 'macro')) && (
           <div role="alert" className={`mx-4 mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-xs ${macroSaveCritical ? 'bg-red-500/10 text-red-200' : 'bg-white/5 text-white/60'}`}>
             <p className="min-w-0 flex-1">{macroSaveNotice}</p>
             {macroRecoveryAvailable ? (

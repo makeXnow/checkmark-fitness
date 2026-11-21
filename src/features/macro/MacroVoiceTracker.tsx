@@ -1,4 +1,4 @@
-import { useVoiceInbox } from './useVoiceInbox'
+import { useVoiceInbox, type VoiceJob } from './useVoiceInbox'
 import { readDurableAudio, saveDurableAudio, readDurableScan, saveScanDraft, removeMediaDraft } from '../../lib/durableMacroStore'
 import { getApiProfile } from '../../core/apiProfile'
 import { findMatchingLibraryFood, indexFoodLibrary, searchFoodLibrary } from './foodLibrary'
@@ -265,6 +265,18 @@ function StatusDashboard({
 
 const MAX_AUTO_ESTIMATE_ATTEMPTS = 2
 
+// These are display rows. Server progress must never enter the local diary save queue.
+export function voiceJobCards(job:VoiceJob):MacroDayItem[] {
+  const base={id:job.id,name:'',amount:'',timestamp:job.timestamp}
+  if(job.phase==='estimating') return (job.foods ?? []).map(food=>({...food,status:'pending'}))
+  if(job.phase==='splitting') return [{...base,status:'processing_cancellable',rawText:job.transcript}]
+  if(job.phase==='failed' || job.phase==='uploadFailed'){
+    return [{...base,name:'Voice recording',status:'error',estimateError:job.phase==='uploadFailed'
+      ? 'Upload failed. Your recording is saved on this device.' : job.error || 'Processing failed. Your recording is saved.'}]
+  }
+  return [{...base,status:'transcribing'}]
+}
+
 export function MacroVoiceTracker({
   dateKey,
   onVoiceVersion,
@@ -282,8 +294,15 @@ export function MacroVoiceTracker({
   onSaveLogs: (logs: Record<string, MacroDayItem[]>) => void
   onSaveFoods: (foods: MacroCustomFood[]) => void
 }) {
-  const {jobs:voiceJobs, enqueue:enqueueVoice, act:voiceAction,error:voiceError}=useVoiceInbox(dateKey,onVoiceVersion)
+  const {jobs:voiceJobs, enqueue:enqueueVoice, takeCard, act:voiceAction,error:voiceError}=useVoiceInbox(dateKey,onVoiceVersion)
   const items = logs[dateKey] || []
+  const voiceByCard = new Map<string,VoiceJob>()
+  const pendingCards = voiceJobs.flatMap(job => {
+    const cards = voiceJobCards(job).filter(card=>!items.some(saved=>saved.id===card.id))
+    for(const card of cards) voiceByCard.set(card.id,job)
+    return cards
+  })
+  const diaryCards = [...items,...pendingCards].reverse()
   const sortedCustomFoods = useMemo(
     () => sortCustomFoodsByUsage(customFoods, logs),
     [customFoods, logs],
@@ -351,7 +370,7 @@ export function MacroVoiceTracker({
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editingLibraryFoodId, setEditingLibraryFoodId] = useState<string | null>(null)
   const [selectedFoodKeys, setSelectedFoodKeys] = useState<Set<string>>(() => new Set())
-  const selectedItems = items.filter((item) => selectedFoodKeys.has(`day:${item.id}`))
+  const selectedItems = diaryCards.filter((item) => selectedFoodKeys.has(`day:${item.id}`))
   const selectedLibraryFoods = customFoods.filter((food) => selectedFoodKeys.has(`library:${food.id}`))
   const selectedCount = selectedItems.length + selectedLibraryFoods.length
   const selectionMode = selectedCount > 0
@@ -378,11 +397,11 @@ export function MacroVoiceTracker({
   useEffect(() => {
     setSelectedFoodKeys((prev) => {
       const next = new Set([...prev].filter((key) => key.startsWith('day:')
-        ? (logs[dateKey] ?? []).some((item) => key === `day:${item.id}`)
+        ? diaryCards.some((item) => key === `day:${item.id}`)
         : customFoods.some((food) => key === `library:${food.id}`)))
       return next.size === prev.size ? prev : next
     })
-  }, [logs, dateKey, customFoods])
+  }, [diaryCards, customFoods])
 
   useEffect(() => {
     if (!selectionMode) return
@@ -1620,14 +1639,20 @@ export function MacroVoiceTracker({
     deselectFoods()
   }
 
+  const removeVoiceCard = (job:VoiceJob,item:MacroDayItem) => {
+    return item.status==='pending' ? takeCard(job,item.id,'delete') : voiceAction(job,'cancel')
+  }
+
   const deleteSelectedFoods = () => {
     for (const item of selectedItems) {
+      const job=voiceByCard.get(item.id)
+      if(job){void removeVoiceCard(job,item);continue}
       estimateControllersRef.current.get(item.id)?.abort()
       processingRefs.current[item.id]?.abort()
       scanPreviewsRef.current.delete(item.id)
       if (item.status === 'transcribing') abortRef.current?.abort()
     }
-    if (selectedItems.length) {
+    if (selectedItems.some(item=>!voiceByCard.has(item.id))) {
       replaceDay((prev) => prev.filter((item) => !selectedFoodKeys.has(`day:${item.id}`)))
     }
     if (selectedLibraryFoods.length) {
@@ -1652,39 +1677,24 @@ export function MacroVoiceTracker({
 
       <section className="space-y-3">
         {voiceError && <p role="alert">{voiceError}</p>}
-        {voiceJobs.map(job=><div key={job.id} className="rounded-xl bg-white/5 px-4 py-3 text-sm">
-          <p role="status">{({
-            uploading:'Recording saved on this device. Waiting to upload…',
-            uploadFailed:'Upload failed. Your recording is saved on this device.',
-            queued:'Recording received. Waiting to process…', transcribing:'Transcribing recording…',
-            splitting:'Finding foods in your recording…', estimating:'Calculating nutrition…',
-            failed:'Processing failed. Your recording is saved on the server.',
-          } as Record<string,string>)[job.phase]}</p>
-          {job.names || job.transcript ? <p className="text-white/65">{job.names || job.transcript}</p> : null}
-          {(job.phase==='failed'||job.phase==='uploadFailed') && <button className="mr-4 py-1" onClick={()=>void voiceAction(job,'retry')}>Retry</button>}
-          {job.phase!=='uploading' && job.phase!=='uploadFailed' && <button className="py-1" onClick={()=>void voiceAction(job,'cancel')}>{job.phase==='failed' ? 'Dismiss' : 'Cancel processing'}</button>}
-        </div>)}
-        {items.length === 0 && !voiceJobs.length ? (
+        {diaryCards.length === 0 ? (
           <div className="bg-white/5 rounded-[var(--radius-card)] border border-white/5 p-8 text-center">
             <p className="opacity-30 font-bold text-[10px] uppercase tracking-widest text-white">No entries yet</p>
           </div>
         ) : (
-          [...items].reverse().map((item) => (
-            <SelectableFoodCard
-              key={item.id}
-              name={macroItemDisplayName(item, customFoods) || 'Food entry'}
-              selected={selectedFoodKeys.has(`day:${item.id}`)}
-              selectionMode={selectionMode}
-              editing={editingItemId === item.id && !selectionMode}
-              onSelect={() => toggleFoodSelection(`day:${item.id}`)}
-              onStartSelection={() => startFoodSelection(`day:${item.id}`)}
-            >
+          diaryCards.map((item) => {
+            const job=voiceByCard.get(item.id)
+            const row=(
               <FoodRow
                 item={item}
                 customFoods={customFoods}
                 scrollContainerRef={scrollContainerRef}
                 isEditing={editingItemId === item.id && !selectionMode}
                 onStartEdit={() => {
+                  if(job){
+                    void takeCard(job,item.id,'edit').then(id=>{if(id)setEditingItemId(id)})
+                    return
+                  }
                   setEditingLibraryFoodId(null)
                   estimateControllersRef.current.get(item.id)?.abort()
                   if (item.status === 'pending') {
@@ -1694,9 +1704,13 @@ export function MacroVoiceTracker({
                   setEditingItemId(item.id)
                 }}
                 onEndEdit={() => setEditingItemId(null)}
-                onRemove={() => removeItem(item.id)}
+                onRemove={() => {
+                  if(!job)removeItem(item.id)
+                  else void removeVoiceCard(job,item)
+                }}
                 onUpdate={(fields) => updateItem(item.id, fields)}
                 onReestimate={() => {
+                  if(job){void voiceAction(job,'retry');return}
                   if(item.audioPending) void resumeVoiceEntry(item.id)
                   else if(item.barcodeValue && !item.name?.trim()) handleBarcodeDetected(item.barcodeValue,item.id)
                   else if(item.scanImages && !(item.packagingSnapshot?.calories)) void retrySavedPackaging(item)
@@ -1710,6 +1724,7 @@ export function MacroVoiceTracker({
                 databasePickLoading={databasePickLoadingIds.has(item.id)}
                 scanPreviews={scanPreviewsRef.current.get(item.id)}
                 onCancelProcessing={() => {
+                  if(job){void takeCard(job,item.id,'edit');return}
                   scanPreviewsRef.current.delete(item.id)
                   cancelProcessing(item.id)
                 }}
@@ -1726,12 +1741,24 @@ export function MacroVoiceTracker({
                   void startParsingFlow(item.id, raw, { userEditedText: edited })
                 }}
                 onCancelTranscription={() => {
+                  if(job){void voiceAction(job,'cancel');return}
                   abortRef.current?.abort()
                   removeItem(item.id)
                 }}
               />
-            </SelectableFoodCard>
-            ))
+            )
+            return (<SelectableFoodCard
+              key={item.id}
+              name={macroItemDisplayName(item, customFoods) || 'Food entry'}
+              selected={selectedFoodKeys.has(`day:${item.id}`)}
+              selectionMode={selectionMode}
+              editing={editingItemId === item.id && !selectionMode}
+              onSelect={() => toggleFoodSelection(`day:${item.id}`)}
+              onStartSelection={() => startFoodSelection(`day:${item.id}`)}
+            >
+              {row}
+            </SelectableFoodCard>)
+          })
         )}
       </section>
 

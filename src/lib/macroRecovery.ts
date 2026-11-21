@@ -2,7 +2,7 @@ import type {BootstrapResponse,MacroDayItem} from '../types/domain'
 import {entryChanges,stableJson} from './macroEntryChanges'
 import {macroLogPatch} from './macroLogPatch'
 type Macro=BootstrapResponse['macro']
-export type PendingMacro={macro:Macro;changedDays:string[]}
+export type PendingMacro={macro:Macro;changedDays:string[];requiresReview?:boolean}
 /** Older phone backups omit lookup traces. Merge them into the full server entry. */
 function recoverCachedEntry(server:MacroDayItem|undefined,cached:MacroDayItem):MacroDayItem{
  if(!server)return cached
@@ -35,12 +35,25 @@ export function rebaseUnsavedMacro(server:Macro,pending:PendingMacro):Macro{
  }
  return {...pending.macro,updatedAt:server.updatedAt,logs,entryRevisions:server.entryRevisions,entryMutations:operations}
 }
+function metadataDiffers(server:Macro,recovered:Macro):boolean {
+ const keys = ['goals','goalsSnapshotsByDay','goalsHistory','customFoods'] as const
+ return keys.some(key=>stableJson(server[key] ?? null)!==stableJson(recovered[key] ?? null))
+}
+
+/** An unrelated diary update does not invalidate a queued edit to an unchanged food. */
+export function canResumeRecovery(server:Macro,pending:PendingMacro):boolean {
+ if(pending.requiresReview) return false
+ if(server.updatedAt===pending.macro.updatedAt) return true
+ const ops=pending.macro.entryMutations
+ return !!ops && !metadataDiffers(server,pending.macro) &&
+   ops.every(op=>(server.entryRevisions?.[op.date]?.[op.id] ?? 0)===op.baseRevision)
+}
+
 export function recoveryHasChanges(server:Macro,recovered:Macro):boolean{
  const changedFood = recovered.entryMutations?.some(({date, id}) =>
    stableJson(server.logs[date]?.find(item => item.id === id)) !==
    stableJson(recovered.logs[date]?.find(item => item.id === id)))
- return Boolean(changedFood) || ['goals','goalsSnapshotsByDay','goalsHistory','customFoods'].some(key=>
-   stableJson((server as any)[key] ?? null)!==stableJson((recovered as any)[key] ?? null))
+ return Boolean(changedFood) || metadataDiffers(server,recovered)
 }
 export function pendingMacro(macro:Macro,confirmedLogs:Macro['logs']):PendingMacro{
  return {macro,changedDays:Object.keys(macroLogPatch(confirmedLogs,macro.logs))}

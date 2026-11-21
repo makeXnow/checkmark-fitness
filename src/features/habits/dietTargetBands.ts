@@ -85,7 +85,7 @@ function addDaysISO(iso: string, delta: number): string {
 }
 
 /**
- * Most recent past day that hit target bands and has not been prompted yet.
+ * Offer yesterday's qualifying result on the following day only.
  * Skips days already marked diet or already answered (yes/no).
  */
 export function findDietTargetBandPrompt(
@@ -94,32 +94,28 @@ export function findDietTargetBandPrompt(
   dietForDate: (date: string) => HabitGoalConfig,
   resolveTargets: (date: string) => MacroDayGoalsSnapshot,
   todayISO: string,
-  lookbackDays = 30,
 ): DietTargetBandPrompt | null {
-  for (let i = 1; i <= lookbackDays; i++) {
-    const date = addDaysISO(todayISO, -i)
-    const diet = dietForDate(date)
-    if (!diet.autoFromMacros) continue
+  const date = addDaysISO(todayISO, -1)
+  const diet = dietForDate(date)
+  if (!diet.autoFromMacros) return null
 
-    const dayLog = habitsLogs[date]
-    if (dayLog?.diet) continue
-    if (dayLog?.dietPromptResolved) continue
+  const dayLog = habitsLogs[date]
+  if (dayLog?.diet) return null
+  if (dayLog?.dietPromptResolved) return null
 
-    const items = macroLogs[date]
-    if (!items?.length) continue
+  const items = macroLogs[date]
+  if (!items?.length) return null
 
-    const totals = sumMacroDayTotals(items)
-    const targets = resolveTargets(date)
-    if (!isDietMetByTargetBands(totals, targets, diet)) continue
+  const totals = sumMacroDayTotals(items)
+  const targets = resolveTargets(date)
+  if (!isDietMetByTargetBands(totals, targets, diet)) return null
 
-    const proteinGoal = proteinGoalGrams(targets)
-    const proteinPctOfGoal = proteinGoal > 0 ? Math.round((totals.pro / proteinGoal) * 100) : 0
+  const proteinGoal = proteinGoalGrams(targets)
+  const proteinPctOfGoal = proteinGoal > 0 ? Math.round((totals.pro / proteinGoal) * 100) : 0
 
-    return {
-      localDate: date,
-      calories: Math.round(totals.cal),
-      proteinPctOfGoal,
-    }
+  return {
+    localDate: date,
+    calories: Math.round(totals.cal),
+    proteinPctOfGoal,
   }
-  return null
 }
